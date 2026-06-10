@@ -5,6 +5,7 @@ import { PageMotion } from "@/components/motion/page-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -515,7 +516,7 @@ export function SalesReferralList() {
   const [configCloseBps, setConfigCloseBps] = useState("");
   const [configRecurringBps, setConfigRecurringBps] = useState("");
   const [payoutAccountID, setPayoutAccountID] = useState("");
-  const [payoutCommissionIDs, setPayoutCommissionIDs] = useState("");
+  const [payoutCommissionIDs, setPayoutCommissionIDs] = useState<string[]>([]);
   const [payoutReference, setPayoutReference] = useState("");
   const [voidTarget, setVoidTarget] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState("Manual admin void");
@@ -545,6 +546,10 @@ export function SalesReferralList() {
   );
   const commissionRows = useMemo(() => commissions.data?.data ?? [], [commissions.data?.data]);
   const approvedCommissionRows = useMemo(() => commissionRows.filter((row) => row.status === "approved"), [commissionRows]);
+  const approvedCommissionRowsByAccount = useMemo(
+    () => approvedCommissionRows.filter((row) => !payoutAccountID || row.sales_referral_account_id === payoutAccountID),
+    [approvedCommissionRows, payoutAccountID],
+  );
   const currentFilter = activeTab === "codes" ? codeFilter : accountFilter;
   const setCurrentFilter = (value: ReferralFilter) => {
     if (activeTab === "codes") setCodeFilter(value);
@@ -773,19 +778,36 @@ export function SalesReferralList() {
               event.preventDefault();
               mutations.createPayout.mutate({
                 sales_referral_account_id: payoutAccountID,
-                commission_ids: payoutCommissionIDs.split(",").map((id) => id.trim()).filter(Boolean),
+                commission_ids: payoutCommissionIDs,
                 paid_at: new Date().toISOString(),
                 payment_reference: payoutReference || null,
-              }, { onSuccess: () => { setPayoutAccountID(""); setPayoutCommissionIDs(""); setPayoutReference(""); } });
+              }, { onSuccess: () => { setPayoutAccountID(""); setPayoutCommissionIDs([]); setPayoutReference(""); } });
             }}>
-              <Select value={payoutAccountID} onValueChange={setPayoutAccountID}>
+              <Select value={payoutAccountID} onValueChange={(value) => { setPayoutAccountID(value); setPayoutCommissionIDs([]); }}>
                 <SelectTrigger><SelectValue placeholder="Sales account" /></SelectTrigger>
                 <SelectContent>{accountRows.map((account) => <SelectItem key={account.id} value={account.id}>{account.name || account.email}</SelectItem>)}</SelectContent>
               </Select>
-              <Input placeholder="Approved commission IDs, comma separated" value={payoutCommissionIDs} onChange={(event) => setPayoutCommissionIDs(event.target.value)} />
+              <div className="md:col-span-2 space-y-2 rounded-md border p-3">
+                <div className="text-sm font-medium">Approved commissions</div>
+                <div className="max-h-48 space-y-2 overflow-auto pr-1">
+                  {approvedCommissionRowsByAccount.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No approved commissions for selected account.</p>
+                  ) : approvedCommissionRowsByAccount.map((row) => (
+                    <label key={row.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={payoutCommissionIDs.includes(row.id)}
+                        onCheckedChange={(checked) => {
+                          setPayoutCommissionIDs((prev) => checked ? (prev.includes(row.id) ? prev : [...prev, row.id]) : prev.filter((id) => id !== row.id));
+                        }}
+                      />
+                      <span className="font-mono">{row.id}</span>
+                      <span className="text-muted-foreground">{formatIDR(row.commission_amount_idr)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               <Input placeholder="Payment reference" value={payoutReference} onChange={(event) => setPayoutReference(event.target.value)} />
-              <Button type="submit" disabled={mutations.createPayout.isPending || !payoutAccountID || !payoutCommissionIDs.trim()}>Record payout</Button>
-              {approvedCommissionRows.length > 0 && <p className="text-xs text-muted-foreground md:col-span-4">Approved IDs: {approvedCommissionRows.slice(0, 5).map((row) => row.id).join(", ")}</p>}
+              <Button type="submit" disabled={mutations.createPayout.isPending || !payoutAccountID || payoutCommissionIDs.length === 0}>Record payout</Button>
             </form>
             <div className="rounded-md border">
               <Table>

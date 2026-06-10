@@ -84,5 +84,5 @@ Issue: #459
 ## Suggested next steps
 1. Harden state transitions and validation.
 2. Implement recurring renewal payment transaction creation from webhook amount.
-3. Add DB-backed integration tests for paid registration, trial-to-paid upgrade, webhook renewal, and payout persistence. SQLite-based existing auth tests require CGO in this environment.
+3. Add deeper DB-backed integration tests for paid registration, trial-to-paid upgrade, webhook renewal, and payout persistence when CGO/test DB is available.
 4. Polish frontend commission/payout UI.
