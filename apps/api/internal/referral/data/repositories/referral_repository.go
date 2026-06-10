@@ -231,7 +231,7 @@ func (r *referralRepository) GetStats(ctx context.Context, dateFrom, dateTo *tim
 		return 0, 0, 0, 0, 0, 0, err
 	}
 	var sums struct{ GrossRevenueIDR, NetRevenueIDR int64 }
-	if err := convQ.Select("COALESCE(SUM(gross_amount_idr), 0) AS gross_revenue_idr, COALESCE(SUM(net_amount_idr), 0) AS net_revenue_idr").Scan(&sums).Error; err != nil {
+	if err := convQ.Select("COALESCE(SUM(gross_amount_id_r), 0) AS gross_revenue_idr, COALESCE(SUM(net_amount_id_r), 0) AS net_revenue_idr").Scan(&sums).Error; err != nil {
 		return 0, 0, 0, 0, 0, 0, err
 	}
 	return totalLeads, totalConversions, trialConversions, paidConversions, sums.GrossRevenueIDR, sums.NetRevenueIDR, nil

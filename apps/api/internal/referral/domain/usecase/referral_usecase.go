@@ -70,7 +70,7 @@ func (u *referralUsecase) ResolveRegistrationCode(ctx context.Context, code, ema
 
 	refCode, err := u.repo.FindCodeByCode(ctx, normalized)
 	if err == nil {
-		return u.validateReferralCode(ctx, refCode, email)
+		return u.validateReferralCode(ctx, refCode, email, false)
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
@@ -99,7 +99,17 @@ func (u *referralUsecase) CreateLead(ctx context.Context, code, email string) er
 }
 
 func (u *referralUsecase) MarkConverted(ctx context.Context, code, email, tenantID, subscriptionID string, amountPaid int64) error {
-	resp, err := u.ResolveRegistrationCode(ctx, code, email)
+	normalized := NormalizePublicCode(code)
+	if err := validatePublicCode(normalized); err != nil {
+		return err
+	}
+	refCode, err := u.repo.FindCodeByCode(ctx, normalized)
+	if err != nil {
+		return err
+	}
+	// Conversion happens after CreateLead. Do not apply per-email lead usage guard here,
+	// otherwise the just-created pending lead makes the referral look already used.
+	resp, err := u.validateReferralCode(ctx, refCode, email, true)
 	if err != nil || resp == nil || !resp.Valid || resp.Type != dto.RegistrationCodeTypeReferral {
 		return err
 	}
@@ -117,6 +127,10 @@ func (u *referralUsecase) MarkConverted(ctx context.Context, code, email, tenant
 	if err := u.repo.IncrementCodeUsage(ctx, resp.ReferralCodeID); err != nil {
 		return err
 	}
+	conversionType := models.ConversionTypePaid
+	if amountPaid == 0 {
+		conversionType = models.ConversionTypeTrial
+	}
 	return u.repo.CreateConversion(ctx, &models.SalesReferralConversion{
 		SalesReferralLeadID:    lead.ID,
 		SalesReferralCodeID:    resp.ReferralCodeID,
@@ -124,7 +138,7 @@ func (u *referralUsecase) MarkConverted(ctx context.Context, code, email, tenant
 		CouponID:               resp.CouponID,
 		TenantID:               tenantID,
 		SubscriptionID:         nullableString(subscriptionID),
-		ConversionType:         models.ConversionTypePaid,
+		ConversionType:         conversionType,
 		GrossAmountIDR:         amountPaid,
 		NetAmountIDR:           amountPaid,
 	})
@@ -138,7 +152,7 @@ func nullableString(v string) *string {
 	return &v
 }
 
-func (u *referralUsecase) validateReferralCode(ctx context.Context, refCode *models.SalesReferralCode, email string) (*dto.RegistrationCodeResponse, error) {
+func (u *referralUsecase) validateReferralCode(ctx context.Context, refCode *models.SalesReferralCode, email string, skipEmailUsageCheck bool) (*dto.RegistrationCodeResponse, error) {
 	if refCode.SalesReferralAccount == nil || !refCode.SalesReferralAccount.IsActive {
 		return &dto.RegistrationCodeResponse{Valid: false, Reason: "inactive_sales_account", Type: dto.RegistrationCodeTypeReferral}, nil
 	}
@@ -151,7 +165,7 @@ func (u *referralUsecase) validateReferralCode(ctx context.Context, refCode *mod
 	if refCode.UsedCount >= refCode.MaxUses {
 		return &dto.RegistrationCodeResponse{Valid: false, Reason: "exhausted", Type: dto.RegistrationCodeTypeReferral}, nil
 	}
-	if email != "" && refCode.MaxUsesPerEmail > 0 {
+	if !skipEmailUsageCheck && email != "" && refCode.MaxUsesPerEmail > 0 {
 		used, err := u.repo.IsEmailUsedCode(ctx, refCode.ID, email)
 		if err != nil {
 			return nil, err
@@ -161,10 +175,6 @@ func (u *referralUsecase) validateReferralCode(ctx context.Context, refCode *mod
 		}
 	}
 
-	couponResp, err := u.couponUC.ValidateForEmail(ctx, refCode.Code, "")
-	if err != nil {
-		return nil, err
-	}
 	// Ref code wraps coupon by ID. Existing coupon usecase validates by code, so load coupon and validate its public code.
 	coupon, err := u.repo.CouponExistsUsable(ctx, refCode.CouponID)
 	if err != nil {
@@ -173,7 +183,11 @@ func (u *referralUsecase) validateReferralCode(ctx context.Context, refCode *mod
 		}
 		return nil, err
 	}
-	couponResp, err = u.couponUC.ValidateForEmail(ctx, coupon.Code, email)
+	couponEmail := email
+	if skipEmailUsageCheck {
+		couponEmail = ""
+	}
+	couponResp, err := u.couponUC.ValidateForEmail(ctx, coupon.Code, couponEmail)
 	if err != nil {
 		return nil, err
 	}
