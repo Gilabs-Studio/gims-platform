@@ -47,6 +47,15 @@ import type {
   UpdateSalesReferralAccountRequest,
   CreateSalesReferralCodeRequest,
   UpdateSalesReferralCodeRequest,
+  CommissionConfigRequest,
+  CommissionConfigResponse,
+  CommissionListParams,
+  CommissionListResponse,
+  CreatePayoutRequest,
+  PayoutListParams,
+  PayoutListResponse,
+  PayoutDetailResponse,
+  VoidCommissionRequest,
 } from "../types";
 
 const API_BASE_URL =
@@ -435,6 +444,41 @@ export const systemAdminService = {
 
   async deleteReferralCode(id: string): Promise<{ success: boolean }> {
     const { data } = await sysAdminClient.delete<{ success: boolean }>(`/referrals/codes/${id}`);
+    return data;
+  },
+
+  async getCommissionConfig(): Promise<CommissionConfigResponse> {
+    const { data } = await sysAdminClient.get<CommissionConfigResponse>("/referrals/commission-config");
+    return data;
+  },
+
+  async updateCommissionConfig(payload: CommissionConfigRequest): Promise<CommissionConfigResponse> {
+    const { data } = await sysAdminClient.put<CommissionConfigResponse>("/referrals/commission-config", payload);
+    return data;
+  },
+
+  async listReferralCommissions(params?: CommissionListParams): Promise<CommissionListResponse> {
+    const { data } = await sysAdminClient.get<CommissionListResponse>("/referrals/commissions", { params });
+    return data;
+  },
+
+  async approveReferralCommission(id: string): Promise<{ success: boolean }> {
+    const { data } = await sysAdminClient.post<{ success: boolean }>(`/referrals/commissions/${id}/approve`);
+    return data;
+  },
+
+  async voidReferralCommission(id: string, payload: VoidCommissionRequest): Promise<{ success: boolean }> {
+    const { data } = await sysAdminClient.post<{ success: boolean }>(`/referrals/commissions/${id}/void`, payload);
+    return data;
+  },
+
+  async listReferralPayouts(params?: PayoutListParams): Promise<PayoutListResponse> {
+    const { data } = await sysAdminClient.get<PayoutListResponse>("/referrals/payouts", { params });
+    return data;
+  },
+
+  async createReferralPayout(payload: CreatePayoutRequest): Promise<PayoutDetailResponse> {
+    const { data } = await sysAdminClient.post<PayoutDetailResponse>("/referrals/payouts", payload);
     return data;
   },
 };

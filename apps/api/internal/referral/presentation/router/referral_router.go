@@ -14,6 +14,13 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.Handler, jwtManager *jw
 	protected.Use(middleware.SystemAdminAuthMiddleware(jwtManager, sysAdminRepo))
 	{
 		protected.GET("/stats", h.GetStats)
+		protected.GET("/commission-config", h.GetCommissionConfig)
+		protected.PUT("/commission-config", h.UpdateCommissionConfig)
+		protected.GET("/commissions", h.ListCommissions)
+		protected.POST("/commissions/:id/approve", h.ApproveCommission)
+		protected.POST("/commissions/:id/void", h.VoidCommission)
+		protected.GET("/payouts", h.ListPayouts)
+		protected.POST("/payouts", h.CreatePayout)
 
 		protected.GET("/accounts", h.ListAccounts)
 		protected.POST("/accounts", h.CreateAccount)

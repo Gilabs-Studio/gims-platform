@@ -123,7 +123,7 @@ type AuthUsecase interface {
 	ConfirmPendingRegistration(ctx context.Context, token string) (*dto.LoginResponse, error)
 	// HandleRecurringRenewal is called by the Xendit webhook when a recurring invoice
 	// is paid. It extends the tenant's subscription next billing date.
-	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error
+	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string, amountIDR int64) error
 	// CreateBillingChangeInvoice creates a Xendit invoice for a seat/plan change and
 	// stores the pending mutation until the payment webhook confirms it.
 	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
@@ -1010,6 +1010,7 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	}
 
 	u.markReferralConvertedBestEffort(ctx, pending.ReferralCode, pending.Email, tenantID, sub.ID, pending.AmountPaid)
+	u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
 
 	doneKey := pendingRegDoneKeyPrefix + token
 	if err := u.redis.Set(ctx, doneKey, strings.ToLower(strings.TrimSpace(pending.Email)), pendingRegTTL).Err(); err != nil {
@@ -1029,6 +1030,13 @@ func (u *authUsecase) markReferralConvertedBestEffort(ctx context.Context, refer
 		return
 	}
 	_ = u.referralUC.MarkConverted(ctx, referralCode, email, tenantID, subscriptionID, amountPaid)
+}
+
+func (u *authUsecase) createReferralCommissionBestEffort(ctx context.Context, paymentTransactionID string) {
+	if u.referralUC == nil || strings.TrimSpace(paymentTransactionID) == "" {
+		return
+	}
+	_ = u.referralUC.CreateCommissionForPayment(ctx, paymentTransactionID)
 }
 
 // buildLoginRespForExistingUser looks up a user by email and generates fresh auth tokens.
@@ -1133,7 +1141,7 @@ func (u *authUsecase) ensureSubscriptionRecord(ctx context.Context, sub *tenantM
 // HandleRecurringRenewal is called by the Xendit webhook when a recurring (subscription)
 // invoice is paid. It locates the TenantSubscription by XenditInvoiceID and advances
 // the next billing date by one billing cycle.
-func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error {
+func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string, amountIDR int64) error {
 	var sub tenantModels.TenantSubscription
 	err := u.db.WithContext(ctx).
 		Where("xendit_invoice_id = ? AND deleted_at IS NULL", xenditInvoiceID).
@@ -1148,15 +1156,36 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 	if sub.BillingPeriod == tenantModels.BillingYearly {
 		nextBilling = now.AddDate(1, 0, 0)
 	}
+	if amountIDR <= 0 {
+		amountIDR = sub.AmountPaidIDR
+	}
+	paymentTxn := &tenantModels.PaymentTransaction{
+		TenantID:          sub.TenantID,
+		SubscriptionID:    sub.ID,
+		Provider:          tenantModels.PaymentProviderXendit,
+		Status:            tenantModels.PaymentStatusPaid,
+		AmountIDR:         amountIDR,
+		ProviderInvoiceID: xenditInvoiceID,
+		Description:       fmt.Sprintf("Recurring subscription renewal for %s (%s)", sub.Plan, sub.BillingPeriod),
+		PaidAt:            &now,
+		Metadata:          "{}",
+	}
+	if err := u.db.WithContext(ctx).Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, xenditInvoiceID).FirstOrCreate(paymentTxn).Error; err != nil {
+		return err
+	}
 
-	return u.db.WithContext(ctx).
+	if err := u.db.WithContext(ctx).
 		Model(&tenantModels.TenantSubscription{}).
 		Where("id = ?", sub.ID).
 		Updates(map[string]interface{}{
 			"next_billing_at": nextBilling,
 			"expires_at":      nextBilling,
 			"status":          tenantModels.SubscriptionActive,
-		}).Error
+		}).Error; err != nil {
+		return err
+	}
+	u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
+	return nil
 }
 
 // provisionTenantWithCoupon runs the coupon-based tenant provisioning flow.

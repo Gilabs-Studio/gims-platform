@@ -87,3 +87,75 @@ requests:
     auth:
       type: bearer
       token: "{{token}}"
+
+  - name: Get Commission Config
+    method: GET
+    url: "{{base_url}}/internal/referrals/commission-config"
+    auth:
+      type: bearer
+      token: "{{token}}"
+
+  - name: Update Commission Config
+    method: PUT
+    url: "{{base_url}}/internal/referrals/commission-config"
+    headers:
+      Content-Type: application/json
+      X-CSRF-Token: "{{csrf_token}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+    body:
+      default_close_commission_bps: 1000
+      default_recurring_commission_bps: 500
+
+  - name: List Referral Commissions
+    method: GET
+    url: "{{base_url}}/internal/referrals/commissions?page=1&per_page=20&status=pending"
+    auth:
+      type: bearer
+      token: "{{token}}"
+
+  - name: Approve Referral Commission
+    method: POST
+    url: "{{base_url}}/internal/referrals/commissions/{{referral_commission_id}}/approve"
+    headers:
+      X-CSRF-Token: "{{csrf_token}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+
+  - name: Void Referral Commission
+    method: POST
+    url: "{{base_url}}/internal/referrals/commissions/{{referral_commission_id}}/void"
+    headers:
+      Content-Type: application/json
+      X-CSRF-Token: "{{csrf_token}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+    body:
+      reason: Refund before payout
+
+  - name: List Referral Payouts
+    method: GET
+    url: "{{base_url}}/internal/referrals/payouts?page=1&per_page=20"
+    auth:
+      type: bearer
+      token: "{{token}}"
+
+  - name: Create Referral Payout
+    method: POST
+    url: "{{base_url}}/internal/referrals/payouts"
+    headers:
+      Content-Type: application/json
+      X-CSRF-Token: "{{csrf_token}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+    body:
+      sales_referral_account_id: "{{sales_referral_account_id}}"
+      commission_ids:
+        - "{{referral_commission_id}}"
+      paid_at: "2026-06-10T00:00:00Z"
+      payment_reference: MANUAL-001
+      notes: Manual bank transfer

@@ -43,6 +43,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import {
   useSalesReferralAccounts,
   useActiveCoupons,
+  useReferralCommissionConfig,
+  useReferralCommissions,
+  useReferralPayouts,
   useSalesReferralCodes,
   useSalesReferralMutations,
   useSalesReferralStats,
@@ -502,17 +505,27 @@ export function SalesReferralList() {
   const [codePage, setCodePage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebounce(searchInput, 500);
-  const [activeTab, setActiveTab] = useState<"codes" | "accounts">("codes");
+  const [activeTab, setActiveTab] = useState<"codes" | "accounts" | "commissions" | "payouts">("codes");
   const [codeFilter, setCodeFilter] = useState<ReferralFilter>("all");
   const [accountFilter, setAccountFilter] = useState<ReferralFilter>("all");
   const [accountDialog, setAccountDialog] = useState<SalesReferralAccount | null | "create">(null);
   const [codeDialog, setCodeDialog] = useState<SalesReferralCode | null | "create">(null);
   const [deleteAccountTarget, setDeleteAccountTarget] = useState<SalesReferralAccount | null>(null);
   const [deleteCodeTarget, setDeleteCodeTarget] = useState<SalesReferralCode | null>(null);
+  const [configCloseBps, setConfigCloseBps] = useState("");
+  const [configRecurringBps, setConfigRecurringBps] = useState("");
+  const [payoutAccountID, setPayoutAccountID] = useState("");
+  const [payoutCommissionIDs, setPayoutCommissionIDs] = useState("");
+  const [payoutReference, setPayoutReference] = useState("");
+  const [voidTarget, setVoidTarget] = useState<string | null>(null);
+  const [voidReason, setVoidReason] = useState("Manual admin void");
   const params = useMemo(() => ({ page: 1, per_page: 20, search: debouncedSearch.trim() || undefined }), [debouncedSearch]);
   const stats = useSalesReferralStats();
   const accounts = useSalesReferralAccounts({ ...params, page: accountPage });
   const codes = useSalesReferralCodes({ ...params, page: codePage });
+  const commissionConfig = useReferralCommissionConfig();
+  const commissions = useReferralCommissions({ page: 1, per_page: 20 });
+  const payouts = useReferralPayouts({ page: 1, per_page: 20 });
   const coupons = useActiveCoupons();
   const mutations = useSalesReferralMutations();
   const accountRows = useMemo(() => accounts.data?.data ?? [], [accounts.data?.data]);
@@ -530,6 +543,8 @@ export function SalesReferralList() {
     () => codeRows.filter((row) => codeFilter === "all" ? true : codeFilter === "active" ? row.is_active : !row.is_active),
     [codeRows, codeFilter],
   );
+  const commissionRows = useMemo(() => commissions.data?.data ?? [], [commissions.data?.data]);
+  const approvedCommissionRows = useMemo(() => commissionRows.filter((row) => row.status === "approved"), [commissionRows]);
   const currentFilter = activeTab === "codes" ? codeFilter : accountFilter;
   const setCurrentFilter = (value: ReferralFilter) => {
     if (activeTab === "codes") setCodeFilter(value);
@@ -562,13 +577,48 @@ export function SalesReferralList() {
           ))}
         </div>
 
-        <Tabs defaultValue="codes" onValueChange={(value) => setActiveTab(value as "codes" | "accounts")}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Commission defaults</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
+            <div>
+              <div className="text-muted-foreground">Close commission</div>
+              <div className="text-xl font-semibold">{commissionConfig.isLoading ? <Skeleton className="h-7 w-20" /> : `${(commissionConfig.data?.default_close_commission_bps ?? 0) / 100}%`}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Recurring commission</div>
+              <div className="text-xl font-semibold">{commissionConfig.isLoading ? <Skeleton className="h-7 w-20" /> : `${(commissionConfig.data?.default_recurring_commission_bps ?? 0) / 100}%`}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Mode</div>
+              <div className="text-xl font-semibold">Manual payout</div>
+            </div>
+            <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => {
+              event.preventDefault();
+              const close = Number(configCloseBps || commissionConfig.data?.default_close_commission_bps || 0);
+              const recurring = Number(configRecurringBps || commissionConfig.data?.default_recurring_commission_bps || 0);
+              mutations.updateCommissionConfig.mutate({ default_close_commission_bps: close, default_recurring_commission_bps: recurring });
+              setConfigCloseBps("");
+              setConfigRecurringBps("");
+            }}>
+              <Input className="w-28" inputMode="numeric" placeholder="Close bps" value={configCloseBps} onChange={(event) => setConfigCloseBps(event.target.value)} />
+              <Input className="w-32" inputMode="numeric" placeholder="Recurring bps" value={configRecurringBps} onChange={(event) => setConfigRecurringBps(event.target.value)} />
+              <Button type="submit" disabled={mutations.updateCommissionConfig.isPending}>Save</Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="codes" onValueChange={(value) => setActiveTab(value as "codes" | "accounts" | "commissions" | "payouts")}>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <TabsList>
               <TabsTrigger value="codes">Codes</TabsTrigger>
               <TabsTrigger value="accounts">Accounts</TabsTrigger>
+              <TabsTrigger value="commissions">Commissions</TabsTrigger>
+              <TabsTrigger value="payouts">Payouts</TabsTrigger>
             </TabsList>
             <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
+              {(activeTab === "codes" || activeTab === "accounts") && <>
               <div className="relative flex-1 lg:max-w-xl">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -595,15 +645,16 @@ export function SalesReferralList() {
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
+              </>}
               {activeTab === "codes" ? (
                 <Button className="cursor-pointer gap-2" onClick={() => setCodeDialog("create")}>
                   <Plus className="h-4 w-4" /> Code
                 </Button>
-              ) : (
+              ) : activeTab === "accounts" ? (
                 <Button className="cursor-pointer gap-2" onClick={() => setAccountDialog("create")}>
                   <Plus className="h-4 w-4" /> Account
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -678,6 +729,93 @@ export function SalesReferralList() {
               </Table>
             </div>
           </TabsContent>
+
+          <TabsContent value="commissions" className="pt-4">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Base</TableHead>
+                    <TableHead>Rate</TableHead>
+                    <TableHead>Commission</TableHead>
+                    <TableHead>Earned</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {commissions.isLoading ? Array.from({ length: 5 }).map((_, index) => (
+                    <TableRow key={index}><TableCell colSpan={7}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                  )) : (commissions.data?.data ?? []).length === 0 ? (
+                    <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">No commissions found.</TableCell></TableRow>
+                  ) : (commissions.data?.data ?? []).map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="capitalize">{row.commission_type}</TableCell>
+                      <TableCell><Badge variant={row.status === "pending" ? "secondary" : row.status === "approved" ? "default" : "outline"}>{row.status}</Badge></TableCell>
+                      <TableCell>{formatIDR(row.source_net_amount_idr)}</TableCell>
+                      <TableCell>{row.commission_bps / 100}%</TableCell>
+                      <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
+                      <TableCell>{formatDate(row.earned_at)}</TableCell>
+                      <TableCell className="space-x-2 text-right">
+                        <Button size="sm" variant="outline" disabled={row.status !== "pending" || mutations.approveCommission.isPending} onClick={() => mutations.approveCommission.mutate(row.id)}>Approve</Button>
+                        <Button size="sm" variant="ghost" disabled={row.status === "paid" || mutations.voidCommission.isPending} onClick={() => setVoidTarget(row.id)}>Void</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="payouts" className="pt-4">
+            <form className="mb-4 grid gap-2 rounded-md border p-4 md:grid-cols-[1fr_1.4fr_1fr_auto]" onSubmit={(event) => {
+              event.preventDefault();
+              mutations.createPayout.mutate({
+                sales_referral_account_id: payoutAccountID,
+                commission_ids: payoutCommissionIDs.split(",").map((id) => id.trim()).filter(Boolean),
+                paid_at: new Date().toISOString(),
+                payment_reference: payoutReference || null,
+              }, { onSuccess: () => { setPayoutAccountID(""); setPayoutCommissionIDs(""); setPayoutReference(""); } });
+            }}>
+              <Select value={payoutAccountID} onValueChange={setPayoutAccountID}>
+                <SelectTrigger><SelectValue placeholder="Sales account" /></SelectTrigger>
+                <SelectContent>{accountRows.map((account) => <SelectItem key={account.id} value={account.id}>{account.name || account.email}</SelectItem>)}</SelectContent>
+              </Select>
+              <Input placeholder="Approved commission IDs, comma separated" value={payoutCommissionIDs} onChange={(event) => setPayoutCommissionIDs(event.target.value)} />
+              <Input placeholder="Payment reference" value={payoutReference} onChange={(event) => setPayoutReference(event.target.value)} />
+              <Button type="submit" disabled={mutations.createPayout.isPending || !payoutAccountID || !payoutCommissionIDs.trim()}>Record payout</Button>
+              {approvedCommissionRows.length > 0 && <p className="text-xs text-muted-foreground md:col-span-4">Approved IDs: {approvedCommissionRows.slice(0, 5).map((row) => row.id).join(", ")}</p>}
+            </form>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Paid at</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Notes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payouts.isLoading ? Array.from({ length: 5 }).map((_, index) => (
+                    <TableRow key={index}><TableCell colSpan={5}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                  )) : (payouts.data?.data ?? []).length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No payouts found.</TableCell></TableRow>
+                  ) : (payouts.data?.data ?? []).map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell><Badge>{row.status}</Badge></TableCell>
+                      <TableCell>{formatIDR(row.total_amount_idr)}</TableCell>
+                      <TableCell>{formatDate(row.paid_at)}</TableCell>
+                      <TableCell>{row.payment_reference || "-"}</TableCell>
+                      <TableCell>{row.notes || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
         </Tabs>
 
         {accountDialog !== null && (
@@ -712,6 +850,24 @@ export function SalesReferralList() {
             }}
           />
         )}
+        <Dialog open={voidTarget !== null} onOpenChange={(value) => !value && setVoidTarget(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Void commission?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="void-reason">Reason</Label>
+              <Textarea id="void-reason" value={voidReason} onChange={(event) => setVoidReason(event.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVoidTarget(null)}>Cancel</Button>
+              <Button variant="destructive" disabled={!voidReason.trim() || mutations.voidCommission.isPending} onClick={() => {
+                if (!voidTarget) return;
+                mutations.voidCommission.mutate({ id: voidTarget, reason: voidReason.trim() }, { onSuccess: () => setVoidTarget(null) });
+              }}>Void</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <DeleteDialog
           open={deleteAccountTarget !== null}
           title="Delete referral account?"

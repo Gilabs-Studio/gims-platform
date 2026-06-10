@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/referral/data/models"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ReferralRepository interface {
@@ -37,6 +38,17 @@ type ReferralRepository interface {
 	GetStats(ctx context.Context, dateFrom, dateTo *time.Time, accountID, codeID string) (totalLeads, totalConversions, trialConversions, paidConversions, grossRevenue, netRevenue int64, err error)
 	CouponCodeExists(ctx context.Context, code string) (bool, error)
 	CouponExistsUsable(ctx context.Context, couponID string) (*tenantModels.Coupon, error)
+	GetActiveCommissionConfig(ctx context.Context) (*models.ReferralCommissionConfig, error)
+	UpsertCommissionConfig(ctx context.Context, config *models.ReferralCommissionConfig) error
+	FindConversionByTenantID(ctx context.Context, tenantID string) (*models.SalesReferralConversion, error)
+	GetPaymentTransaction(ctx context.Context, id string) (*tenantModels.PaymentTransaction, error)
+	CountPaidCommissionsByTenant(ctx context.Context, tenantID string) (int64, error)
+	CreateCommissionIfNotExists(ctx context.Context, commission *models.ReferralCommission) error
+	ListCommissions(ctx context.Context, page, perPage int, accountID, status, commissionType string) ([]*models.ReferralCommission, int64, error)
+	FindCommissionByID(ctx context.Context, id string) (*models.ReferralCommission, error)
+	UpdateCommission(ctx context.Context, id string, updates map[string]interface{}) error
+	CreatePayoutWithItems(ctx context.Context, payout *models.ReferralCommissionPayout, commissionIDs []string) error
+	ListPayouts(ctx context.Context, page, perPage int, accountID string) ([]*models.ReferralCommissionPayout, int64, error)
 }
 
 type referralRepository struct {
@@ -247,4 +259,135 @@ func (r *referralRepository) CouponExistsUsable(ctx context.Context, couponID st
 	var coupon tenantModels.Coupon
 	err := r.db.WithContext(ctx).Where("id = ? AND deleted_at IS NULL", couponID).First(&coupon).Error
 	return &coupon, err
+}
+
+func (r *referralRepository) GetActiveCommissionConfig(ctx context.Context) (*models.ReferralCommissionConfig, error) {
+	var cfg models.ReferralCommissionConfig
+	err := r.getDB(ctx).Where("is_active = ? AND deleted_at IS NULL", true).Order("created_at DESC").First(&cfg).Error
+	return &cfg, err
+}
+
+func (r *referralRepository) UpsertCommissionConfig(ctx context.Context, cfg *models.ReferralCommissionConfig) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.ReferralCommissionConfig{}).Where("is_active = ? AND deleted_at IS NULL", true).Update("is_active", false).Error; err != nil {
+			return err
+		}
+		cfg.IsActive = true
+		return tx.Create(cfg).Error
+	})
+}
+
+func (r *referralRepository) FindConversionByTenantID(ctx context.Context, tenantID string) (*models.SalesReferralConversion, error) {
+	var conv models.SalesReferralConversion
+	err := r.getDB(ctx).Where("tenant_id = ? AND deleted_at IS NULL", tenantID).Order("created_at ASC").First(&conv).Error
+	return &conv, err
+}
+
+func (r *referralRepository) GetPaymentTransaction(ctx context.Context, id string) (*tenantModels.PaymentTransaction, error) {
+	var txn tenantModels.PaymentTransaction
+	err := r.getDB(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&txn).Error
+	return &txn, err
+}
+
+func (r *referralRepository) CountPaidCommissionsByTenant(ctx context.Context, tenantID string) (int64, error) {
+	var count int64
+	err := r.getDB(ctx).Model(&models.ReferralCommission{}).Where("tenant_id = ? AND commission_type IN ? AND deleted_at IS NULL", tenantID, []models.ReferralCommissionType{models.CommissionTypeClose, models.CommissionTypeRecurring}).Count(&count).Error
+	return count, err
+}
+
+func (r *referralRepository) CreateCommissionIfNotExists(ctx context.Context, c *models.ReferralCommission) error {
+	var count int64
+	if err := r.getDB(ctx).Model(&models.ReferralCommission{}).Where("payment_transaction_id = ? AND commission_type = ? AND deleted_at IS NULL", c.PaymentTransactionID, c.CommissionType).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	return r.getDB(ctx).Create(c).Error
+}
+
+func (r *referralRepository) ListCommissions(ctx context.Context, page, perPage int, accountID, status, commissionType string) ([]*models.ReferralCommission, int64, error) {
+	var items []*models.ReferralCommission
+	var total int64
+	q := r.getDB(ctx).Model(&models.ReferralCommission{}).Where("deleted_at IS NULL")
+	if strings.TrimSpace(accountID) != "" {
+		q = q.Where("sales_referral_account_id = ?", accountID)
+	}
+	if strings.TrimSpace(status) != "" {
+		q = q.Where("status = ?", status)
+	}
+	if strings.TrimSpace(commissionType) != "" {
+		q = q.Where("commission_type = ?", commissionType)
+	}
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := q.Order("earned_at DESC").Offset((page - 1) * perPage).Limit(perPage).Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
+}
+
+func (r *referralRepository) FindCommissionByID(ctx context.Context, id string) (*models.ReferralCommission, error) {
+	var item models.ReferralCommission
+	err := r.getDB(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&item).Error
+	return &item, err
+}
+
+func (r *referralRepository) UpdateCommission(ctx context.Context, id string, updates map[string]interface{}) error {
+	return r.getDB(ctx).Model(&models.ReferralCommission{}).
+		Where("id = ? AND deleted_at IS NULL AND status <> ?", id, models.CommissionStatusPaid).
+		Updates(updates).Error
+}
+
+func (r *referralRepository) CreatePayoutWithItems(ctx context.Context, payout *models.ReferralCommissionPayout, commissionIDs []string) error {
+	return r.getDB(ctx).Transaction(func(tx *gorm.DB) error {
+		var commissions []models.ReferralCommission
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id IN ? AND deleted_at IS NULL", commissionIDs).Find(&commissions).Error; err != nil {
+			return err
+		}
+		if len(commissions) != len(commissionIDs) {
+			return gorm.ErrRecordNotFound
+		}
+		var total int64
+		for _, c := range commissions {
+			if c.Status != models.CommissionStatusApproved {
+				return gorm.ErrInvalidData
+			}
+			if c.SalesReferralAccountID != payout.SalesReferralAccountID {
+				return gorm.ErrInvalidData
+			}
+			total += c.CommissionAmountIDR
+		}
+		payout.TotalAmountIDR = total
+		if err := tx.Create(payout).Error; err != nil {
+			return err
+		}
+		for _, c := range commissions {
+			item := &models.ReferralCommissionPayoutItem{PayoutID: payout.ID, ReferralCommissionID: c.ID, AmountIDR: c.CommissionAmountIDR}
+			if err := tx.Create(item).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&models.ReferralCommission{}).Where("id = ?", c.ID).Update("status", models.CommissionStatusPaid).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *referralRepository) ListPayouts(ctx context.Context, page, perPage int, accountID string) ([]*models.ReferralCommissionPayout, int64, error) {
+	var items []*models.ReferralCommissionPayout
+	var total int64
+	q := r.getDB(ctx).Model(&models.ReferralCommissionPayout{}).Where("deleted_at IS NULL")
+	if strings.TrimSpace(accountID) != "" {
+		q = q.Where("sales_referral_account_id = ?", accountID)
+	}
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := q.Order("paid_at DESC").Offset((page - 1) * perPage).Limit(perPage).Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
 }

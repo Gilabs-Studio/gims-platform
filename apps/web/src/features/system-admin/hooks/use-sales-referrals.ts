@@ -4,6 +4,10 @@ import { systemAdminService } from "../services/system-admin-service";
 import type {
   CreateSalesReferralAccountRequest,
   CreateSalesReferralCodeRequest,
+  CommissionConfigRequest,
+  CommissionListParams,
+  CreatePayoutRequest,
+  PayoutListParams,
   SalesReferralListParams,
   SalesReferralStatsParams,
   UpdateSalesReferralAccountRequest,
@@ -41,6 +45,30 @@ export function useActiveCoupons() {
       const res = await systemAdminService.getCoupons({ active_only: true, page: 1, per_page: 100 });
       return res.data;
     },
+  });
+}
+
+export function useReferralCommissionConfig() {
+  return useQuery({
+    queryKey: ["system-admin", "sales-referrals", "commission-config"],
+    queryFn: async () => {
+      const res = await systemAdminService.getCommissionConfig();
+      return res.data;
+    },
+  });
+}
+
+export function useReferralCommissions(params?: CommissionListParams) {
+  return useQuery({
+    queryKey: ["system-admin", "sales-referrals", "commissions", params],
+    queryFn: () => systemAdminService.listReferralCommissions(params),
+  });
+}
+
+export function useReferralPayouts(params?: PayoutListParams) {
+  return useQuery({
+    queryKey: ["system-admin", "sales-referrals", "payouts", params],
+    queryFn: () => systemAdminService.listReferralPayouts(params),
   });
 }
 
@@ -108,6 +136,38 @@ export function useSalesReferralMutations() {
         await invalidate();
       },
       onError: () => toast.error("Failed to deactivate referral code."),
+    }),
+    updateCommissionConfig: useMutation({
+      mutationFn: (payload: CommissionConfigRequest) => systemAdminService.updateCommissionConfig(payload),
+      onSuccess: async () => {
+        toast.success("Commission config updated.");
+        await invalidate();
+      },
+      onError: () => toast.error("Failed to update commission config."),
+    }),
+    approveCommission: useMutation({
+      mutationFn: (id: string) => systemAdminService.approveReferralCommission(id),
+      onSuccess: async () => {
+        toast.success("Commission approved.");
+        await invalidate();
+      },
+      onError: () => toast.error("Failed to approve commission."),
+    }),
+    voidCommission: useMutation({
+      mutationFn: ({ id, reason }: { id: string; reason: string }) => systemAdminService.voidReferralCommission(id, { reason }),
+      onSuccess: async () => {
+        toast.success("Commission voided.");
+        await invalidate();
+      },
+      onError: () => toast.error("Failed to void commission."),
+    }),
+    createPayout: useMutation({
+      mutationFn: (payload: CreatePayoutRequest) => systemAdminService.createReferralPayout(payload),
+      onSuccess: async () => {
+        toast.success("Payout recorded.");
+        await invalidate();
+      },
+      onError: () => toast.error("Failed to record payout."),
     }),
   };
 }

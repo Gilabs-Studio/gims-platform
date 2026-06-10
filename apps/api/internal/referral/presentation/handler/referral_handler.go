@@ -239,6 +239,84 @@ func (h *Handler) GetStats(c *gin.Context) {
 	response.SuccessResponse(c, resp, nil)
 }
 
+func (h *Handler) GetCommissionConfig(c *gin.Context) {
+	resp, err := h.uc.GetCommissionConfig(c.Request.Context())
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, resp, nil)
+}
+func (h *Handler) UpdateCommissionConfig(c *gin.Context) {
+	var req dto.CommissionConfigRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	resp, err := h.uc.UpdateCommissionConfig(c.Request.Context(), &req)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, resp, nil)
+}
+func (h *Handler) ListCommissions(c *gin.Context) {
+	var params dto.CommissionListParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		coreErrors.InvalidRequestBodyResponse(c)
+		return
+	}
+	resp, pag, err := h.uc.ListCommissions(c.Request.Context(), params)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, resp, &response.Meta{Pagination: pag})
+}
+func (h *Handler) ApproveCommission(c *gin.Context) {
+	if err := h.uc.ApproveCommission(c.Request.Context(), c.Param("id"), actorID(c)); err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponseNoContent(c)
+}
+func (h *Handler) VoidCommission(c *gin.Context) {
+	var req dto.VoidCommissionRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	if err := h.uc.VoidCommission(c.Request.Context(), c.Param("id"), actorID(c), req.Reason); err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponseNoContent(c)
+}
+func (h *Handler) CreatePayout(c *gin.Context) {
+	var req dto.CreatePayoutRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	resp, err := h.uc.CreatePayout(c.Request.Context(), &req, actorID(c))
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, resp, nil)
+}
+
+func (h *Handler) ListPayouts(c *gin.Context) {
+	var params dto.PayoutListParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		coreErrors.InvalidRequestBodyResponse(c)
+		return
+	}
+	resp, pag, err := h.uc.ListPayouts(c.Request.Context(), params)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, resp, &response.Meta{Pagination: pag})
+}
+
 func bindJSON(c *gin.Context, dst interface{}) bool {
 	if err := c.ShouldBindJSON(dst); err != nil {
 		if ve, ok := err.(validator.ValidationErrors); ok {
@@ -264,4 +342,13 @@ func (h *Handler) handleError(c *gin.Context, err error) {
 	default:
 		coreErrors.InternalServerErrorResponse(c, err.Error())
 	}
+}
+
+func actorID(c *gin.Context) string {
+	if v, ok := c.Get("user_id"); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
 }

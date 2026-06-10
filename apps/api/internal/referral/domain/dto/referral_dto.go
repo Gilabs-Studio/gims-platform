@@ -32,24 +32,30 @@ type RegistrationCodeResponse struct {
 }
 
 type CreateSalesReferralAccountRequest struct {
-	Email    string  `json:"email"`
-	Name     *string `json:"name"`
-	IsActive *bool   `json:"is_active"`
+	Email                  string  `json:"email"`
+	Name                   *string `json:"name"`
+	IsActive               *bool   `json:"is_active"`
+	CloseCommissionBps     *int    `json:"close_commission_bps"`
+	RecurringCommissionBps *int    `json:"recurring_commission_bps"`
 }
 
 type UpdateSalesReferralAccountRequest struct {
-	Email    string  `json:"email"`
-	Name     *string `json:"name"`
-	IsActive *bool   `json:"is_active"`
+	Email                  string  `json:"email"`
+	Name                   *string `json:"name"`
+	IsActive               *bool   `json:"is_active"`
+	CloseCommissionBps     *int    `json:"close_commission_bps"`
+	RecurringCommissionBps *int    `json:"recurring_commission_bps"`
 }
 
 type SalesReferralAccountResponse struct {
-	ID        string    `json:"id"`
-	Email     string    `json:"email"`
-	Name      *string   `json:"name,omitempty"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID                     string    `json:"id"`
+	Email                  string    `json:"email"`
+	Name                   *string   `json:"name,omitempty"`
+	IsActive               bool      `json:"is_active"`
+	CloseCommissionBps     *int      `json:"close_commission_bps,omitempty"`
+	RecurringCommissionBps *int      `json:"recurring_commission_bps,omitempty"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }
 
 type CreateSalesReferralCodeRequest struct {
@@ -117,4 +123,78 @@ type ReferralStatsResponse struct {
 	PaidConversions  int64 `json:"paid_conversions"`
 	GrossRevenueIDR  int64 `json:"gross_revenue_idr"`
 	NetRevenueIDR    int64 `json:"net_revenue_idr"`
+}
+
+type CommissionConfigRequest struct {
+	DefaultCloseCommissionBps     int `json:"default_close_commission_bps"`
+	DefaultRecurringCommissionBps int `json:"default_recurring_commission_bps"`
+}
+
+type CommissionConfigResponse struct {
+	ID                            string    `json:"id"`
+	DefaultCloseCommissionBps     int       `json:"default_close_commission_bps"`
+	DefaultRecurringCommissionBps int       `json:"default_recurring_commission_bps"`
+	IsActive                      bool      `json:"is_active"`
+	CreatedAt                     time.Time `json:"created_at"`
+	UpdatedAt                     time.Time `json:"updated_at"`
+}
+
+type CommissionListParams struct {
+	Page                   int    `form:"page"`
+	PerPage                int    `form:"per_page"`
+	SalesReferralAccountID string `form:"sales_referral_account_id"`
+	Status                 string `form:"status"`
+	CommissionType         string `form:"commission_type"`
+}
+
+type CommissionResponse struct {
+	ID                        string     `json:"id"`
+	SalesReferralAccountID    string     `json:"sales_referral_account_id"`
+	SalesReferralCodeID       string     `json:"sales_referral_code_id"`
+	SalesReferralConversionID *string    `json:"sales_referral_conversion_id,omitempty"`
+	TenantID                  string     `json:"tenant_id"`
+	SubscriptionID            *string    `json:"subscription_id,omitempty"`
+	PaymentTransactionID      string     `json:"payment_transaction_id"`
+	CommissionType            string     `json:"commission_type"`
+	Status                    string     `json:"status"`
+	SourceNetAmountIDR        int64      `json:"source_net_amount_idr"`
+	CommissionBps             int        `json:"commission_bps"`
+	CommissionAmountIDR       int64      `json:"commission_amount_idr"`
+	EarnedAt                  time.Time  `json:"earned_at"`
+	ApprovedAt                *time.Time `json:"approved_at,omitempty"`
+	VoidedAt                  *time.Time `json:"voided_at,omitempty"`
+	VoidReason                *string    `json:"void_reason,omitempty"`
+	CreatedAt                 time.Time  `json:"created_at"`
+	UpdatedAt                 time.Time  `json:"updated_at"`
+}
+
+type VoidCommissionRequest struct {
+	Reason string `json:"reason"`
+}
+
+type CreatePayoutRequest struct {
+	SalesReferralAccountID string    `json:"sales_referral_account_id"`
+	CommissionIDs          []string  `json:"commission_ids"`
+	PaidAt                 time.Time `json:"paid_at"`
+	PaymentReference       *string   `json:"payment_reference"`
+	Notes                  *string   `json:"notes"`
+}
+
+type PayoutListParams struct {
+	Page                   int    `form:"page"`
+	PerPage                int    `form:"per_page"`
+	SalesReferralAccountID string `form:"sales_referral_account_id"`
+}
+
+type PayoutResponse struct {
+	ID                     string    `json:"id"`
+	SalesReferralAccountID string    `json:"sales_referral_account_id"`
+	Status                 string    `json:"status"`
+	TotalAmountIDR         int64     `json:"total_amount_idr"`
+	PaidAt                 time.Time `json:"paid_at"`
+	PaymentReference       *string   `json:"payment_reference,omitempty"`
+	Notes                  *string   `json:"notes,omitempty"`
+	CreatedBy              *string   `json:"created_by,omitempty"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
 }

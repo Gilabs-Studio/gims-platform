@@ -23,6 +23,7 @@ var (
 	ErrReferralInvalidCode     = errors.New("referral code format is invalid")
 	ErrReferralCouponCollision = errors.New("referral code collides with coupon code")
 	ErrReferralImmutable       = errors.New("referral code has usage history and cannot change owner or coupon")
+	ErrCommissionInvalidState  = errors.New("commission state transition is invalid")
 )
 
 var publicCodePattern = regexp.MustCompile(`^[A-Z0-9_-]+$`)
@@ -41,6 +42,14 @@ type ReferralUsecase interface {
 	SetCodeActive(ctx context.Context, id string, active bool) error
 	DeleteCode(ctx context.Context, id string) error
 	GetStats(ctx context.Context, params dto.ReferralStatsParams) (*dto.ReferralStatsResponse, error)
+	CreateCommissionForPayment(ctx context.Context, paymentTransactionID string) error
+	GetCommissionConfig(ctx context.Context) (*dto.CommissionConfigResponse, error)
+	UpdateCommissionConfig(ctx context.Context, req *dto.CommissionConfigRequest) (*dto.CommissionConfigResponse, error)
+	ListCommissions(ctx context.Context, params dto.CommissionListParams) ([]*dto.CommissionResponse, *response.PaginationMeta, error)
+	ApproveCommission(ctx context.Context, id, actorID string) error
+	VoidCommission(ctx context.Context, id, actorID, reason string) error
+	CreatePayout(ctx context.Context, req *dto.CreatePayoutRequest, actorID string) (*dto.PayoutResponse, error)
+	ListPayouts(ctx context.Context, params dto.PayoutListParams) ([]*dto.PayoutResponse, *response.PaginationMeta, error)
 }
 
 type referralUsecase struct {
@@ -227,7 +236,7 @@ func (u *referralUsecase) CreateAccount(ctx context.Context, req *dto.CreateSale
 	if req.IsActive != nil {
 		active = *req.IsActive
 	}
-	account := &models.SalesReferralAccount{Email: normalizeEmail(req.Email), Name: req.Name, IsActive: active}
+	account := &models.SalesReferralAccount{Email: normalizeEmail(req.Email), Name: req.Name, IsActive: active, CloseCommissionBps: req.CloseCommissionBps, RecurringCommissionBps: req.RecurringCommissionBps}
 	if err := u.repo.CreateAccount(ctx, account); err != nil {
 		return nil, err
 	}
@@ -245,6 +254,8 @@ func (u *referralUsecase) UpdateAccount(ctx context.Context, id string, req *dto
 	account.Email = normalizeEmail(req.Email)
 	account.Name = req.Name
 	account.IsActive = *req.IsActive
+	account.CloseCommissionBps = req.CloseCommissionBps
+	account.RecurringCommissionBps = req.RecurringCommissionBps
 	if err := u.repo.UpdateAccount(ctx, account); err != nil {
 		return nil, err
 	}
@@ -388,6 +399,137 @@ func (u *referralUsecase) GetStats(ctx context.Context, params dto.ReferralStats
 	}, nil
 }
 
+func (u *referralUsecase) CreateCommissionForPayment(ctx context.Context, paymentTransactionID string) error {
+	txn, err := u.repo.GetPaymentTransaction(ctx, paymentTransactionID)
+	if err != nil || txn == nil || txn.Status != "paid" || txn.AmountIDR <= 0 || txn.TenantID == "" {
+		return err
+	}
+	conv, err := u.repo.FindConversionByTenantID(ctx, txn.TenantID)
+	if err != nil || conv == nil {
+		return err
+	}
+	paidCount, err := u.repo.CountPaidCommissionsByTenant(ctx, txn.TenantID)
+	if err != nil {
+		return err
+	}
+	commissionType := models.CommissionTypeRecurring
+	if paidCount == 0 {
+		commissionType = models.CommissionTypeClose
+	}
+	account, err := u.repo.FindAccountByID(ctx, conv.SalesReferralAccountID)
+	if err != nil || account == nil || !account.IsActive {
+		return err
+	}
+	cfg, err := u.repo.GetActiveCommissionConfig(ctx)
+	if err != nil {
+		return err
+	}
+	bps := cfg.DefaultRecurringCommissionBps
+	if commissionType == models.CommissionTypeClose {
+		bps = cfg.DefaultCloseCommissionBps
+		if account.CloseCommissionBps != nil {
+			bps = *account.CloseCommissionBps
+		}
+	} else if account.RecurringCommissionBps != nil {
+		bps = *account.RecurringCommissionBps
+	}
+	amount := (txn.AmountIDR * int64(bps)) / 10000
+	commission := &models.ReferralCommission{
+		SalesReferralAccountID:    account.ID,
+		SalesReferralCodeID:       conv.SalesReferralCodeID,
+		SalesReferralConversionID: &conv.ID,
+		TenantID:                  txn.TenantID,
+		SubscriptionID:            nullableString(txn.SubscriptionID),
+		PaymentTransactionID:      txn.ID,
+		CommissionType:            commissionType,
+		Status:                    models.CommissionStatusPending,
+		SourceNetAmountIDR:        txn.AmountIDR,
+		CommissionBps:             bps,
+		CommissionAmountIDR:       amount,
+		EarnedAt:                  apptime.Now(),
+	}
+	return u.repo.CreateCommissionIfNotExists(ctx, commission)
+}
+
+func (u *referralUsecase) GetCommissionConfig(ctx context.Context) (*dto.CommissionConfigResponse, error) {
+	cfg, err := u.repo.GetActiveCommissionConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.CommissionConfigResponse{ID: cfg.ID, DefaultCloseCommissionBps: cfg.DefaultCloseCommissionBps, DefaultRecurringCommissionBps: cfg.DefaultRecurringCommissionBps, IsActive: cfg.IsActive, CreatedAt: cfg.CreatedAt, UpdatedAt: cfg.UpdatedAt}, nil
+}
+func (u *referralUsecase) UpdateCommissionConfig(ctx context.Context, req *dto.CommissionConfigRequest) (*dto.CommissionConfigResponse, error) {
+	if err := u.repo.UpsertCommissionConfig(ctx, &models.ReferralCommissionConfig{DefaultCloseCommissionBps: req.DefaultCloseCommissionBps, DefaultRecurringCommissionBps: req.DefaultRecurringCommissionBps}); err != nil {
+		return nil, err
+	}
+	return u.GetCommissionConfig(ctx)
+}
+func (u *referralUsecase) ListCommissions(ctx context.Context, params dto.CommissionListParams) ([]*dto.CommissionResponse, *response.PaginationMeta, error) {
+	page, perPage := normalizePagination(params.Page, params.PerPage)
+	items, total, err := u.repo.ListCommissions(ctx, page, perPage, params.SalesReferralAccountID, params.Status, params.CommissionType)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := make([]*dto.CommissionResponse, 0, len(items))
+	for _, c := range items {
+		out = append(out, &dto.CommissionResponse{ID: c.ID, SalesReferralAccountID: c.SalesReferralAccountID, SalesReferralCodeID: c.SalesReferralCodeID, SalesReferralConversionID: c.SalesReferralConversionID, TenantID: c.TenantID, SubscriptionID: c.SubscriptionID, PaymentTransactionID: c.PaymentTransactionID, CommissionType: string(c.CommissionType), Status: string(c.Status), SourceNetAmountIDR: c.SourceNetAmountIDR, CommissionBps: c.CommissionBps, CommissionAmountIDR: c.CommissionAmountIDR, EarnedAt: c.EarnedAt, ApprovedAt: c.ApprovedAt, VoidedAt: c.VoidedAt, VoidReason: c.VoidReason, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt})
+	}
+	return out, response.NewPaginationMeta(page, perPage, int(total)), nil
+}
+func (u *referralUsecase) ApproveCommission(ctx context.Context, id, actorID string) error {
+	commission, err := u.repo.FindCommissionByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if commission.Status != models.CommissionStatusPending {
+		return ErrCommissionInvalidState
+	}
+	return u.repo.UpdateCommission(ctx, id, map[string]interface{}{"status": models.CommissionStatusApproved, "approved_at": apptime.Now(), "approved_by": actorID})
+}
+func (u *referralUsecase) VoidCommission(ctx context.Context, id, actorID, reason string) error {
+	commission, err := u.repo.FindCommissionByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if commission.Status == models.CommissionStatusPaid {
+		return ErrCommissionInvalidState
+	}
+	return u.repo.UpdateCommission(ctx, id, map[string]interface{}{"status": models.CommissionStatusVoid, "voided_at": apptime.Now(), "voided_by": actorID, "void_reason": reason})
+}
+func (u *referralUsecase) CreatePayout(ctx context.Context, req *dto.CreatePayoutRequest, actorID string) (*dto.PayoutResponse, error) {
+	if req == nil || strings.TrimSpace(req.SalesReferralAccountID) == "" || len(req.CommissionIDs) == 0 {
+		return nil, ErrCommissionInvalidState
+	}
+	seen := make(map[string]struct{}, len(req.CommissionIDs))
+	for _, id := range req.CommissionIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return nil, ErrCommissionInvalidState
+		}
+		if _, ok := seen[id]; ok {
+			return nil, ErrCommissionInvalidState
+		}
+		seen[id] = struct{}{}
+	}
+	payout := &models.ReferralCommissionPayout{SalesReferralAccountID: req.SalesReferralAccountID, PaidAt: req.PaidAt, PaymentReference: req.PaymentReference, Notes: req.Notes, CreatedBy: &actorID}
+	if err := u.repo.CreatePayoutWithItems(ctx, payout, req.CommissionIDs); err != nil {
+		return nil, err
+	}
+	return &dto.PayoutResponse{ID: payout.ID, SalesReferralAccountID: payout.SalesReferralAccountID, Status: payout.Status, TotalAmountIDR: payout.TotalAmountIDR, PaidAt: payout.PaidAt, PaymentReference: payout.PaymentReference, Notes: payout.Notes, CreatedBy: payout.CreatedBy, CreatedAt: payout.CreatedAt, UpdatedAt: payout.UpdatedAt}, nil
+}
+func (u *referralUsecase) ListPayouts(ctx context.Context, params dto.PayoutListParams) ([]*dto.PayoutResponse, *response.PaginationMeta, error) {
+	page, perPage := normalizePagination(params.Page, params.PerPage)
+	items, total, err := u.repo.ListPayouts(ctx, page, perPage, params.SalesReferralAccountID)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := make([]*dto.PayoutResponse, 0, len(items))
+	for _, p := range items {
+		out = append(out, &dto.PayoutResponse{ID: p.ID, SalesReferralAccountID: p.SalesReferralAccountID, Status: p.Status, TotalAmountIDR: p.TotalAmountIDR, PaidAt: p.PaidAt, PaymentReference: p.PaymentReference, Notes: p.Notes, CreatedBy: p.CreatedBy, CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt})
+	}
+	return out, response.NewPaginationMeta(page, perPage, int(total)), nil
+}
+
 func normalizePagination(page, perPage int) (int, int) {
 	if page < 1 {
 		page = 1
@@ -405,7 +547,7 @@ func toAccountResponse(account *models.SalesReferralAccount) *dto.SalesReferralA
 	if account == nil {
 		return nil
 	}
-	return &dto.SalesReferralAccountResponse{ID: account.ID, Email: account.Email, Name: account.Name, IsActive: account.IsActive, CreatedAt: account.CreatedAt, UpdatedAt: account.UpdatedAt}
+	return &dto.SalesReferralAccountResponse{ID: account.ID, Email: account.Email, Name: account.Name, IsActive: account.IsActive, CloseCommissionBps: account.CloseCommissionBps, RecurringCommissionBps: account.RecurringCommissionBps, CreatedAt: account.CreatedAt, UpdatedAt: account.UpdatedAt}
 }
 
 func toCodeResponse(code *models.SalesReferralCode) *dto.SalesReferralCodeResponse {

@@ -485,6 +485,8 @@ export interface SalesReferralAccount {
   email: string;
   name?: string | null;
   is_active: boolean;
+  close_commission_bps?: number | null;
+  recurring_commission_bps?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -532,13 +534,88 @@ export interface CreateSalesReferralAccountRequest {
   email: string;
   name: string;
   is_active: boolean;
+  close_commission_bps?: number | null;
+  recurring_commission_bps?: number | null;
 }
 
 export interface UpdateSalesReferralAccountRequest {
   email: string;
   name?: string | null;
   is_active: boolean;
+  close_commission_bps?: number | null;
+  recurring_commission_bps?: number | null;
 }
+
+export interface ReferralCommissionConfig {
+  id: string;
+  default_close_commission_bps: number;
+  default_recurring_commission_bps: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReferralCommission {
+  id: string;
+  sales_referral_account_id: string;
+  sales_referral_code_id: string;
+  tenant_id: string;
+  payment_transaction_id: string;
+  commission_type: "close" | "recurring" | "adjustment";
+  status: "pending" | "approved" | "paid" | "void";
+  source_net_amount_idr: number;
+  commission_bps: number;
+  commission_amount_idr: number;
+  earned_at: string;
+  approved_at?: string | null;
+  voided_at?: string | null;
+  void_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReferralCommissionPayout {
+  id: string;
+  sales_referral_account_id: string;
+  status: "paid" | string;
+  total_amount_idr: number;
+  paid_at: string;
+  payment_reference?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CommissionListParams extends SalesReferralListParams {
+  sales_referral_account_id?: string;
+  status?: string;
+  commission_type?: string;
+}
+
+export interface PayoutListParams extends SalesReferralListParams {
+  sales_referral_account_id?: string;
+}
+
+export interface CommissionConfigRequest {
+  default_close_commission_bps: number;
+  default_recurring_commission_bps: number;
+}
+
+export interface VoidCommissionRequest { reason: string; }
+
+export interface CreatePayoutRequest {
+  sales_referral_account_id: string;
+  commission_ids: string[];
+  paid_at: string;
+  payment_reference?: string | null;
+  notes?: string | null;
+}
+
+export interface CommissionConfigResponse { success: boolean; data: ReferralCommissionConfig; }
+export interface CommissionListResponse { success: boolean; data: ReferralCommission[]; meta?: { pagination?: PaginationMeta }; }
+export interface PayoutListResponse { success: boolean; data: ReferralCommissionPayout[]; meta?: { pagination?: PaginationMeta }; }
+export interface PayoutDetailResponse { success: boolean; data: ReferralCommissionPayout; }
 
 export interface CreateSalesReferralCodeRequest {
   sales_referral_account_id: string;

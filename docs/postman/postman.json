@@ -10870,6 +10870,304 @@
             "description": "Soft-delete/deactivate referral code. Requires sales_referral.delete."
           },
           "response": []
+        },
+        {
+          "name": "Get Commission Config",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/internal/referrals/commission-config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "internal",
+                "referrals",
+                "commission-config"
+              ]
+            },
+            "description": "Get active referral commission default rates."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Commission Config",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/internal/referrals/commission-config",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "internal",
+                "referrals",
+                "commission-config"
+              ]
+            },
+            "description": "Update active default referral commission rates in basis points.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"default_close_commission_bps\": 1000,\n  \"default_recurring_commission_bps\": 500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Referral Commissions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/internal/referrals/commissions?page=1&per_page=20&status=pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "internal",
+                "referrals",
+                "commissions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ]
+            },
+            "description": "List referral commission rows."
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Referral Commission",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/internal/referrals/commissions/{{referral_commission_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "internal",
+                "referrals",
+                "commissions",
+                "{{referral_commission_id}}",
+                "approve"
+              ]
+            },
+            "description": "Approve pending referral commission before payout.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Void Referral Commission",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/internal/referrals/commissions/{{referral_commission_id}}/void",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "internal",
+                "referrals",
+                "commissions",
+                "{{referral_commission_id}}",
+                "void"
+              ]
+            },
+            "description": "Void unpaid referral commission.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Refund before payout\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Referral Payouts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/internal/referrals/payouts?page=1&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "internal",
+                "referrals",
+                "payouts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "List manual referral commission payouts."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Referral Payout",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/internal/referrals/payouts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "internal",
+                "referrals",
+                "payouts"
+              ]
+            },
+            "description": "Create manual payout for approved commissions from one Sales Referral Account.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sales_referral_account_id\": \"{{sales_referral_account_id}}\",\n  \"commission_ids\": [\n    \"{{referral_commission_id}}\"\n  ],\n  \"paid_at\": \"2026-06-10T00:00:00Z\",\n  \"payment_reference\": \"MANUAL-001\",\n  \"notes\": \"Manual bank transfer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     }
