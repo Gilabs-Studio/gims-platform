@@ -47,6 +47,7 @@ Issue: #459
 - `VoidCommission` now blocks paid rows; Xendit `REFUNDED` / `CHARGEBACK` callbacks create pending negative adjustment rows for paid commissions.
 - Billing-change idempotency path should be reviewed to look up existing payment row on webhook retry before commission creation.
 - Focused commission usecase tests added for close commission, zero amount skip, approval state, duplicate payout IDs, and negative adjustments.
+- Xendit refund callback handler test added for `REFUNDED` adjustment path.
 - Postman and Bruno include commission config, commission approval/void, and payout endpoints.
 - Frontend not implemented yet.
 
@@ -76,11 +77,12 @@ Issue: #459
 - `apps/api/internal/auth/domain/usecase/auth_usecase.go`
 - `apps/api/internal/auth/domain/usecase/billing_change_usecase.go`
 - `apps/api/internal/auth/presentation/handler/xendit_handler.go`
+- `apps/api/internal/auth/presentation/handler/xendit_handler_test.go`
 - `docs/postman/postman.json`
 - `docs/bruno/sales-referral.yaml`
 
 ## Suggested next steps
 1. Harden state transitions and validation.
 2. Implement recurring renewal payment transaction creation from webhook amount.
-3. Add integration tests for paid registration, trial-to-paid upgrade, webhook renewal, refund callback, and payout persistence.
+3. Add DB-backed integration tests for paid registration, trial-to-paid upgrade, webhook renewal, and payout persistence. SQLite-based existing auth tests require CGO in this environment.
 4. Polish frontend commission/payout UI.
