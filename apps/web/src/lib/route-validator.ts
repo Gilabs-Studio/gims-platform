@@ -114,6 +114,16 @@ const EXTRA_VALID_ROUTES = [
   "/pos/loyalty",
   "/pos/loyalty/config",
   "/pos/loyalty/members",
+  "/system/login",
+  "/system/dashboard",
+  "/system/tenants",
+  "/system/coupons",
+  "/system/sales-referrals",
+  "/system/subscriptions",
+  "/system/plans",
+  "/system/permissions",
+  "/system/profile",
+  "/system/feedback",
 ] as const;
 
 const VALID_DASHBOARD_ROUTES = Array.from(

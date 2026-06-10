@@ -478,3 +478,116 @@ export interface SupportFeedbackListResponse {
   };
 }
 
+// ── Sales Referrals ────────────────────────────────────────────────────────
+
+export interface SalesReferralAccount {
+  id: string;
+  email: string;
+  name?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesReferralCode {
+  id: string;
+  sales_referral_account_id: string;
+  sales_referral_account?: SalesReferralAccount | null;
+  coupon_id: string;
+  code: string;
+  campaign_name?: string | null;
+  description?: string | null;
+  is_active: boolean;
+  max_uses: number;
+  used_count: number;
+  max_uses_per_email: number;
+  expires_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalesReferralStats {
+  total_leads: number;
+  total_conversions: number;
+  trial_conversions: number;
+  paid_conversions: number;
+  gross_revenue_idr: number;
+  net_revenue_idr: number;
+}
+
+export interface SalesReferralListParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+}
+
+export interface SalesReferralStatsParams {
+  date_from?: string;
+  date_to?: string;
+  sales_referral_account_id?: string;
+  referral_code_id?: string;
+}
+
+export interface CreateSalesReferralAccountRequest {
+  email: string;
+  name?: string | null;
+  is_active?: boolean;
+}
+
+export interface UpdateSalesReferralAccountRequest {
+  email: string;
+  name?: string | null;
+  is_active: boolean;
+}
+
+export interface CreateSalesReferralCodeRequest {
+  sales_referral_account_id: string;
+  coupon_id: string;
+  code: string;
+  campaign_name?: string | null;
+  description?: string | null;
+  is_active?: boolean;
+  max_uses: number;
+  max_uses_per_email?: number;
+  expires_at?: string | null;
+}
+
+export interface UpdateSalesReferralCodeRequest {
+  sales_referral_account_id: string;
+  coupon_id: string;
+  code: string;
+  campaign_name?: string | null;
+  description?: string | null;
+  is_active: boolean;
+  max_uses: number;
+  max_uses_per_email?: number;
+  expires_at?: string | null;
+}
+
+export interface SalesReferralAccountListResponse {
+  success: boolean;
+  data: SalesReferralAccount[];
+  meta?: { pagination?: PaginationMeta };
+}
+
+export interface SalesReferralAccountDetailResponse {
+  success: boolean;
+  data: SalesReferralAccount;
+}
+
+export interface SalesReferralCodeListResponse {
+  success: boolean;
+  data: SalesReferralCode[];
+  meta?: { pagination?: PaginationMeta };
+}
+
+export interface SalesReferralCodeDetailResponse {
+  success: boolean;
+  data: SalesReferralCode;
+}
+
+export interface SalesReferralStatsResponse {
+  success: boolean;
+  data: SalesReferralStats;
+}
+

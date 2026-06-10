@@ -8,14 +8,14 @@ import {
 
 /**
  * Proxy middleware for handling authentication routing.
- * 
+ *
  * IMPORTANT: Cookie presence does NOT guarantee valid session.
  * HttpOnly cookies cannot be validated by middleware - only the backend can verify them.
- * 
+ *
  * This middleware only handles:
  * 1. Root path redirect when cookies exist (for convenience)
  * 2. Login page access - always allow (let client-side verify session)
- * 
+ *
  * All protected route auth is handled by client-side AuthGuard which:
  * - Verifies session with backend on every page load
  * - Redirects to login if session is invalid
@@ -31,14 +31,16 @@ export function proxy(request: NextRequest) {
 
   // Extract locale from pathname
   const pathSegments = pathname.split("/").filter(Boolean);
-  const pathLocale = pathSegments[0] === "en" || pathSegments[0] === "id" 
-    ? pathSegments[0] 
-    : null;
+  const pathLocale =
+    pathSegments[0] === "en" || pathSegments[0] === "id"
+      ? pathSegments[0]
+      : null;
   const requestCountryCode =
     request.headers.get("x-vercel-ip-country") ??
     request.headers.get("cf-ipcountry") ??
     request.headers.get("x-country-code");
-  const detectedLocale = pathLocale ?? cookieLocale ?? getLocaleFromCountryCode(requestCountryCode);
+  const detectedLocale =
+    pathLocale ?? cookieLocale ?? getLocaleFromCountryCode(requestCountryCode);
 
   const response = NextResponse.next();
   if (cookieLocale !== detectedLocale) {
@@ -67,7 +69,10 @@ export function proxy(request: NextRequest) {
     isLegacySettingsPath;
   if (!hasLocalePrefix && isLocaleAgnosticAuthPath) {
     const normalizedPath = isLegacySettingsPath ? "/profile" : pathname;
-    const targetURL = new URL(`/${detectedLocale}${normalizedPath}`, request.url);
+    const targetURL = new URL(
+      `/${detectedLocale}${normalizedPath}`,
+      request.url,
+    );
     targetURL.search = request.nextUrl.search;
     if (isLegacySettingsPath && !targetURL.searchParams.has("tab")) {
       targetURL.searchParams.set("tab", "billing");
@@ -87,7 +92,9 @@ export function proxy(request: NextRequest) {
   // NOTE: Client-side AuthGuard will verify the session and redirect to login if invalid
   if (pathname === "/" && accessToken) {
     const target = `/${detectedLocale}/dashboard`;
-    const redirectResponse = NextResponse.redirect(new URL(target, request.url));
+    const redirectResponse = NextResponse.redirect(
+      new URL(target, request.url),
+    );
     redirectResponse.cookies.set({
       name: LOCALE_PREFERENCE_COOKIE,
       value: detectedLocale,

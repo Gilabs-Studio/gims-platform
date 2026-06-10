@@ -39,6 +39,7 @@ export const systemAdminEn = {
       dashboard: "Dashboard",
       tenants: "Tenants",
       coupons: "Coupons",
+      salesReferrals: "Sales Referrals",
       plans: "Plans",
       subscriptions: "Subscriptions",
       permissions: "Permissions",

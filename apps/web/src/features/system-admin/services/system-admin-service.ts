@@ -36,6 +36,17 @@ import type {
   CreatePermissionRequest,
   UpdatePermissionRequest,
   SupportFeedbackListResponse,
+  SalesReferralListParams,
+  SalesReferralStatsParams,
+  SalesReferralStatsResponse,
+  SalesReferralAccountListResponse,
+  SalesReferralAccountDetailResponse,
+  SalesReferralCodeListResponse,
+  SalesReferralCodeDetailResponse,
+  CreateSalesReferralAccountRequest,
+  UpdateSalesReferralAccountRequest,
+  CreateSalesReferralCodeRequest,
+  UpdateSalesReferralCodeRequest,
 } from "../types";
 
 const API_BASE_URL =
@@ -370,6 +381,60 @@ export const systemAdminService = {
 
   async deleteFeedback(id: string): Promise<{ success: boolean }> {
     const { data } = await sysAdminClient.delete<{ success: boolean }>(`/support-feedbacks/${id}`);
+    return data;
+  },
+
+  // ── Sales Referral Management ────────────────────────────────────────────
+
+  async getReferralStats(params?: SalesReferralStatsParams): Promise<SalesReferralStatsResponse> {
+    const { data } = await sysAdminClient.get<SalesReferralStatsResponse>("/referrals/stats", { params });
+    return data;
+  },
+
+  async listReferralAccounts(params?: SalesReferralListParams): Promise<SalesReferralAccountListResponse> {
+    const { data } = await sysAdminClient.get<SalesReferralAccountListResponse>("/referrals/accounts", { params });
+    return data;
+  },
+
+  async createReferralAccount(payload: CreateSalesReferralAccountRequest): Promise<SalesReferralAccountDetailResponse> {
+    const { data } = await sysAdminClient.post<SalesReferralAccountDetailResponse>("/referrals/accounts", payload);
+    return data;
+  },
+
+  async updateReferralAccount(id: string, payload: UpdateSalesReferralAccountRequest): Promise<SalesReferralAccountDetailResponse> {
+    const { data } = await sysAdminClient.put<SalesReferralAccountDetailResponse>(`/referrals/accounts/${id}`, payload);
+    return data;
+  },
+
+  async deleteReferralAccount(id: string): Promise<{ success: boolean }> {
+    const { data } = await sysAdminClient.delete<{ success: boolean }>(`/referrals/accounts/${id}`);
+    return data;
+  },
+
+  async listReferralCodes(params?: SalesReferralListParams): Promise<SalesReferralCodeListResponse> {
+    const { data } = await sysAdminClient.get<SalesReferralCodeListResponse>("/referrals/codes", { params });
+    return data;
+  },
+
+  async createReferralCode(payload: CreateSalesReferralCodeRequest): Promise<SalesReferralCodeDetailResponse> {
+    const { data } = await sysAdminClient.post<SalesReferralCodeDetailResponse>("/referrals/codes", payload);
+    return data;
+  },
+
+  async updateReferralCode(id: string, payload: UpdateSalesReferralCodeRequest): Promise<SalesReferralCodeDetailResponse> {
+    const { data } = await sysAdminClient.put<SalesReferralCodeDetailResponse>(`/referrals/codes/${id}`, payload);
+    return data;
+  },
+
+  async setReferralCodeStatus(id: string, isActive: boolean): Promise<{ success: boolean }> {
+    const { data } = await sysAdminClient.patch<{ success: boolean }>(`/referrals/codes/${id}/status`, {
+      is_active: isActive,
+    });
+    return data;
+  },
+
+  async deleteReferralCode(id: string): Promise<{ success: boolean }> {
+    const { data } = await sysAdminClient.delete<{ success: boolean }>(`/referrals/codes/${id}`);
     return data;
   },
 };
