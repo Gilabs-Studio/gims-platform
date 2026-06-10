@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/mail"
+	"regexp"
 	"strings"
 
 	coreErrors "github.com/gilabs/gims/api/internal/core/errors"
@@ -133,8 +134,17 @@ func validateAccountRequest(c *gin.Context, email string, name *string, active *
 	if trimmedEmail == "" {
 		return validationError(c, "email", "Email is required.")
 	}
+	if strings.Contains(trimmedEmail, " ") {
+		return validationError(c, "email", "Email cannot contain spaces.")
+	}
+	if !strings.Contains(trimmedEmail, "@") {
+		return validationError(c, "email", "Email must include @.")
+	}
+	if strings.Count(trimmedEmail, "@") > 1 {
+		return validationError(c, "email", "Email can only include one @ symbol.")
+	}
 	if _, err := mail.ParseAddress(trimmedEmail); err != nil {
-		return validationError(c, "email", "Enter a valid email address.")
+		return validationError(c, "email", "Enter a valid email address like name@example.com.")
 	}
 	if name == nil || strings.TrimSpace(*name) == "" {
 		return validationError(c, "name", "Name is required.")
@@ -171,14 +181,26 @@ func validateCodeRequest(c *gin.Context, accountID, couponID, code string, activ
 	if len(trimmedCode) > 64 {
 		return validationError(c, "code", "Public code must be 64 characters or fewer.")
 	}
+	if strings.Contains(trimmedCode, " ") {
+		return validationError(c, "code", "Public code cannot contain spaces.")
+	}
+	if !regexp.MustCompile(`^[A-Za-z0-9_-]+$`).MatchString(trimmedCode) {
+		return validationError(c, "code", "Use only letters, numbers, underscores, or hyphens.")
+	}
 	if active == nil {
 		return validationError(c, "is_active", "Active status is required.")
 	}
 	if maxUses < 1 {
 		return validationError(c, "max_uses", "Max uses must be at least 1.")
 	}
+	if maxUses > 1000000 {
+		return validationError(c, "max_uses", "Max uses must be 1,000,000 or fewer.")
+	}
 	if maxUsesPerEmail < 1 {
 		return validationError(c, "max_uses_per_email", "Max uses per email must be at least 1.")
+	}
+	if maxUsesPerEmail > 1000000 {
+		return validationError(c, "max_uses_per_email", "Max uses per email must be 1,000,000 or fewer.")
 	}
 	return true
 }

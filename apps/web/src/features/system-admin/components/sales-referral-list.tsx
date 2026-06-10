@@ -6,6 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -27,6 +37,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/features/finance/assets/components/date-picker";
 import { Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
@@ -75,8 +86,37 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-xs text-destructive">{message}</p>;
 }
 
-function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+function getEmailError(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return "Email is required.";
+  if (/\s/.test(trimmed)) return "Email cannot contain spaces.";
+  if (!trimmed.includes("@")) return "Email must include @.";
+  const [local, domain, extra] = trimmed.split("@");
+  if (extra !== undefined) return "Email can only include one @ symbol.";
+  if (!local) return "Email must include text before @.";
+  if (!domain) return "Email must include a domain after @.";
+  if (!domain.includes(".")) return "Email domain must include a dot, like example.com.";
+  if (domain.startsWith(".") || domain.endsWith(".")) return "Email domain cannot start or end with a dot.";
+  if (trimmed.length > 254) return "Email must be 254 characters or fewer.";
+  return undefined;
+}
+
+function getPublicCodeError(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return "Public code is required.";
+  if (trimmed.length < 4) return "Public code must be at least 4 characters.";
+  if (trimmed.length > 64) return "Public code must be 64 characters or fewer.";
+  if (/\s/.test(trimmed)) return "Public code cannot contain spaces.";
+  if (!/^[A-Z0-9_-]+$/.test(trimmed.toUpperCase())) return "Use only letters, numbers, underscores, or hyphens.";
+  return undefined;
+}
+
+function getPositiveIntegerError(value: number, label: string): string | undefined {
+  if (!Number.isFinite(value)) return `${label} is required.`;
+  if (!Number.isInteger(value)) return `${label} must be a whole number.`;
+  if (value < 1) return `${label} must be at least 1.`;
+  if (value > 1000000) return `${label} must be 1,000,000 or fewer.`;
+  return undefined;
 }
 
 function formatIDR(value: number): string {
@@ -148,8 +188,8 @@ function AccountDialog({ open, account, onClose, onSubmit, isSaving }: AccountDi
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextErrors: Partial<Record<keyof AccountFormState, string>> = {};
-    if (!form.email.trim()) nextErrors.email = "Email is required.";
-    else if (!isValidEmail(form.email)) nextErrors.email = "Enter a valid email address.";
+    const emailError = getEmailError(form.email);
+    if (emailError) nextErrors.email = emailError;
     if (!form.name.trim()) nextErrors.name = "Name is required.";
     if (typeof form.isActive !== "boolean") nextErrors.isActive = "Active status is required.";
     setErrors(nextErrors);
@@ -237,11 +277,12 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
     const nextErrors: Partial<Record<keyof CodeFormState, string>> = {};
     if (!form.salesReferralAccountID) nextErrors.salesReferralAccountID = "Sales account is required.";
     if (!form.couponID) nextErrors.couponID = "Wrapped coupon is required.";
-    if (!form.code.trim()) nextErrors.code = "Public code is required.";
-    else if (form.code.trim().length < 4) nextErrors.code = "Public code must be at least 4 characters.";
-    else if (!/^[A-Z0-9_-]+$/.test(form.code.trim().toUpperCase())) nextErrors.code = "Use only letters, numbers, underscores, or hyphens.";
-    if (!Number.isInteger(form.maxUses) || form.maxUses < 1) nextErrors.maxUses = "Max uses must be at least 1.";
-    if (!Number.isInteger(form.maxUsesPerEmail) || form.maxUsesPerEmail < 1) nextErrors.maxUsesPerEmail = "Max uses per email must be at least 1.";
+    const codeError = getPublicCodeError(form.code);
+    if (codeError) nextErrors.code = codeError;
+    const maxUsesError = getPositiveIntegerError(form.maxUses, "Max uses");
+    if (maxUsesError) nextErrors.maxUses = maxUsesError;
+    const maxUsesPerEmailError = getPositiveIntegerError(form.maxUsesPerEmail, "Max uses per email");
+    if (maxUsesPerEmailError) nextErrors.maxUsesPerEmail = maxUsesPerEmailError;
     if (typeof form.isActive !== "boolean") nextErrors.isActive = "Active status is required.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -299,6 +340,11 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
                 onValueChange={(value) => {
                   setForm((prev) => ({ ...prev, couponID: value }));
                   setErrors((prev) => ({ ...prev, couponID: undefined }));
+                  const selectedCoupon = coupons.find((coupon) => coupon.id === value);
+                  const couponExpiry = selectedCoupon?.expires_at;
+                  if (couponExpiry) {
+                    setForm((prev) => ({ ...prev, expiresAt: couponExpiry.slice(0, 10) }));
+                  }
                 }}
               >
                 <SelectTrigger id="ref-code-coupon">
@@ -389,11 +435,10 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ref-code-expiry">Expires at</Label>
-              <Input
+              <DatePicker
                 id="ref-code-expiry"
-                type="date"
                 value={form.expiresAt}
-                onChange={(event) => setForm((prev) => ({ ...prev, expiresAt: event.target.value }))}
+                onChange={(value) => setForm((prev) => ({ ...prev, expiresAt: value }))}
               />
             </div>
           </div>
@@ -419,6 +464,39 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
   );
 }
 
+interface DeleteDialogProps {
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  loading?: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+function DeleteDialog({ open, title, description, confirmLabel, loading, onClose, onConfirm }: DeleteDialogProps) {
+  return (
+    <AlertDialog open={open} onOpenChange={(value) => !value && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            disabled={loading}
+            onClick={onConfirm}
+          >
+            {loading ? "Deleting..." : confirmLabel}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export function SalesReferralList() {
   const [accountPage, setAccountPage] = useState(1);
   const [codePage, setCodePage] = useState(1);
@@ -429,6 +507,8 @@ export function SalesReferralList() {
   const [accountFilter, setAccountFilter] = useState<ReferralFilter>("all");
   const [accountDialog, setAccountDialog] = useState<SalesReferralAccount | null | "create">(null);
   const [codeDialog, setCodeDialog] = useState<SalesReferralCode | null | "create">(null);
+  const [deleteAccountTarget, setDeleteAccountTarget] = useState<SalesReferralAccount | null>(null);
+  const [deleteCodeTarget, setDeleteCodeTarget] = useState<SalesReferralCode | null>(null);
   const params = useMemo(() => ({ page: 1, per_page: 20, search: debouncedSearch.trim() || undefined }), [debouncedSearch]);
   const stats = useSalesReferralStats();
   const accounts = useSalesReferralAccounts({ ...params, page: accountPage });
@@ -556,7 +636,7 @@ export function SalesReferralList() {
                       <TableCell><StatusBadge active={row.is_active} /></TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setCodeDialog(row)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="cursor-pointer text-destructive" onClick={() => mutations.deleteCode.mutate(row.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="cursor-pointer text-destructive" onClick={() => setDeleteCodeTarget(row)}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -590,7 +670,7 @@ export function SalesReferralList() {
                       <TableCell>{formatDate(row.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setAccountDialog(row)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="cursor-pointer text-destructive" onClick={() => mutations.deleteAccount.mutate(row.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="cursor-pointer text-destructive" onClick={() => setDeleteAccountTarget(row)}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -632,6 +712,30 @@ export function SalesReferralList() {
             }}
           />
         )}
+        <DeleteDialog
+          open={deleteAccountTarget !== null}
+          title="Delete referral account?"
+          description={deleteAccountTarget ? `Delete ${deleteAccountTarget.name || deleteAccountTarget.email}? This keeps history but hides account from active lists.` : ""}
+          confirmLabel="Delete account"
+          loading={mutations.deleteAccount.isPending}
+          onClose={() => setDeleteAccountTarget(null)}
+          onConfirm={() => {
+            if (!deleteAccountTarget) return;
+            mutations.deleteAccount.mutate(deleteAccountTarget.id, { onSuccess: () => setDeleteAccountTarget(null) });
+          }}
+        />
+        <DeleteDialog
+          open={deleteCodeTarget !== null}
+          title="Delete referral code?"
+          description={deleteCodeTarget ? `Delete ${deleteCodeTarget.code}? This keeps conversion history but hides code from active lists.` : ""}
+          confirmLabel="Delete code"
+          loading={mutations.deleteCode.isPending}
+          onClose={() => setDeleteCodeTarget(null)}
+          onConfirm={() => {
+            if (!deleteCodeTarget) return;
+            mutations.deleteCode.mutate(deleteCodeTarget.id, { onSuccess: () => setDeleteCodeTarget(null) });
+          }}
+        />
       </div>
     </PageMotion>
   );
