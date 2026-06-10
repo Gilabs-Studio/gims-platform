@@ -22,6 +22,18 @@ _Avoid_: Coupon campaign, promo code
 A registration attempt that submits a valid referral code before tenant conversion.
 _Avoid_: Validation hit, code check
 
+**Referral Commission**:
+Money earned by a sales referral account from referred tenant payments.
+_Avoid_: Admin fee, platform fee, discount
+
+**Commission Payout**:
+A settlement of approved referral commission to a sales referral account.
+_Avoid_: Commission earning, revenue, payment collection
+
+**Closed Transaction**:
+The first successful paid payment made by a referred tenant.
+_Avoid_: Trial conversion, pending invoice, registration attempt
+
 ## Relationships
 
 - A **Sales Referral Account** owns one or more **Referral Codes**
@@ -37,6 +49,29 @@ _Avoid_: Validation hit, code check
 - A **Referral Lead** is created when registration submits a valid referral code
 - A **Referral Code** is reusable but subject to usage caps
 - A **Referral Code** has its own usage caps in addition to the linked **Coupon** caps
+- A **Sales Referral Account** receives **Referral Commission** from referred tenant payments
+- **Referral Commission** uses platform defaults unless a **Sales Referral Account** has custom rates
+- A **Closed Transaction** can earn close commission; a trial conversion cannot
+- **Referral Commission** is calculated from net paid revenue, not gross plan value
+- Recurring **Referral Commission** is earned on every successful paid renewal while the tenant remains active
+- The first paid payment earns close commission only; later paid renewals earn recurring commission only
+- Recurring **Referral Commission** is calculated per successful renewal payment, regardless of monthly or yearly billing period
+- **Referral Commission** rates are snapshotted when each commission event occurs
+- Inactive **Sales Referral Accounts** do not earn new **Referral Commission**, but already earned commission remains historical
+- **Referral Commission** can be pending, approved, paid, or void
+- **Referral Commission** must be approved before it can be paid
+- Unpaid **Referral Commission** can be voided; already paid commission is corrected with a negative adjustment, not edited in place
+- **Referral Commission** is voided only by refund or chargeback of its source payment, not by later subscription cancellation or expiration
+- A **Commission Payout** settles approved **Referral Commission**; earning commission and paying it out are distinct events
+- **Commission Payout** is manually recorded by System Admin and does not automatically transfer money
+- A **Commission Payout** can settle one or more approved **Referral Commission** records for a sales referral account
+- A **Commission Payout** belongs to exactly one **Sales Referral Account**
+- **PaymentTransaction** is the canonical source for paid commission events, including recurring renewal payments
+- Renewal payment amount precedence is webhook amount, then subscription amount, then plan recalculation as last fallback
+- **Referral Commission** rates are stored as integer basis points to avoid floating-point money math
+- **Referral Commission** amount is rounded down to the nearest IDR after basis-point calculation
+- Default **Referral Commission** rates are stored in referral commission configuration, while **Sales Referral Accounts** may override with custom rates
+- Existing referral history is not auto-backfilled into **Referral Commission** rows during migration
 - Referral stats track both gross and net revenue, with net revenue as primary
 - Referral validation requires both **Referral Code** and linked **Coupon** to be active and valid
 - Referral and coupon usage caps must both pass, and usage increments must be atomic
