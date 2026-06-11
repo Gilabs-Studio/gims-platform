@@ -39,7 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/features/finance/assets/components/date-picker";
-import { Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Copy, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   useSalesReferralAccounts,
@@ -56,6 +56,7 @@ import type {
   CreateSalesReferralCodeRequest,
   SalesReferralAccount,
   SalesReferralCode,
+  ReferralCommission,
   Coupon,
   UpdateSalesReferralAccountRequest,
   UpdateSalesReferralCodeRequest,
@@ -543,6 +544,116 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
   );
 }
 
+function CommissionMiniTable({ rows, emptyText }: { rows: ReferralCommission[]; emptyText: string }) {
+  if (rows.length === 0) return <p className="rounded-md border p-4 text-sm text-muted-foreground">{emptyText}</p>;
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Type</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Base</TableHead>
+            <TableHead>Rate</TableHead>
+            <TableHead>Commission</TableHead>
+            <TableHead>Earned</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.id}>
+              <TableCell className="capitalize">{row.commission_type}</TableCell>
+              <TableCell><Badge variant={row.status === "pending" ? "secondary" : row.status === "approved" ? "default" : "outline"}>{row.status}</Badge></TableCell>
+              <TableCell>{formatIDR(row.source_net_amount_idr)}</TableCell>
+              <TableCell>{formatBpsPercent(row.commission_bps)}</TableCell>
+              <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
+              <TableCell>{formatDate(row.earned_at)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function CodeDetailDialog({ code, commissions, onClose }: { code: SalesReferralCode | null; commissions: ReferralCommission[]; onClose: () => void }) {
+  if (!code) return null;
+  return (
+    <Dialog open={Boolean(code)} onOpenChange={(value) => !value && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Referral code detail</DialogTitle>
+        </DialogHeader>
+        <Tabs defaultValue="overview">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="commissions">Commissions</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview" className="space-y-4 pt-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div><p className="text-xs text-muted-foreground">Code</p><p className="font-mono font-medium">{code.code}</p></div>
+              <div><p className="text-xs text-muted-foreground">Status</p><StatusBadge active={code.is_active} /></div>
+              <div><p className="text-xs text-muted-foreground">Sales account</p><p>{code.sales_referral_account?.name || code.sales_referral_account?.email || code.sales_referral_account_id}</p></div>
+              <div><p className="text-xs text-muted-foreground">Campaign</p><p>{code.campaign_name || "-"}</p></div>
+              <div><p className="text-xs text-muted-foreground">Usage</p><p>{code.used_count}/{code.max_uses} · {code.max_uses_per_email}/email</p></div>
+              <div><p className="text-xs text-muted-foreground">Expires</p><p>{formatDate(code.expires_at)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Close commission</p><p>{formatBpsPercent(code.close_commission_bps)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Recurring commission</p><p>{formatBpsPercent(code.recurring_commission_bps)}</p></div>
+            </div>
+            <div><p className="text-xs text-muted-foreground">Description</p><p>{code.description || "-"}</p></div>
+          </TabsContent>
+          <TabsContent value="commissions" className="pt-4">
+            <CommissionMiniTable rows={commissions} emptyText="No commissions for this code yet." />
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AccountDetailDialog({ account, codes, commissions, onClose }: { account: SalesReferralAccount | null; codes: SalesReferralCode[]; commissions: ReferralCommission[]; onClose: () => void }) {
+  if (!account) return null;
+  return (
+    <Dialog open={Boolean(account)} onOpenChange={(value) => !value && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Sales account detail</DialogTitle>
+        </DialogHeader>
+        <Tabs defaultValue="overview">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="codes">Codes</TabsTrigger>
+            <TabsTrigger value="commissions">Commissions</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview" className="space-y-4 pt-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div><p className="text-xs text-muted-foreground">Name</p><p>{account.name || "-"}</p></div>
+              <div><p className="text-xs text-muted-foreground">Status</p><StatusBadge active={account.is_active} /></div>
+              <div><p className="text-xs text-muted-foreground">Email</p><p>{account.email}</p></div>
+              <div><p className="text-xs text-muted-foreground">Created</p><p>{formatDate(account.created_at)}</p></div>
+            </div>
+          </TabsContent>
+          <TabsContent value="codes" className="pt-4">
+            {codes.length === 0 ? <p className="rounded-md border p-4 text-sm text-muted-foreground">No codes for this account yet.</p> : (
+              <div className="space-y-2">
+                {codes.map((code) => (
+                  <div key={code.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
+                    <div><p className="font-mono font-medium">{code.code}</p><p className="text-muted-foreground">{code.campaign_name || "No campaign"}</p></div>
+                    <div className="text-right text-xs text-muted-foreground">Close {formatBpsPercent(code.close_commission_bps)}<br />Recurring {formatBpsPercent(code.recurring_commission_bps)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          <TabsContent value="commissions" className="pt-4">
+            <CommissionMiniTable rows={commissions} emptyText="No commissions for this account yet." />
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 interface DeleteDialogProps {
   open: boolean;
   title: string;
@@ -588,6 +699,9 @@ export function SalesReferralList() {
   const [codeDialog, setCodeDialog] = useState<SalesReferralCode | null | "create">(null);
   const [deleteAccountTarget, setDeleteAccountTarget] = useState<SalesReferralAccount | null>(null);
   const [deleteCodeTarget, setDeleteCodeTarget] = useState<SalesReferralCode | null>(null);
+  const [detailAccount, setDetailAccount] = useState<SalesReferralAccount | null>(null);
+  const [detailCode, setDetailCode] = useState<SalesReferralCode | null>(null);
+  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [payoutAccountID, setPayoutAccountID] = useState("");
   const [payoutCommissionIDs, setPayoutCommissionIDs] = useState<string[]>([]);
   const [payoutReference, setPayoutReference] = useState("");
@@ -622,6 +736,18 @@ export function SalesReferralList() {
   const approvedCommissionRowsByAccount = useMemo(
     () => approvedCommissionRows.filter((row) => !payoutAccountID || row.sales_referral_account_id === payoutAccountID),
     [approvedCommissionRows, payoutAccountID],
+  );
+  const detailCodeCommissions = useMemo(
+    () => detailCode ? commissionRows.filter((row) => row.sales_referral_code_id === detailCode.id) : [],
+    [commissionRows, detailCode],
+  );
+  const detailAccountCodes = useMemo(
+    () => detailAccount ? codeRows.filter((row) => row.sales_referral_account_id === detailAccount.id) : [],
+    [codeRows, detailAccount],
+  );
+  const detailAccountCommissions = useMemo(
+    () => detailAccount ? commissionRows.filter((row) => row.sales_referral_account_id === detailAccount.id) : [],
+    [commissionRows, detailAccount],
   );
   const currentFilter = activeTab === "codes" ? codeFilter : accountFilter;
   const setCurrentFilter = (value: ReferralFilter) => {
@@ -701,6 +827,10 @@ export function SalesReferralList() {
                 <Button className="cursor-pointer gap-2" onClick={() => setAccountDialog("create")}>
                   <Plus className="h-4 w-4" /> Account
                 </Button>
+              ) : activeTab === "payouts" ? (
+                <Button className="cursor-pointer gap-2" onClick={() => setPayoutDialogOpen(true)}>
+                  <Plus className="h-4 w-4" /> Payout
+                </Button>
               ) : null}
             </div>
           </div>
@@ -740,6 +870,7 @@ export function SalesReferralList() {
                       <TableCell>{formatDate(row.expires_at)}</TableCell>
                       <TableCell><StatusBadge active={row.is_active} /></TableCell>
                       <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setDetailCode(row)}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setCodeDialog(row)}><Pencil className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="cursor-pointer text-destructive" onClick={() => setDeleteCodeTarget(row)}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
@@ -774,6 +905,7 @@ export function SalesReferralList() {
                       <TableCell><StatusBadge active={row.is_active} /></TableCell>
                       <TableCell>{formatDate(row.created_at)}</TableCell>
                       <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setDetailAccount(row)}><Eye className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="cursor-pointer" onClick={() => setAccountDialog(row)}><Pencil className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" className="cursor-pointer text-destructive" onClick={() => setDeleteAccountTarget(row)}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
@@ -823,41 +955,6 @@ export function SalesReferralList() {
           </TabsContent>
 
           <TabsContent value="payouts" className="pt-4">
-            <form className="mb-4 grid gap-2 rounded-md border p-4 md:grid-cols-[1fr_1.4fr_1fr_auto]" onSubmit={(event) => {
-              event.preventDefault();
-              mutations.createPayout.mutate({
-                sales_referral_account_id: payoutAccountID,
-                commission_ids: payoutCommissionIDs,
-                paid_at: new Date().toISOString(),
-                payment_reference: payoutReference || null,
-              }, { onSuccess: () => { setPayoutAccountID(""); setPayoutCommissionIDs([]); setPayoutReference(""); } });
-            }}>
-              <Select value={payoutAccountID} onValueChange={(value) => { setPayoutAccountID(value); setPayoutCommissionIDs([]); }}>
-                <SelectTrigger><SelectValue placeholder="Sales account" /></SelectTrigger>
-                <SelectContent>{accountRows.map((account) => <SelectItem key={account.id} value={account.id}>{account.name || account.email}</SelectItem>)}</SelectContent>
-              </Select>
-              <div className="md:col-span-2 space-y-2 rounded-md border p-3">
-                <div className="text-sm font-medium">Approved commissions</div>
-                <div className="max-h-48 space-y-2 overflow-auto pr-1">
-                  {approvedCommissionRowsByAccount.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No approved commissions for selected account.</p>
-                  ) : approvedCommissionRowsByAccount.map((row) => (
-                    <label key={row.id} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={payoutCommissionIDs.includes(row.id)}
-                        onCheckedChange={(checked) => {
-                          setPayoutCommissionIDs((prev) => checked ? (prev.includes(row.id) ? prev : [...prev, row.id]) : prev.filter((id) => id !== row.id));
-                        }}
-                      />
-                      <span className="font-mono">{row.id}</span>
-                      <span className="text-muted-foreground">{formatIDR(row.commission_amount_idr)}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <Input placeholder="Payment reference" value={payoutReference} onChange={(event) => setPayoutReference(event.target.value)} />
-              <Button type="submit" disabled={mutations.createPayout.isPending || !payoutAccountID || payoutCommissionIDs.length === 0}>Record payout</Button>
-            </form>
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -923,6 +1020,68 @@ export function SalesReferralList() {
             }}
           />
         )}
+        <CodeDetailDialog
+          code={detailCode}
+          commissions={detailCodeCommissions}
+          onClose={() => setDetailCode(null)}
+        />
+        <AccountDetailDialog
+          account={detailAccount}
+          codes={detailAccountCodes}
+          commissions={detailAccountCommissions}
+          onClose={() => setDetailAccount(null)}
+        />
+        <Dialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Record payout</DialogTitle>
+            </DialogHeader>
+            <form className="space-y-4" onSubmit={(event) => {
+              event.preventDefault();
+              mutations.createPayout.mutate({
+                sales_referral_account_id: payoutAccountID,
+                commission_ids: payoutCommissionIDs,
+                paid_at: new Date().toISOString(),
+                payment_reference: payoutReference || null,
+              }, { onSuccess: () => { setPayoutAccountID(""); setPayoutCommissionIDs([]); setPayoutReference(""); setPayoutDialogOpen(false); } });
+            }}>
+              <div className="space-y-1.5">
+                <Label>Sales account<RequiredMark /></Label>
+                <Select value={payoutAccountID} onValueChange={(value) => { setPayoutAccountID(value); setPayoutCommissionIDs([]); }}>
+                  <SelectTrigger><SelectValue placeholder="Sales account" /></SelectTrigger>
+                  <SelectContent>{accountRows.map((account) => <SelectItem key={account.id} value={account.id}>{account.name || account.email}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="text-sm font-medium">Approved commissions</div>
+                <div className="max-h-56 space-y-2 overflow-auto pr-1">
+                  {approvedCommissionRowsByAccount.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No approved commissions for selected account.</p>
+                  ) : approvedCommissionRowsByAccount.map((row) => (
+                    <label key={row.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={payoutCommissionIDs.includes(row.id)}
+                        onCheckedChange={(checked) => {
+                          setPayoutCommissionIDs((prev) => checked ? (prev.includes(row.id) ? prev : [...prev, row.id]) : prev.filter((id) => id !== row.id));
+                        }}
+                      />
+                      <span className="font-mono">{row.id}</span>
+                      <span className="text-muted-foreground">{formatIDR(row.commission_amount_idr)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="payout-reference">Payment reference</Label>
+                <Input id="payout-reference" placeholder="Bank transfer reference" value={payoutReference} onChange={(event) => setPayoutReference(event.target.value)} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setPayoutDialogOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={mutations.createPayout.isPending || !payoutAccountID || payoutCommissionIDs.length === 0}>Record payout</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
         <Dialog open={voidTarget !== null} onOpenChange={(value) => !value && setVoidTarget(null)}>
           <DialogContent>
             <DialogHeader>
