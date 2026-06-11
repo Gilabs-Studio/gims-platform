@@ -84,6 +84,8 @@ type CodeFormState = {
 
 type ReferralFilter = "all" | "active" | "inactive";
 
+const DETAIL_TABLE_CLASS = "border-collapse [&_td]:border-r [&_td:last-child]:border-r-0 [&_th]:border-r [&_th:last-child]:border-r-0";
+
 function RequiredMark() {
   return <span className="ml-0.5 text-destructive">*</span>;
 }
@@ -552,7 +554,7 @@ function CommissionMiniTable({ rows, emptyText }: { rows: ReferralCommission[]; 
   if (rows.length === 0) return <p className="rounded-md border p-4 text-sm text-muted-foreground">{emptyText}</p>;
   return (
     <div className="rounded-md border">
-      <Table>
+      <Table className={DETAIL_TABLE_CLASS}>
         <TableHeader>
           <TableRow>
             <TableHead>Type</TableHead>
@@ -929,7 +931,7 @@ export function SalesReferralList() {
 
           <TabsContent value="commissions" className="pt-4">
             <div className="rounded-md border">
-              <Table>
+              <Table className={DETAIL_TABLE_CLASS}>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Type</TableHead>
@@ -1096,7 +1098,7 @@ export function SalesReferralList() {
                   <p className="text-xs text-muted-foreground">No commissions selected.</p>
                 ) : (
                   <div className="rounded-md border">
-                    <Table>
+                    <Table className={DETAIL_TABLE_CLASS}>
                       <TableHeader>
                         <TableRow>
                           <TableHead>ID</TableHead>
