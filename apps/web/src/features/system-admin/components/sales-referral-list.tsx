@@ -76,8 +76,8 @@ type CodeFormState = {
   isActive: boolean;
   maxUses: number;
   maxUsesPerEmail: number;
-  closeCommissionBps: number;
-  recurringCommissionBps: number;
+  closeCommissionPercent: number;
+  recurringCommissionPercent: number;
   expiresAt: string;
 };
 
@@ -125,12 +125,23 @@ function getPositiveIntegerError(value: number, label: string): string | undefin
   return undefined;
 }
 
-function getCommissionBpsError(value: number, label: string): string | undefined {
+function getCommissionPercentError(value: number, label: string): string | undefined {
   if (!Number.isFinite(value)) return `${label} is required.`;
-  if (!Number.isInteger(value)) return `${label} must be a whole number.`;
   if (value < 0) return `${label} cannot be negative.`;
-  if (value > 10000) return `${label} cannot exceed 100%.`;
+  if (value > 100) return `${label} cannot exceed 100%.`;
   return undefined;
+}
+
+function bpsToPercent(value: number): number {
+  return value / 100;
+}
+
+function percentToBps(value: number): number {
+  return Math.round(value * 100);
+}
+
+function formatBpsPercent(value: number): string {
+  return `${value / 100}%`;
 }
 
 function formatIDR(value: number): string {
@@ -164,8 +175,8 @@ function codeForm(code?: SalesReferralCode | null, defaults?: { closeBps: number
     isActive: code?.is_active ?? true,
     maxUses: code?.max_uses ?? 100,
     maxUsesPerEmail: code?.max_uses_per_email ?? 1,
-    closeCommissionBps: code?.close_commission_bps ?? defaults?.closeBps ?? 3000,
-    recurringCommissionBps: code?.recurring_commission_bps ?? defaults?.recurringBps ?? 300,
+    closeCommissionPercent: bpsToPercent(code?.close_commission_bps ?? defaults?.closeBps ?? 3000),
+    recurringCommissionPercent: bpsToPercent(code?.recurring_commission_bps ?? defaults?.recurringBps ?? 300),
     expiresAt: code?.expires_at ? code.expires_at.slice(0, 10) : "",
   };
 }
@@ -301,10 +312,10 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
     if (maxUsesError) nextErrors.maxUses = maxUsesError;
     const maxUsesPerEmailError = getPositiveIntegerError(form.maxUsesPerEmail, "Max uses per email");
     if (maxUsesPerEmailError) nextErrors.maxUsesPerEmail = maxUsesPerEmailError;
-    const closeCommissionError = getCommissionBpsError(form.closeCommissionBps, "Close commission");
-    if (closeCommissionError) nextErrors.closeCommissionBps = closeCommissionError;
-    const recurringCommissionError = getCommissionBpsError(form.recurringCommissionBps, "Recurring commission");
-    if (recurringCommissionError) nextErrors.recurringCommissionBps = recurringCommissionError;
+    const closeCommissionError = getCommissionPercentError(form.closeCommissionPercent, "Close commission");
+    if (closeCommissionError) nextErrors.closeCommissionPercent = closeCommissionError;
+    const recurringCommissionError = getCommissionPercentError(form.recurringCommissionPercent, "Recurring commission");
+    if (recurringCommissionError) nextErrors.recurringCommissionPercent = recurringCommissionError;
     if (typeof form.isActive !== "boolean") nextErrors.isActive = "Active status is required.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -318,8 +329,8 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
       is_active: form.isActive,
       max_uses: form.maxUses,
       max_uses_per_email: form.maxUsesPerEmail,
-      close_commission_bps: form.closeCommissionBps,
-      recurring_commission_bps: form.recurringCommissionBps,
+      close_commission_bps: percentToBps(form.closeCommissionPercent),
+      recurring_commission_bps: percentToBps(form.recurringCommissionPercent),
       expires_at: expiresAt,
     });
   };
@@ -473,38 +484,40 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="ref-code-close-commission">Close commission bps<RequiredMark /></Label>
+                <Label htmlFor="ref-code-close-commission">Close commission (%)<RequiredMark /></Label>
                 <Input
                   id="ref-code-close-commission"
                   type="number"
                   min={0}
-                  max={10000}
-                  value={form.closeCommissionBps}
-                  aria-invalid={Boolean(errors.closeCommissionBps)}
+                  max={100}
+                  step="0.01"
+                  value={form.closeCommissionPercent}
+                  aria-invalid={Boolean(errors.closeCommissionPercent)}
                   onChange={(event) => {
-                    setForm((prev) => ({ ...prev, closeCommissionBps: Number(event.target.value) }));
-                    setErrors((prev) => ({ ...prev, closeCommissionBps: undefined }));
+                    setForm((prev) => ({ ...prev, closeCommissionPercent: Number(event.target.value) }));
+                    setErrors((prev) => ({ ...prev, closeCommissionPercent: undefined }));
                   }}
                 />
-                <FieldError message={errors.closeCommissionBps} />
-                <p className="text-xs text-muted-foreground">{form.closeCommissionBps / 100}% for first paid transaction.</p>
+                <FieldError message={errors.closeCommissionPercent} />
+                <p className="text-xs text-muted-foreground">{form.closeCommissionPercent}% for first paid transaction.</p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="ref-code-recurring-commission">Recurring commission bps<RequiredMark /></Label>
+                <Label htmlFor="ref-code-recurring-commission">Recurring commission (%)<RequiredMark /></Label>
                 <Input
                   id="ref-code-recurring-commission"
                   type="number"
                   min={0}
-                  max={10000}
-                  value={form.recurringCommissionBps}
-                  aria-invalid={Boolean(errors.recurringCommissionBps)}
+                  max={100}
+                  step="0.01"
+                  value={form.recurringCommissionPercent}
+                  aria-invalid={Boolean(errors.recurringCommissionPercent)}
                   onChange={(event) => {
-                    setForm((prev) => ({ ...prev, recurringCommissionBps: Number(event.target.value) }));
-                    setErrors((prev) => ({ ...prev, recurringCommissionBps: undefined }));
+                    setForm((prev) => ({ ...prev, recurringCommissionPercent: Number(event.target.value) }));
+                    setErrors((prev) => ({ ...prev, recurringCommissionPercent: undefined }));
                   }}
                 />
-                <FieldError message={errors.recurringCommissionBps} />
-                <p className="text-xs text-muted-foreground">{form.recurringCommissionBps / 100}% for renewal transactions.</p>
+                <FieldError message={errors.recurringCommissionPercent} />
+                <p className="text-xs text-muted-foreground">{form.recurringCommissionPercent}% for renewal transactions.</p>
               </div>
             </div>
           </div>
@@ -718,7 +731,12 @@ export function SalesReferralList() {
                       <TableCell>{row.sales_referral_account?.name || row.sales_referral_account?.email || row.sales_referral_account_id}</TableCell>
                       <TableCell>{row.campaign_name || "-"}</TableCell>
                       <TableCell>{row.used_count}/{row.max_uses}</TableCell>
-                      <TableCell>{row.close_commission_bps / 100}% / {row.recurring_commission_bps / 100}%</TableCell>
+                      <TableCell>
+                        <div className="text-xs leading-5">
+                          <div><span className="text-muted-foreground">Close</span> {formatBpsPercent(row.close_commission_bps)}</div>
+                          <div><span className="text-muted-foreground">Recurring</span> {formatBpsPercent(row.recurring_commission_bps)}</div>
+                        </div>
+                      </TableCell>
                       <TableCell>{formatDate(row.expires_at)}</TableCell>
                       <TableCell><StatusBadge active={row.is_active} /></TableCell>
                       <TableCell className="text-right">
@@ -790,7 +808,7 @@ export function SalesReferralList() {
                       <TableCell className="capitalize">{row.commission_type}</TableCell>
                       <TableCell><Badge variant={row.status === "pending" ? "secondary" : row.status === "approved" ? "default" : "outline"}>{row.status}</Badge></TableCell>
                       <TableCell>{formatIDR(row.source_net_amount_idr)}</TableCell>
-                      <TableCell>{row.commission_bps / 100}%</TableCell>
+                      <TableCell>{formatBpsPercent(row.commission_bps)}</TableCell>
                       <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
                       <TableCell>{formatDate(row.earned_at)}</TableCell>
                       <TableCell className="space-x-2 text-right">
