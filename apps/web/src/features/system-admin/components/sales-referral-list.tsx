@@ -584,6 +584,23 @@ function CommissionMiniTable({ rows, emptyText }: { rows: ReferralCommission[]; 
   );
 }
 
+function DetailFieldTable({ rows }: { rows: Array<{ label: string; value: React.ReactNode }> }) {
+  return (
+    <div className="rounded-md border">
+      <Table className={DETAIL_TABLE_CLASS}>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.label}>
+              <TableCell className="w-52 bg-muted/30 font-medium text-muted-foreground">{row.label}</TableCell>
+              <TableCell>{row.value}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 function CodeDetailDialog({ code, commissions, onClose }: { code: SalesReferralCode | null; commissions: ReferralCommission[]; onClose: () => void }) {
   if (!code) return null;
   return (
@@ -597,18 +614,18 @@ function CodeDetailDialog({ code, commissions, onClose }: { code: SalesReferralC
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="commissions">Commissions</TabsTrigger>
           </TabsList>
-          <TabsContent value="overview" className="space-y-4 pt-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Code</p><p className="font-mono font-medium">{code.code}</p></div>
-              <div><p className="text-xs text-muted-foreground">Status</p><StatusBadge active={code.is_active} /></div>
-              <div><p className="text-xs text-muted-foreground">Sales account</p><p>{code.sales_referral_account?.name || code.sales_referral_account?.email || code.sales_referral_account_id}</p></div>
-              <div><p className="text-xs text-muted-foreground">Campaign</p><p>{code.campaign_name || "-"}</p></div>
-              <div><p className="text-xs text-muted-foreground">Usage</p><p>{code.used_count}/{code.max_uses} · {code.max_uses_per_email}/email</p></div>
-              <div><p className="text-xs text-muted-foreground">Expires</p><p>{formatDate(code.expires_at)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Close commission</p><p>{formatBpsPercent(code.close_commission_bps)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Recurring commission</p><p>{formatBpsPercent(code.recurring_commission_bps)}</p></div>
-            </div>
-            <div><p className="text-xs text-muted-foreground">Description</p><p>{code.description || "-"}</p></div>
+          <TabsContent value="overview" className="pt-4">
+            <DetailFieldTable rows={[
+              { label: "Code", value: <span className="font-mono font-medium">{code.code}</span> },
+              { label: "Status", value: <StatusBadge active={code.is_active} /> },
+              { label: "Sales account", value: code.sales_referral_account?.name || code.sales_referral_account?.email || code.sales_referral_account_id },
+              { label: "Campaign", value: code.campaign_name || "-" },
+              { label: "Usage", value: `${code.used_count}/${code.max_uses} · ${code.max_uses_per_email}/email` },
+              { label: "Expires", value: formatDate(code.expires_at) },
+              { label: "Close commission", value: formatBpsPercent(code.close_commission_bps) },
+              { label: "Recurring commission", value: formatBpsPercent(code.recurring_commission_bps) },
+              { label: "Description", value: code.description || "-" },
+            ]} />
           </TabsContent>
           <TabsContent value="commissions" className="pt-4">
             <CommissionMiniTable rows={commissions} emptyText="No commissions for this code yet." />
@@ -633,23 +650,39 @@ function AccountDetailDialog({ account, codes, commissions, onClose }: { account
             <TabsTrigger value="codes">Codes</TabsTrigger>
             <TabsTrigger value="commissions">Commissions</TabsTrigger>
           </TabsList>
-          <TabsContent value="overview" className="space-y-4 pt-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Name</p><p>{account.name || "-"}</p></div>
-              <div><p className="text-xs text-muted-foreground">Status</p><StatusBadge active={account.is_active} /></div>
-              <div><p className="text-xs text-muted-foreground">Email</p><p>{account.email}</p></div>
-              <div><p className="text-xs text-muted-foreground">Created</p><p>{formatDate(account.created_at)}</p></div>
-            </div>
+          <TabsContent value="overview" className="pt-4">
+            <DetailFieldTable rows={[
+              { label: "Name", value: account.name || "-" },
+              { label: "Status", value: <StatusBadge active={account.is_active} /> },
+              { label: "Email", value: account.email },
+              { label: "Created", value: formatDate(account.created_at) },
+            ]} />
           </TabsContent>
           <TabsContent value="codes" className="pt-4">
             {codes.length === 0 ? <p className="rounded-md border p-4 text-sm text-muted-foreground">No codes for this account yet.</p> : (
-              <div className="space-y-2">
-                {codes.map((code) => (
-                  <div key={code.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
-                    <div><p className="font-mono font-medium">{code.code}</p><p className="text-muted-foreground">{code.campaign_name || "No campaign"}</p></div>
-                    <div className="text-right text-xs text-muted-foreground">Close {formatBpsPercent(code.close_commission_bps)}<br />Recurring {formatBpsPercent(code.recurring_commission_bps)}</div>
-                  </div>
-                ))}
+              <div className="rounded-md border">
+                <Table className={DETAIL_TABLE_CLASS}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Campaign</TableHead>
+                      <TableHead>Usage</TableHead>
+                      <TableHead>Close</TableHead>
+                      <TableHead>Recurring</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {codes.map((code) => (
+                      <TableRow key={code.id}>
+                        <TableCell className="font-mono font-medium">{code.code}</TableCell>
+                        <TableCell>{code.campaign_name || "-"}</TableCell>
+                        <TableCell>{code.used_count}/{code.max_uses}</TableCell>
+                        <TableCell>{formatBpsPercent(code.close_commission_bps)}</TableCell>
+                        <TableCell>{formatBpsPercent(code.recurring_commission_bps)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </TabsContent>
