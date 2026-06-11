@@ -40,6 +40,8 @@ type SalesReferralCode struct {
 	MaxUses                int                   `gorm:"type:int;not null;default:1" json:"max_uses"`
 	UsedCount              int                   `gorm:"type:int;not null;default:0" json:"used_count"`
 	MaxUsesPerEmail        int                   `gorm:"type:int;not null;default:1" json:"max_uses_per_email"`
+	CloseCommissionBps     int                   `gorm:"type:int;not null;default:3000" json:"close_commission_bps"`
+	RecurringCommissionBps int                   `gorm:"type:int;not null;default:300" json:"recurring_commission_bps"`
 	ExpiresAt              *time.Time            `gorm:"type:timestamptz" json:"expires_at,omitempty"`
 	CreatedAt              time.Time             `json:"created_at"`
 	UpdatedAt              time.Time             `json:"updated_at"`

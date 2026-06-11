@@ -67,6 +67,8 @@ type CreateSalesReferralCodeRequest struct {
 	IsActive               *bool      `json:"is_active"`
 	MaxUses                int        `json:"max_uses"`
 	MaxUsesPerEmail        int        `json:"max_uses_per_email"`
+	CloseCommissionBps     *int       `json:"close_commission_bps"`
+	RecurringCommissionBps *int       `json:"recurring_commission_bps"`
 	ExpiresAt              *time.Time `json:"expires_at"`
 }
 
@@ -79,6 +81,8 @@ type UpdateSalesReferralCodeRequest struct {
 	IsActive               *bool      `json:"is_active"`
 	MaxUses                int        `json:"max_uses"`
 	MaxUsesPerEmail        int        `json:"max_uses_per_email"`
+	CloseCommissionBps     *int       `json:"close_commission_bps"`
+	RecurringCommissionBps *int       `json:"recurring_commission_bps"`
 	ExpiresAt              *time.Time `json:"expires_at"`
 }
 
@@ -94,6 +98,8 @@ type SalesReferralCodeResponse struct {
 	MaxUses                int                           `json:"max_uses"`
 	UsedCount              int                           `json:"used_count"`
 	MaxUsesPerEmail        int                           `json:"max_uses_per_email"`
+	CloseCommissionBps     int                           `json:"close_commission_bps"`
+	RecurringCommissionBps int                           `json:"recurring_commission_bps"`
 	ExpiresAt              *time.Time                    `json:"expires_at,omitempty"`
 	CreatedAt              time.Time                     `json:"created_at"`
 	UpdatedAt              time.Time                     `json:"updated_at"`

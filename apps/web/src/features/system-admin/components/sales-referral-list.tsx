@@ -76,6 +76,8 @@ type CodeFormState = {
   isActive: boolean;
   maxUses: number;
   maxUsesPerEmail: number;
+  closeCommissionBps: number;
+  recurringCommissionBps: number;
   expiresAt: string;
 };
 
@@ -123,6 +125,14 @@ function getPositiveIntegerError(value: number, label: string): string | undefin
   return undefined;
 }
 
+function getCommissionBpsError(value: number, label: string): string | undefined {
+  if (!Number.isFinite(value)) return `${label} is required.`;
+  if (!Number.isInteger(value)) return `${label} must be a whole number.`;
+  if (value < 0) return `${label} cannot be negative.`;
+  if (value > 10000) return `${label} cannot exceed 100%.`;
+  return undefined;
+}
+
 function formatIDR(value: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -144,7 +154,7 @@ function accountForm(account?: SalesReferralAccount | null): AccountFormState {
   };
 }
 
-function codeForm(code?: SalesReferralCode | null): CodeFormState {
+function codeForm(code?: SalesReferralCode | null, defaults?: { closeBps: number; recurringBps: number }): CodeFormState {
   return {
     salesReferralAccountID: code?.sales_referral_account_id ?? "",
     couponID: code?.coupon_id ?? "",
@@ -154,6 +164,8 @@ function codeForm(code?: SalesReferralCode | null): CodeFormState {
     isActive: code?.is_active ?? true,
     maxUses: code?.max_uses ?? 100,
     maxUsesPerEmail: code?.max_uses_per_email ?? 1,
+    closeCommissionBps: code?.close_commission_bps ?? defaults?.closeBps ?? 3000,
+    recurringCommissionBps: code?.recurring_commission_bps ?? defaults?.recurringBps ?? 300,
     expiresAt: code?.expires_at ? code.expires_at.slice(0, 10) : "",
   };
 }
@@ -269,10 +281,12 @@ interface CodeDialogProps {
   onClose: () => void;
   onSubmit: (payload: CreateSalesReferralCodeRequest | UpdateSalesReferralCodeRequest) => void;
   isSaving: boolean;
+  defaultCloseCommissionBps: number;
+  defaultRecurringCommissionBps: number;
 }
 
-function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving }: CodeDialogProps) {
-  const [form, setForm] = useState<CodeFormState>(() => codeForm(code));
+function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving, defaultCloseCommissionBps, defaultRecurringCommissionBps }: CodeDialogProps) {
+  const [form, setForm] = useState<CodeFormState>(() => codeForm(code, { closeBps: defaultCloseCommissionBps, recurringBps: defaultRecurringCommissionBps }));
   const [errors, setErrors] = useState<Partial<Record<keyof CodeFormState, string>>>({});
   const isEdit = Boolean(code);
 
@@ -287,6 +301,10 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
     if (maxUsesError) nextErrors.maxUses = maxUsesError;
     const maxUsesPerEmailError = getPositiveIntegerError(form.maxUsesPerEmail, "Max uses per email");
     if (maxUsesPerEmailError) nextErrors.maxUsesPerEmail = maxUsesPerEmailError;
+    const closeCommissionError = getCommissionBpsError(form.closeCommissionBps, "Close commission");
+    if (closeCommissionError) nextErrors.closeCommissionBps = closeCommissionError;
+    const recurringCommissionError = getCommissionBpsError(form.recurringCommissionBps, "Recurring commission");
+    if (recurringCommissionError) nextErrors.recurringCommissionBps = recurringCommissionError;
     if (typeof form.isActive !== "boolean") nextErrors.isActive = "Active status is required.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -300,6 +318,8 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
       is_active: form.isActive,
       max_uses: form.maxUses,
       max_uses_per_email: form.maxUsesPerEmail,
+      close_commission_bps: form.closeCommissionBps,
+      recurring_commission_bps: form.recurringCommissionBps,
       expires_at: expiresAt,
     });
   };
@@ -446,6 +466,48 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
               />
             </div>
           </div>
+          <div className="rounded-md border p-3">
+            <div className="mb-3">
+              <div className="text-sm font-medium">Commission settings</div>
+              <p className="text-xs text-muted-foreground">Rates are stored on this referral code. Defaults come from current commission defaults.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="ref-code-close-commission">Close commission bps<RequiredMark /></Label>
+                <Input
+                  id="ref-code-close-commission"
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={form.closeCommissionBps}
+                  aria-invalid={Boolean(errors.closeCommissionBps)}
+                  onChange={(event) => {
+                    setForm((prev) => ({ ...prev, closeCommissionBps: Number(event.target.value) }));
+                    setErrors((prev) => ({ ...prev, closeCommissionBps: undefined }));
+                  }}
+                />
+                <FieldError message={errors.closeCommissionBps} />
+                <p className="text-xs text-muted-foreground">{form.closeCommissionBps / 100}% for first paid transaction.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ref-code-recurring-commission">Recurring commission bps<RequiredMark /></Label>
+                <Input
+                  id="ref-code-recurring-commission"
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={form.recurringCommissionBps}
+                  aria-invalid={Boolean(errors.recurringCommissionBps)}
+                  onChange={(event) => {
+                    setForm((prev) => ({ ...prev, recurringCommissionBps: Number(event.target.value) }));
+                    setErrors((prev) => ({ ...prev, recurringCommissionBps: undefined }));
+                  }}
+                />
+                <FieldError message={errors.recurringCommissionBps} />
+                <p className="text-xs text-muted-foreground">{form.recurringCommissionBps / 100}% for renewal transactions.</p>
+              </div>
+            </div>
+          </div>
           <div className="flex items-center justify-between rounded-md border p-3">
             <Label htmlFor="ref-code-active">Active<RequiredMark /></Label>
             <Switch
@@ -513,8 +575,6 @@ export function SalesReferralList() {
   const [codeDialog, setCodeDialog] = useState<SalesReferralCode | null | "create">(null);
   const [deleteAccountTarget, setDeleteAccountTarget] = useState<SalesReferralAccount | null>(null);
   const [deleteCodeTarget, setDeleteCodeTarget] = useState<SalesReferralCode | null>(null);
-  const [configCloseBps, setConfigCloseBps] = useState("");
-  const [configRecurringBps, setConfigRecurringBps] = useState("");
   const [payoutAccountID, setPayoutAccountID] = useState("");
   const [payoutCommissionIDs, setPayoutCommissionIDs] = useState<string[]>([]);
   const [payoutReference, setPayoutReference] = useState("");
@@ -582,37 +642,6 @@ export function SalesReferralList() {
           ))}
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Commission defaults</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 text-sm lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
-            <div>
-              <div className="text-muted-foreground">Close commission</div>
-              <div className="text-xl font-semibold">{commissionConfig.isLoading ? <Skeleton className="h-7 w-20" /> : `${(commissionConfig.data?.default_close_commission_bps ?? 0) / 100}%`}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Recurring commission</div>
-              <div className="text-xl font-semibold">{commissionConfig.isLoading ? <Skeleton className="h-7 w-20" /> : `${(commissionConfig.data?.default_recurring_commission_bps ?? 0) / 100}%`}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Mode</div>
-              <div className="text-xl font-semibold">Manual payout</div>
-            </div>
-            <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => {
-              event.preventDefault();
-              const close = Number(configCloseBps || commissionConfig.data?.default_close_commission_bps || 0);
-              const recurring = Number(configRecurringBps || commissionConfig.data?.default_recurring_commission_bps || 0);
-              mutations.updateCommissionConfig.mutate({ default_close_commission_bps: close, default_recurring_commission_bps: recurring });
-              setConfigCloseBps("");
-              setConfigRecurringBps("");
-            }}>
-              <Input className="w-28" inputMode="numeric" placeholder="Close bps" value={configCloseBps} onChange={(event) => setConfigCloseBps(event.target.value)} />
-              <Input className="w-32" inputMode="numeric" placeholder="Recurring bps" value={configRecurringBps} onChange={(event) => setConfigRecurringBps(event.target.value)} />
-              <Button type="submit" disabled={mutations.updateCommissionConfig.isPending}>Save</Button>
-            </form>
-          </CardContent>
-        </Card>
 
         <Tabs defaultValue="codes" onValueChange={(value) => setActiveTab(value as "codes" | "accounts" | "commissions" | "payouts")}>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -672,6 +701,7 @@ export function SalesReferralList() {
                     <TableHead>Sales account</TableHead>
                     <TableHead>Campaign</TableHead>
                     <TableHead>Usage</TableHead>
+                    <TableHead>Commission</TableHead>
                     <TableHead>Expires</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -679,15 +709,16 @@ export function SalesReferralList() {
                 </TableHeader>
                 <TableBody>
                   {codes.isLoading ? Array.from({ length: 6 }).map((_, index) => (
-                    <TableRow key={index}><TableCell colSpan={7}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                    <TableRow key={index}><TableCell colSpan={8}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                   )) : filteredCodes.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">No referral codes found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">No referral codes found.</TableCell></TableRow>
                   ) : filteredCodes.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell><div className="flex items-center gap-2 font-mono font-medium">{row.code}<CopyButton text={row.code} /></div></TableCell>
                       <TableCell>{row.sales_referral_account?.name || row.sales_referral_account?.email || row.sales_referral_account_id}</TableCell>
                       <TableCell>{row.campaign_name || "-"}</TableCell>
                       <TableCell>{row.used_count}/{row.max_uses}</TableCell>
+                      <TableCell>{row.close_commission_bps / 100}% / {row.recurring_commission_bps / 100}%</TableCell>
                       <TableCell>{formatDate(row.expires_at)}</TableCell>
                       <TableCell><StatusBadge active={row.is_active} /></TableCell>
                       <TableCell className="text-right">
@@ -862,6 +893,8 @@ export function SalesReferralList() {
             accounts={accountRows}
             coupons={coupons.data ?? []}
             isSaving={isCodeSaving}
+            defaultCloseCommissionBps={commissionConfig.data?.default_close_commission_bps ?? 3000}
+            defaultRecurringCommissionBps={commissionConfig.data?.default_recurring_commission_bps ?? 300}
             onClose={() => setCodeDialog(null)}
             onSubmit={(payload) => {
               if (codeDialogValue) {

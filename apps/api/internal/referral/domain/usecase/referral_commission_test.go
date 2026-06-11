@@ -12,6 +12,7 @@ import (
 
 type fakeReferralRepo struct {
 	account     *models.SalesReferralAccount
+	code        *models.SalesReferralCode
 	config      *models.ReferralCommissionConfig
 	conversion  *models.SalesReferralConversion
 	payment     *tenantModels.PaymentTransaction
@@ -40,7 +41,7 @@ func (f *fakeReferralRepo) DeleteAccount(context.Context, string) error         
 func (f *fakeReferralRepo) CreateCode(context.Context, *models.SalesReferralCode) error { return nil }
 func (f *fakeReferralRepo) UpdateCode(context.Context, *models.SalesReferralCode) error { return nil }
 func (f *fakeReferralRepo) FindCodeByID(context.Context, string) (*models.SalesReferralCode, error) {
-	return nil, nil
+	return f.code, nil
 }
 func (f *fakeReferralRepo) FindCodeByCode(context.Context, string) (*models.SalesReferralCode, error) {
 	return nil, nil
@@ -113,9 +114,9 @@ func (f *fakeReferralRepo) ListPayouts(context.Context, int, int, string) ([]*mo
 }
 
 func TestCreateCommissionForPaymentCreatesCloseCommission(t *testing.T) {
-	closeOverride := 1500
 	repo := &fakeReferralRepo{
-		account:    &models.SalesReferralAccount{ID: "acc-1", IsActive: true, CloseCommissionBps: &closeOverride},
+		account:    &models.SalesReferralAccount{ID: "acc-1", IsActive: true},
+		code:       &models.SalesReferralCode{ID: "code-1", CloseCommissionBps: 1500, RecurringCommissionBps: 400},
 		config:     &models.ReferralCommissionConfig{DefaultCloseCommissionBps: 1000, DefaultRecurringCommissionBps: 500},
 		conversion: &models.SalesReferralConversion{ID: "conv-1", SalesReferralAccountID: "acc-1", SalesReferralCodeID: "code-1", TenantID: "tenant-1"},
 		payment:    &tenantModels.PaymentTransaction{ID: "pay-1", TenantID: "tenant-1", Status: "paid", AmountIDR: 100000, SubscriptionID: "sub-1"},

@@ -503,6 +503,8 @@ export interface SalesReferralCode {
   max_uses: number;
   used_count: number;
   max_uses_per_email: number;
+  close_commission_bps: number;
+  recurring_commission_bps: number;
   expires_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -626,6 +628,8 @@ export interface CreateSalesReferralCodeRequest {
   is_active: boolean;
   max_uses: number;
   max_uses_per_email: number;
+  close_commission_bps: number;
+  recurring_commission_bps: number;
   expires_at?: string | null;
 }
 
@@ -638,6 +642,8 @@ export interface UpdateSalesReferralCodeRequest {
   is_active: boolean;
   max_uses: number;
   max_uses_per_email?: number;
+  close_commission_bps?: number;
+  recurring_commission_bps?: number;
   expires_at?: string | null;
 }
 

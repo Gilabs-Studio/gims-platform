@@ -281,7 +281,7 @@ func (u *referralUsecase) DeleteAccount(ctx context.Context, id string) error {
 }
 
 func (u *referralUsecase) CreateCode(ctx context.Context, req *dto.CreateSalesReferralCodeRequest) (*dto.SalesReferralCodeResponse, error) {
-	code, err := u.buildCode(ctx, req.SalesReferralAccountID, req.CouponID, req.Code, req.CampaignName, req.Description, req.IsActive, req.MaxUses, req.MaxUsesPerEmail, req.ExpiresAt)
+	code, err := u.buildCode(ctx, req.SalesReferralAccountID, req.CouponID, req.Code, req.CampaignName, req.Description, req.IsActive, req.MaxUses, req.MaxUsesPerEmail, req.CloseCommissionBps, req.RecurringCommissionBps, req.ExpiresAt)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +306,7 @@ func (u *referralUsecase) UpdateCode(ctx context.Context, id string, req *dto.Up
 	if hasUsage && (code.SalesReferralAccountID != req.SalesReferralAccountID || code.CouponID != req.CouponID) {
 		return nil, ErrReferralImmutable
 	}
-	built, err := u.buildCode(ctx, req.SalesReferralAccountID, req.CouponID, req.Code, req.CampaignName, req.Description, req.IsActive, req.MaxUses, req.MaxUsesPerEmail, req.ExpiresAt)
+	built, err := u.buildCode(ctx, req.SalesReferralAccountID, req.CouponID, req.Code, req.CampaignName, req.Description, req.IsActive, req.MaxUses, req.MaxUsesPerEmail, req.CloseCommissionBps, req.RecurringCommissionBps, req.ExpiresAt)
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +318,8 @@ func (u *referralUsecase) UpdateCode(ctx context.Context, id string, req *dto.Up
 	code.IsActive = built.IsActive
 	code.MaxUses = built.MaxUses
 	code.MaxUsesPerEmail = built.MaxUsesPerEmail
+	code.CloseCommissionBps = built.CloseCommissionBps
+	code.RecurringCommissionBps = built.RecurringCommissionBps
 	code.ExpiresAt = built.ExpiresAt
 	if err := u.repo.UpdateCode(ctx, code); err != nil {
 		return nil, err
@@ -325,7 +327,7 @@ func (u *referralUsecase) UpdateCode(ctx context.Context, id string, req *dto.Up
 	return toCodeResponse(code), nil
 }
 
-func (u *referralUsecase) buildCode(ctx context.Context, accountID, couponID, rawCode string, campaignName, description *string, active *bool, maxUses, maxUsesPerEmail int, expiresAt *time.Time) (*models.SalesReferralCode, error) {
+func (u *referralUsecase) buildCode(ctx context.Context, accountID, couponID, rawCode string, campaignName, description *string, active *bool, maxUses, maxUsesPerEmail int, closeCommissionBps, recurringCommissionBps *int, expiresAt *time.Time) (*models.SalesReferralCode, error) {
 	code := NormalizePublicCode(rawCode)
 	if err := validatePublicCode(code); err != nil {
 		return nil, err
@@ -361,7 +363,22 @@ func (u *referralUsecase) buildCode(ctx context.Context, accountID, couponID, ra
 	if active != nil {
 		isActive = *active
 	}
-	return &models.SalesReferralCode{SalesReferralAccountID: account.ID, SalesReferralAccount: account, CouponID: coupon.ID, Code: code, CampaignName: campaignName, Description: description, IsActive: isActive, MaxUses: maxUses, MaxUsesPerEmail: maxUsesPerEmail, ExpiresAt: expiresAt}, nil
+	cfg, err := u.repo.GetActiveCommissionConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	closeBps := cfg.DefaultCloseCommissionBps
+	if closeCommissionBps != nil {
+		closeBps = *closeCommissionBps
+	}
+	recurringBps := cfg.DefaultRecurringCommissionBps
+	if recurringCommissionBps != nil {
+		recurringBps = *recurringCommissionBps
+	}
+	if closeBps < 0 || closeBps > 10000 || recurringBps < 0 || recurringBps > 10000 {
+		return nil, ErrCommissionInvalidState
+	}
+	return &models.SalesReferralCode{SalesReferralAccountID: account.ID, SalesReferralAccount: account, CouponID: coupon.ID, Code: code, CampaignName: campaignName, Description: description, IsActive: isActive, MaxUses: maxUses, MaxUsesPerEmail: maxUsesPerEmail, CloseCommissionBps: closeBps, RecurringCommissionBps: recurringBps, ExpiresAt: expiresAt}, nil
 }
 
 func (u *referralUsecase) ListCodes(ctx context.Context, params dto.ListParams) ([]*dto.SalesReferralCodeResponse, *response.PaginationMeta, error) {
@@ -421,18 +438,13 @@ func (u *referralUsecase) CreateCommissionForPayment(ctx context.Context, paymen
 	if err != nil || account == nil || !account.IsActive {
 		return err
 	}
-	cfg, err := u.repo.GetActiveCommissionConfig(ctx)
-	if err != nil {
+	code, err := u.repo.FindCodeByID(ctx, conv.SalesReferralCodeID)
+	if err != nil || code == nil {
 		return err
 	}
-	bps := cfg.DefaultRecurringCommissionBps
+	bps := code.RecurringCommissionBps
 	if commissionType == models.CommissionTypeClose {
-		bps = cfg.DefaultCloseCommissionBps
-		if account.CloseCommissionBps != nil {
-			bps = *account.CloseCommissionBps
-		}
-	} else if account.RecurringCommissionBps != nil {
-		bps = *account.RecurringCommissionBps
+		bps = code.CloseCommissionBps
 	}
 	amount := (txn.AmountIDR * int64(bps)) / 10000
 	commission := &models.ReferralCommission{
@@ -578,5 +590,5 @@ func toCodeResponse(code *models.SalesReferralCode) *dto.SalesReferralCodeRespon
 	if code == nil {
 		return nil
 	}
-	return &dto.SalesReferralCodeResponse{ID: code.ID, SalesReferralAccountID: code.SalesReferralAccountID, SalesReferralAccount: toAccountResponse(code.SalesReferralAccount), CouponID: code.CouponID, Code: code.Code, CampaignName: code.CampaignName, Description: code.Description, IsActive: code.IsActive, MaxUses: code.MaxUses, UsedCount: code.UsedCount, MaxUsesPerEmail: code.MaxUsesPerEmail, ExpiresAt: code.ExpiresAt, CreatedAt: code.CreatedAt, UpdatedAt: code.UpdatedAt}
+	return &dto.SalesReferralCodeResponse{ID: code.ID, SalesReferralAccountID: code.SalesReferralAccountID, SalesReferralAccount: toAccountResponse(code.SalesReferralAccount), CouponID: code.CouponID, Code: code.Code, CampaignName: code.CampaignName, Description: code.Description, IsActive: code.IsActive, MaxUses: code.MaxUses, UsedCount: code.UsedCount, MaxUsesPerEmail: code.MaxUsesPerEmail, CloseCommissionBps: code.CloseCommissionBps, RecurringCommissionBps: code.RecurringCommissionBps, ExpiresAt: code.ExpiresAt, CreatedAt: code.CreatedAt, UpdatedAt: code.UpdatedAt}
 }
