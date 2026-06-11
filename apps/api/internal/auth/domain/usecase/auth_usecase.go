@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -676,7 +677,10 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 // pending registration in Redis, and returns the invoice URL for the frontend redirect.
 func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
 	if u.xendit == nil || !u.xendit.IsConfigured() {
-		return nil, ErrPaymentGatewayUnavailable
+		if strings.ToLower(strings.TrimSpace(os.Getenv("DEV_SIMULATE_PAID_REGISTRATION"))) != "true" {
+			return nil, ErrPaymentGatewayUnavailable
+		}
+		return u.simulatePaidRegistrationWithoutXendit(ctx, req)
 	}
 
 	// Hash password early — we store it in Redis so the webhook can complete registration.
@@ -789,6 +793,90 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 			ExpiresAt:  invoice.ExpiryDate.Format(time.RFC3339),
 		},
 	}, nil
+}
+
+func (u *authUsecase) simulatePaidRegistrationWithoutXendit(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	companyName := strings.TrimSpace(req.CompanyName)
+	if companyName == "" {
+		return nil, ErrCompanyNameRequired
+	}
+	billingPeriod := req.BillingPeriod
+	if billingPeriod == "" {
+		billingPeriod = "monthly"
+	}
+	userCount := req.UserCount
+	if userCount < 1 {
+		userCount = 1
+	}
+	baseAmount, err := u.resolvePlanPrice(ctx, req.Plan, billingPeriod, userCount)
+	if err != nil {
+		return nil, err
+	}
+	finalAmount := baseAmount
+	if couponCode := strings.TrimSpace(req.Coupon); couponCode != "" {
+		discounted, applyErr := u.couponUC.ApplyDiscount(ctx, couponCode, req.Plan, baseAmount, userCount, billingPeriod)
+		if errors.Is(applyErr, couponUC.ErrCouponUserLimit) {
+			return nil, ErrCouponUserLimitExceeded
+		}
+		if applyErr == nil {
+			finalAmount = discounted
+		}
+		if finalAmount == 0 {
+			return u.handleZeroAmountCouponRegistration(ctx, req, couponCode)
+		}
+	}
+	ctx = context.WithValue(ctx, "client_ip", "127.0.0.1")
+	loginResp, err := u.provisionTenantForPaidPlan(ctx, req, string(hashed))
+	if err != nil {
+		return nil, err
+	}
+	tenantID := loginResp.User.TenantID
+	now := apptime.Now()
+	nextBilling := now.AddDate(0, 1, 0)
+	if billingPeriod == "yearly" {
+		nextBilling = now.AddDate(1, 0, 0)
+	}
+	xenditInvoiceID := fmt.Sprintf("dev-paid-%d", now.UnixNano())
+	sub := &tenantModels.TenantSubscription{
+		TenantID:      tenantID,
+		Plan:          tenantModels.SubscriptionPlan(req.Plan),
+		BillingPeriod: tenantModels.SubscriptionBillingPeriod(billingPeriod),
+		Status:        tenantModels.SubscriptionActive,
+		StartsAt:      now,
+		ExpiresAt:     &nextBilling,
+		AmountPaidIDR: finalAmount,
+		UserCount:     userCount,
+		SeatLimit:     userCount,
+		NextBillingAt: &nextBilling,
+		Notes:         fmt.Sprintf("DEV simulated paid registration %s", xenditInvoiceID),
+	}
+	if err := u.ensureSubscriptionRecord(ctx, sub); err != nil {
+		return nil, err
+	}
+	paymentTxn := &tenantModels.PaymentTransaction{
+		TenantID:          tenantID,
+		SubscriptionID:    sub.ID,
+		Provider:          tenantModels.PaymentProviderInternal,
+		Status:            tenantModels.PaymentStatusPaid,
+		AmountIDR:         finalAmount,
+		ProviderInvoiceID: xenditInvoiceID,
+		Description:       fmt.Sprintf("DEV simulated subscription payment for %s (%s)", req.Plan, billingPeriod),
+		PaidAt:            &now,
+		Metadata:          "{}",
+	}
+	if err := u.db.WithContext(ctx).Create(paymentTxn).Error; err != nil {
+		return nil, err
+	}
+	if couponCode := strings.TrimSpace(req.Coupon); couponCode != "" {
+		_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, tenantID, userCount)
+	}
+	u.markReferralConvertedBestEffort(ctx, req.ReferralCode, req.Email, tenantID, sub.ID, finalAmount)
+	u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
+	return &RegisterTenantResult{LoginResponse: loginResp}, nil
 }
 
 // resolvePlanPrice looks up plan price from DB config.
