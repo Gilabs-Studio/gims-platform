@@ -5,7 +5,6 @@ import { PageMotion } from "@/components/motion/page-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/features/finance/assets/components/date-picker";
+import { AsyncSelect } from "@/components/ui/async-select";
 import { Copy, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
@@ -143,6 +143,10 @@ function percentToBps(value: number): number {
 
 function formatBpsPercent(value: number): string {
   return `${value / 100}%`;
+}
+
+function shortID(value: string): string {
+  return value.length > 12 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value;
 }
 
 function formatIDR(value: number): string {
@@ -556,6 +560,7 @@ function CommissionMiniTable({ rows, emptyText }: { rows: ReferralCommission[]; 
             <TableHead>Base</TableHead>
             <TableHead>Rate</TableHead>
             <TableHead>Commission</TableHead>
+            <TableHead>Payment TX</TableHead>
             <TableHead>Earned</TableHead>
           </TableRow>
         </TableHeader>
@@ -567,6 +572,7 @@ function CommissionMiniTable({ rows, emptyText }: { rows: ReferralCommission[]; 
               <TableCell>{formatIDR(row.source_net_amount_idr)}</TableCell>
               <TableCell>{formatBpsPercent(row.commission_bps)}</TableCell>
               <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
+              <TableCell className="font-mono text-xs">{shortID(row.payment_transaction_id)}</TableCell>
               <TableCell>{formatDate(row.earned_at)}</TableCell>
             </TableRow>
           ))}
@@ -580,7 +586,7 @@ function CodeDetailDialog({ code, commissions, onClose }: { code: SalesReferralC
   if (!code) return null;
   return (
     <Dialog open={Boolean(code)} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Referral code detail</DialogTitle>
         </DialogHeader>
@@ -615,7 +621,7 @@ function AccountDetailDialog({ account, codes, commissions, onClose }: { account
   if (!account) return null;
   return (
     <Dialog open={Boolean(account)} onOpenChange={(value) => !value && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Sales account detail</DialogTitle>
         </DialogHeader>
@@ -705,6 +711,7 @@ export function SalesReferralList() {
   const [payoutAccountID, setPayoutAccountID] = useState("");
   const [payoutCommissionIDs, setPayoutCommissionIDs] = useState<string[]>([]);
   const [payoutReference, setPayoutReference] = useState("");
+  const [selectedPayoutCommissionID, setSelectedPayoutCommissionID] = useState("");
   const [voidTarget, setVoidTarget] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState("Manual admin void");
   const params = useMemo(() => ({ page: 1, per_page: 20, search: debouncedSearch.trim() || undefined }), [debouncedSearch]);
@@ -736,6 +743,10 @@ export function SalesReferralList() {
   const approvedCommissionRowsByAccount = useMemo(
     () => approvedCommissionRows.filter((row) => !payoutAccountID || row.sales_referral_account_id === payoutAccountID),
     [approvedCommissionRows, payoutAccountID],
+  );
+  const selectedPayoutCommissions = useMemo(
+    () => approvedCommissionRows.filter((row) => payoutCommissionIDs.includes(row.id)),
+    [approvedCommissionRows, payoutCommissionIDs],
   );
   const detailCodeCommissions = useMemo(
     () => detailCode ? commissionRows.filter((row) => row.sales_referral_code_id === detailCode.id) : [],
@@ -926,15 +937,16 @@ export function SalesReferralList() {
                     <TableHead>Base</TableHead>
                     <TableHead>Rate</TableHead>
                     <TableHead>Commission</TableHead>
+                    <TableHead>Payment TX</TableHead>
                     <TableHead>Earned</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {commissions.isLoading ? Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={index}><TableCell colSpan={7}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                    <TableRow key={index}><TableCell colSpan={8}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                   )) : (commissions.data?.data ?? []).length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">No commissions found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">No commissions found.</TableCell></TableRow>
                   ) : (commissions.data?.data ?? []).map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="capitalize">{row.commission_type}</TableCell>
@@ -942,6 +954,7 @@ export function SalesReferralList() {
                       <TableCell>{formatIDR(row.source_net_amount_idr)}</TableCell>
                       <TableCell>{formatBpsPercent(row.commission_bps)}</TableCell>
                       <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
+                      <TableCell className="font-mono text-xs">{shortID(row.payment_transaction_id)}</TableCell>
                       <TableCell>{formatDate(row.earned_at)}</TableCell>
                       <TableCell className="space-x-2 text-right">
                         <Button size="sm" variant="outline" disabled={row.status !== "pending" || mutations.approveCommission.isPending} onClick={() => mutations.approveCommission.mutate(row.id)}>Approve</Button>
@@ -1043,33 +1056,72 @@ export function SalesReferralList() {
                 commission_ids: payoutCommissionIDs,
                 paid_at: new Date().toISOString(),
                 payment_reference: payoutReference || null,
-              }, { onSuccess: () => { setPayoutAccountID(""); setPayoutCommissionIDs([]); setPayoutReference(""); setPayoutDialogOpen(false); } });
+              }, { onSuccess: () => { setPayoutAccountID(""); setPayoutCommissionIDs([]); setSelectedPayoutCommissionID(""); setPayoutReference(""); setPayoutDialogOpen(false); } });
             }}>
               <div className="space-y-1.5">
                 <Label>Sales account<RequiredMark /></Label>
-                <Select value={payoutAccountID} onValueChange={(value) => { setPayoutAccountID(value); setPayoutCommissionIDs([]); }}>
+                <Select value={payoutAccountID} onValueChange={(value) => { setPayoutAccountID(value); setPayoutCommissionIDs([]); setSelectedPayoutCommissionID(""); }}>
                   <SelectTrigger><SelectValue placeholder="Sales account" /></SelectTrigger>
                   <SelectContent>{accountRows.map((account) => <SelectItem key={account.id} value={account.id}>{account.name || account.email}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2 rounded-md border p-3">
                 <div className="text-sm font-medium">Approved commissions</div>
-                <div className="max-h-56 space-y-2 overflow-auto pr-1">
-                  {approvedCommissionRowsByAccount.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No approved commissions for selected account.</p>
-                  ) : approvedCommissionRowsByAccount.map((row) => (
-                    <label key={row.id} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={payoutCommissionIDs.includes(row.id)}
-                        onCheckedChange={(checked) => {
-                          setPayoutCommissionIDs((prev) => checked ? (prev.includes(row.id) ? prev : [...prev, row.id]) : prev.filter((id) => id !== row.id));
-                        }}
-                      />
-                      <span className="font-mono">{row.id}</span>
-                      <span className="text-muted-foreground">{formatIDR(row.commission_amount_idr)}</span>
-                    </label>
-                  ))}
-                </div>
+                <AsyncSelect<ReferralCommission>
+                  label="commission"
+                  value={selectedPayoutCommissionID}
+                  disabled={!payoutAccountID || approvedCommissionRowsByAccount.length === 0}
+                  defaultOptions={approvedCommissionRowsByAccount.filter((row) => !payoutCommissionIDs.includes(row.id))}
+                  fetcher={async (query) => approvedCommissionRowsByAccount.filter((row) => {
+                    const haystack = `${row.id} ${row.payment_transaction_id} ${row.commission_type} ${row.commission_amount_idr}`.toLowerCase();
+                    return !payoutCommissionIDs.includes(row.id) && haystack.includes(query.toLowerCase());
+                  })}
+                  getValue={(row) => row.id}
+                  getLabel={(row) => `${shortID(row.id)} · ${formatIDR(row.commission_amount_idr)}`}
+                  renderOption={(row) => (
+                    <div className="flex flex-col">
+                      <span>{shortID(row.id)} · {formatIDR(row.commission_amount_idr)}</span>
+                      <span className="text-xs text-muted-foreground">{row.commission_type} · payment {shortID(row.payment_transaction_id)}</span>
+                    </div>
+                  )}
+                  placeholder={payoutAccountID ? "Select approved commission" : "Select sales account first"}
+                  emptyMessage="No approved commissions available."
+                  onChange={(value) => {
+                    setSelectedPayoutCommissionID(value);
+                    setPayoutCommissionIDs((prev) => prev.includes(value) ? prev : [...prev, value]);
+                    setSelectedPayoutCommissionID("");
+                  }}
+                />
+                {selectedPayoutCommissions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No commissions selected.</p>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Payment TX</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedPayoutCommissions.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell className="font-mono text-xs">{shortID(row.id)}</TableCell>
+                            <TableCell className="capitalize">{row.commission_type}</TableCell>
+                            <TableCell className="font-mono text-xs">{shortID(row.payment_transaction_id)}</TableCell>
+                            <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button type="button" variant="ghost" size="sm" onClick={() => setPayoutCommissionIDs((prev) => prev.filter((id) => id !== row.id))}>Remove</Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="payout-reference">Payment reference</Label>
