@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -265,6 +266,13 @@ func (r *referralRepository) CouponExistsUsable(ctx context.Context, couponID st
 func (r *referralRepository) GetActiveCommissionConfig(ctx context.Context) (*models.ReferralCommissionConfig, error) {
 	var cfg models.ReferralCommissionConfig
 	err := r.getDB(ctx).Where("is_active = ? AND deleted_at IS NULL", true).Order("created_at DESC").First(&cfg).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		cfg = models.ReferralCommissionConfig{DefaultCloseCommissionBps: 3000, DefaultRecurringCommissionBps: 300, IsActive: true}
+		if createErr := r.getDB(ctx).Create(&cfg).Error; createErr != nil {
+			return nil, createErr
+		}
+		return &cfg, nil
+	}
 	return &cfg, err
 }
 

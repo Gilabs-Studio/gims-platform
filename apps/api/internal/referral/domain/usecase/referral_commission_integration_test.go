@@ -103,4 +103,16 @@ func TestReferralCommissionDBFlowClosePayoutAndRefundAdjustment(t *testing.T) {
 	}
 }
 
+func TestReferralCommissionConfigDBCreatesDefaultWhenMissing(t *testing.T) {
+	db := openReferralCommissionIntegrationDB(t)
+	uc := NewReferralUsecase(refRepo.NewReferralRepository(db), nil)
+	cfg, err := uc.GetCommissionConfig(context.Background())
+	if err != nil {
+		t.Fatalf("GetCommissionConfig: %v", err)
+	}
+	if cfg.DefaultCloseCommissionBps != 3000 || cfg.DefaultRecurringCommissionBps != 300 || !cfg.IsActive {
+		t.Fatalf("config = %#v", cfg)
+	}
+}
+
 func strPtr(v string) *string { return &v }
