@@ -17,6 +17,7 @@ func RegisterSystemAdminRoutes(r *gin.Engine, h *handler.Handler, jwtManager *jw
 		protected.GET("/commission-config", h.GetCommissionConfig)
 		protected.PUT("/commission-config", h.UpdateCommissionConfig)
 		protected.GET("/commissions", h.ListCommissions)
+		protected.GET("/commissions/:id", h.GetCommissionDetail)
 		protected.POST("/commissions/:id/approve", h.ApproveCommission)
 		protected.POST("/commissions/:id/void", h.VoidCommission)
 		protected.GET("/payouts", h.ListPayouts)

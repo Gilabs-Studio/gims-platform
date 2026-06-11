@@ -174,6 +174,58 @@ type CommissionResponse struct {
 	UpdatedAt                 time.Time  `json:"updated_at"`
 }
 
+type CommissionPaymentDetail struct {
+	ID                string     `json:"id"`
+	Status            string     `json:"status"`
+	Provider          string     `json:"provider"`
+	PaymentMethod     string     `json:"payment_method"`
+	AmountIDR         int64      `json:"amount_idr"`
+	ProviderInvoiceID string     `json:"provider_invoice_id"`
+	ProviderPaymentID string     `json:"provider_payment_id"`
+	PaidAt            *time.Time `json:"paid_at,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+}
+
+type CommissionSubscriptionDetail struct {
+	ID            string     `json:"id"`
+	Plan          string     `json:"plan"`
+	BillingPeriod string     `json:"billing_period"`
+	Status        string     `json:"status"`
+	AmountPaidIDR int64      `json:"amount_paid_idr"`
+	StartsAt      time.Time  `json:"starts_at"`
+	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
+	NextBillingAt *time.Time `json:"next_billing_at,omitempty"`
+}
+
+type CommissionConversionDetail struct {
+	ID             string    `json:"id"`
+	LeadID         string    `json:"lead_id"`
+	ConversionType string    `json:"conversion_type"`
+	GrossAmountIDR int64     `json:"gross_amount_idr"`
+	NetAmountIDR   int64     `json:"net_amount_idr"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+type CommissionLeadDetail struct {
+	ID               string    `json:"id"`
+	EmailNormalized  string    `json:"email_normalized"`
+	RegistrationCode string    `json:"registration_code"`
+	Status           string    `json:"status"`
+	GrossAmountIDR   int64     `json:"gross_amount_idr"`
+	NetAmountIDR     int64     `json:"net_amount_idr"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+type CommissionDetailResponse struct {
+	Commission   *CommissionResponse           `json:"commission"`
+	Account      *SalesReferralAccountResponse `json:"account,omitempty"`
+	Code         *SalesReferralCodeResponse    `json:"code,omitempty"`
+	Conversion   *CommissionConversionDetail   `json:"conversion,omitempty"`
+	Lead         *CommissionLeadDetail         `json:"lead,omitempty"`
+	Payment      *CommissionPaymentDetail      `json:"payment,omitempty"`
+	Subscription *CommissionSubscriptionDetail `json:"subscription,omitempty"`
+}
+
 type VoidCommissionRequest struct {
 	Reason string `json:"reason"`
 }

@@ -83,8 +83,17 @@ func (f *fakeReferralRepo) UpsertCommissionConfig(context.Context, *models.Refer
 func (f *fakeReferralRepo) FindConversionByTenantID(context.Context, string) (*models.SalesReferralConversion, error) {
 	return f.conversion, nil
 }
+func (f *fakeReferralRepo) FindConversionByID(context.Context, string) (*models.SalesReferralConversion, error) {
+	return f.conversion, nil
+}
+func (f *fakeReferralRepo) FindLeadByID(context.Context, string) (*models.SalesReferralLead, error) {
+	return nil, nil
+}
 func (f *fakeReferralRepo) GetPaymentTransaction(context.Context, string) (*tenantModels.PaymentTransaction, error) {
 	return f.payment, nil
+}
+func (f *fakeReferralRepo) GetTenantSubscription(context.Context, string) (*tenantModels.TenantSubscription, error) {
+	return nil, nil
 }
 func (f *fakeReferralRepo) CountPaidCommissionsByTenant(context.Context, string) (int64, error) {
 	return f.paidCount, nil

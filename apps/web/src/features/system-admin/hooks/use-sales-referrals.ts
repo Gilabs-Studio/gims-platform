@@ -65,6 +65,14 @@ export function useReferralCommissions(params?: CommissionListParams) {
   });
 }
 
+export function useReferralCommissionDetail(id?: string | null) {
+  return useQuery({
+    queryKey: ["system-admin", "sales-referrals", "commissions", id],
+    queryFn: () => systemAdminService.getReferralCommission(id ?? ""),
+    enabled: Boolean(id),
+  });
+}
+
 export function useReferralPayouts(params?: PayoutListParams) {
   return useQuery({
     queryKey: ["system-admin", "sales-referrals", "payouts", params],

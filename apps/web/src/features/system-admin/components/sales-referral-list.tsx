@@ -46,6 +46,7 @@ import {
   useActiveCoupons,
   useReferralCommissionConfig,
   useReferralCommissions,
+  useReferralCommissionDetail,
   useReferralPayouts,
   useSalesReferralCodes,
   useSalesReferralMutations,
@@ -57,6 +58,7 @@ import type {
   SalesReferralAccount,
   SalesReferralCode,
   ReferralCommission,
+  ReferralCommissionDetail,
   Coupon,
   UpdateSalesReferralAccountRequest,
   UpdateSalesReferralCodeRequest,
@@ -695,6 +697,77 @@ function AccountDetailDialog({ account, codes, commissions, onClose }: { account
   );
 }
 
+function CommissionDetailDialog({ detail, loading, open, onClose }: { detail?: ReferralCommissionDetail; loading: boolean; open: boolean; onClose: () => void }) {
+  const commission = detail?.commission;
+  return (
+    <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Commission detail</DialogTitle>
+        </DialogHeader>
+        {loading || !commission ? <Skeleton className="h-48 w-full" /> : (
+          <Tabs defaultValue="commission">
+            <TabsList>
+              <TabsTrigger value="commission">Commission</TabsTrigger>
+              <TabsTrigger value="payment">Payment</TabsTrigger>
+              <TabsTrigger value="funnel">Lead & conversion</TabsTrigger>
+              <TabsTrigger value="subscription">Subscription</TabsTrigger>
+            </TabsList>
+            <TabsContent value="commission" className="pt-4">
+              <DetailFieldTable rows={[
+                { label: "Status", value: <Badge>{commission.status}</Badge> },
+                { label: "Type", value: commission.commission_type },
+                { label: "Sales account", value: detail?.account?.name || detail?.account?.email || commission.sales_referral_account_id },
+                { label: "Referral code", value: detail?.code?.code || commission.sales_referral_code_id },
+                { label: "Base amount", value: formatIDR(commission.source_net_amount_idr) },
+                { label: "Rate", value: formatBpsPercent(commission.commission_bps) },
+                { label: "Commission amount", value: formatIDR(commission.commission_amount_idr) },
+                { label: "Earned at", value: formatDate(commission.earned_at) },
+                { label: "Void reason", value: commission.void_reason || "-" },
+              ]} />
+            </TabsContent>
+            <TabsContent value="payment" className="pt-4">
+              <DetailFieldTable rows={[
+                { label: "Payment transaction", value: <span className="font-mono">{commission.payment_transaction_id}</span> },
+                { label: "Payment status", value: detail?.payment?.status || "-" },
+                { label: "Provider", value: detail?.payment?.provider || "-" },
+                { label: "Method", value: detail?.payment?.payment_method || "-" },
+                { label: "Amount", value: detail?.payment ? formatIDR(detail.payment.amount_idr) : "-" },
+                { label: "Provider invoice", value: detail?.payment?.provider_invoice_id || "-" },
+                { label: "Provider payment", value: detail?.payment?.provider_payment_id || "-" },
+                { label: "Paid at", value: formatDate(detail?.payment?.paid_at) },
+              ]} />
+            </TabsContent>
+            <TabsContent value="funnel" className="pt-4">
+              <DetailFieldTable rows={[
+                { label: "Lead email", value: detail?.lead?.email_normalized || "-" },
+                { label: "Lead status", value: detail?.lead?.status || "-" },
+                { label: "Registration code", value: detail?.lead?.registration_code || "-" },
+                { label: "Conversion type", value: detail?.conversion?.conversion_type || "-" },
+                { label: "Conversion gross", value: detail?.conversion ? formatIDR(detail.conversion.gross_amount_idr) : "-" },
+                { label: "Conversion net", value: detail?.conversion ? formatIDR(detail.conversion.net_amount_idr) : "-" },
+                { label: "Tenant", value: <span className="font-mono">{commission.tenant_id}</span> },
+              ]} />
+            </TabsContent>
+            <TabsContent value="subscription" className="pt-4">
+              <DetailFieldTable rows={[
+                { label: "Subscription", value: commission.subscription_id ? <span className="font-mono">{commission.subscription_id}</span> : "-" },
+                { label: "Status", value: detail?.subscription?.status || "-" },
+                { label: "Plan", value: detail?.subscription?.plan || "-" },
+                { label: "Billing period", value: detail?.subscription?.billing_period || "-" },
+                { label: "Amount paid", value: detail?.subscription ? formatIDR(detail.subscription.amount_paid_idr) : "-" },
+                { label: "Starts", value: formatDate(detail?.subscription?.starts_at) },
+                { label: "Expires", value: formatDate(detail?.subscription?.expires_at) },
+                { label: "Next billing", value: formatDate(detail?.subscription?.next_billing_at) },
+              ]} />
+            </TabsContent>
+          </Tabs>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 interface DeleteDialogProps {
   open: boolean;
   title: string;
@@ -747,6 +820,7 @@ export function SalesReferralList() {
   const [payoutCommissionIDs, setPayoutCommissionIDs] = useState<string[]>([]);
   const [payoutReference, setPayoutReference] = useState("");
   const [selectedPayoutCommissionID, setSelectedPayoutCommissionID] = useState("");
+  const [commissionDetailID, setCommissionDetailID] = useState<string | null>(null);
   const [voidTarget, setVoidTarget] = useState<string | null>(null);
   const [voidReason, setVoidReason] = useState("Manual admin void");
   const params = useMemo(() => ({ page: 1, per_page: 20, search: debouncedSearch.trim() || undefined }), [debouncedSearch]);
@@ -756,6 +830,7 @@ export function SalesReferralList() {
   const commissionConfig = useReferralCommissionConfig();
   const commissions = useReferralCommissions({ page: 1, per_page: 20 });
   const payouts = useReferralPayouts({ page: 1, per_page: 20 });
+  const commissionDetail = useReferralCommissionDetail(commissionDetailID);
   const coupons = useActiveCoupons();
   const mutations = useSalesReferralMutations();
   const accountRows = useMemo(() => accounts.data?.data ?? [], [accounts.data?.data]);
@@ -992,6 +1067,7 @@ export function SalesReferralList() {
                       <TableCell className="font-mono text-xs">{shortID(row.payment_transaction_id)}</TableCell>
                       <TableCell>{formatDate(row.earned_at)}</TableCell>
                       <TableCell className="space-x-2 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => setCommissionDetailID(row.id)}>Detail</Button>
                         <Button size="sm" variant="outline" disabled={row.status !== "pending" || mutations.approveCommission.isPending} onClick={() => mutations.approveCommission.mutate(row.id)}>Approve</Button>
                         <Button size="sm" variant="ghost" disabled={row.status === "paid" || mutations.voidCommission.isPending} onClick={() => setVoidTarget(row.id)}>Void</Button>
                       </TableCell>
@@ -1078,6 +1154,12 @@ export function SalesReferralList() {
           codes={detailAccountCodes}
           commissions={detailAccountCommissions}
           onClose={() => setDetailAccount(null)}
+        />
+        <CommissionDetailDialog
+          open={Boolean(commissionDetailID)}
+          detail={commissionDetail.data?.data}
+          loading={commissionDetail.isLoading}
+          onClose={() => setCommissionDetailID(null)}
         />
         <Dialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen}>
           <DialogContent className="max-w-2xl">

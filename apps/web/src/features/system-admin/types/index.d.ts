@@ -561,7 +561,9 @@ export interface ReferralCommission {
   id: string;
   sales_referral_account_id: string;
   sales_referral_code_id: string;
+  sales_referral_conversion_id?: string | null;
   tenant_id: string;
+  subscription_id?: string | null;
   payment_transaction_id: string;
   commission_type: "close" | "recurring" | "adjustment";
   status: "pending" | "approved" | "paid" | "void";
@@ -574,6 +576,58 @@ export interface ReferralCommission {
   void_reason?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ReferralCommissionPaymentDetail {
+  id: string;
+  status: string;
+  provider: string;
+  payment_method: string;
+  amount_idr: number;
+  provider_invoice_id?: string;
+  provider_payment_id?: string;
+  paid_at?: string | null;
+  created_at: string;
+}
+
+export interface ReferralCommissionSubscriptionDetail {
+  id: string;
+  plan: string;
+  billing_period: string;
+  status: string;
+  amount_paid_idr: number;
+  starts_at: string;
+  expires_at?: string | null;
+  next_billing_at?: string | null;
+}
+
+export interface ReferralCommissionConversionDetail {
+  id: string;
+  lead_id: string;
+  conversion_type: string;
+  gross_amount_idr: number;
+  net_amount_idr: number;
+  created_at: string;
+}
+
+export interface ReferralCommissionLeadDetail {
+  id: string;
+  email_normalized: string;
+  registration_code: string;
+  status: string;
+  gross_amount_idr: number;
+  net_amount_idr: number;
+  created_at: string;
+}
+
+export interface ReferralCommissionDetail {
+  commission: ReferralCommission;
+  account?: SalesReferralAccount | null;
+  code?: SalesReferralCode | null;
+  conversion?: ReferralCommissionConversionDetail | null;
+  lead?: ReferralCommissionLeadDetail | null;
+  payment?: ReferralCommissionPaymentDetail | null;
+  subscription?: ReferralCommissionSubscriptionDetail | null;
 }
 
 export interface ReferralCommissionPayout {
@@ -616,6 +670,7 @@ export interface CreatePayoutRequest {
 
 export interface CommissionConfigResponse { success: boolean; data: ReferralCommissionConfig; }
 export interface CommissionListResponse { success: boolean; data: ReferralCommission[]; meta?: { pagination?: PaginationMeta }; }
+export interface CommissionDetailResponse { success: boolean; data: ReferralCommissionDetail; }
 export interface PayoutListResponse { success: boolean; data: ReferralCommissionPayout[]; meta?: { pagination?: PaginationMeta }; }
 export interface PayoutDetailResponse { success: boolean; data: ReferralCommissionPayout; }
 

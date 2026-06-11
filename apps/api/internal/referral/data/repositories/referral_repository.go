@@ -42,7 +42,10 @@ type ReferralRepository interface {
 	GetActiveCommissionConfig(ctx context.Context) (*models.ReferralCommissionConfig, error)
 	UpsertCommissionConfig(ctx context.Context, config *models.ReferralCommissionConfig) error
 	FindConversionByTenantID(ctx context.Context, tenantID string) (*models.SalesReferralConversion, error)
+	FindConversionByID(ctx context.Context, id string) (*models.SalesReferralConversion, error)
+	FindLeadByID(ctx context.Context, id string) (*models.SalesReferralLead, error)
 	GetPaymentTransaction(ctx context.Context, id string) (*tenantModels.PaymentTransaction, error)
+	GetTenantSubscription(ctx context.Context, id string) (*tenantModels.TenantSubscription, error)
 	CountPaidCommissionsByTenant(ctx context.Context, tenantID string) (int64, error)
 	CreateCommissionIfNotExists(ctx context.Context, commission *models.ReferralCommission) error
 	ListCommissions(ctx context.Context, page, perPage int, accountID, status, commissionType string) ([]*models.ReferralCommission, int64, error)
@@ -292,10 +295,43 @@ func (r *referralRepository) FindConversionByTenantID(ctx context.Context, tenan
 	return &conv, err
 }
 
+func (r *referralRepository) FindConversionByID(ctx context.Context, id string) (*models.SalesReferralConversion, error) {
+	var conv models.SalesReferralConversion
+	if err := r.getDB(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&conv).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &conv, nil
+}
+
+func (r *referralRepository) FindLeadByID(ctx context.Context, id string) (*models.SalesReferralLead, error) {
+	var lead models.SalesReferralLead
+	if err := r.getDB(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&lead).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &lead, nil
+}
+
 func (r *referralRepository) GetPaymentTransaction(ctx context.Context, id string) (*tenantModels.PaymentTransaction, error) {
 	var txn tenantModels.PaymentTransaction
 	err := r.getDB(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&txn).Error
 	return &txn, err
+}
+
+func (r *referralRepository) GetTenantSubscription(ctx context.Context, id string) (*tenantModels.TenantSubscription, error) {
+	var sub tenantModels.TenantSubscription
+	if err := r.getDB(ctx).Where("id = ? AND deleted_at IS NULL", id).First(&sub).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &sub, nil
 }
 
 func (r *referralRepository) CountPaidCommissionsByTenant(ctx context.Context, tenantID string) (int64, error) {

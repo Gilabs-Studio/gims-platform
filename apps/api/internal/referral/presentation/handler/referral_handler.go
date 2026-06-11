@@ -272,6 +272,14 @@ func (h *Handler) ListCommissions(c *gin.Context) {
 	}
 	response.SuccessResponse(c, resp, &response.Meta{Pagination: pag})
 }
+func (h *Handler) GetCommissionDetail(c *gin.Context) {
+	resp, err := h.uc.GetCommissionDetail(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.SuccessResponse(c, resp, nil)
+}
 func (h *Handler) ApproveCommission(c *gin.Context) {
 	if err := h.uc.ApproveCommission(c.Request.Context(), c.Param("id"), actorID(c)); err != nil {
 		coreErrors.InternalServerErrorResponse(c, err.Error())

@@ -47,6 +47,7 @@ type ReferralUsecase interface {
 	GetCommissionConfig(ctx context.Context) (*dto.CommissionConfigResponse, error)
 	UpdateCommissionConfig(ctx context.Context, req *dto.CommissionConfigRequest) (*dto.CommissionConfigResponse, error)
 	ListCommissions(ctx context.Context, params dto.CommissionListParams) ([]*dto.CommissionResponse, *response.PaginationMeta, error)
+	GetCommissionDetail(ctx context.Context, id string) (*dto.CommissionDetailResponse, error)
 	ApproveCommission(ctx context.Context, id, actorID string) error
 	VoidCommission(ctx context.Context, id, actorID, reason string) error
 	CreatePayout(ctx context.Context, req *dto.CreatePayoutRequest, actorID string) (*dto.PayoutResponse, error)
@@ -508,9 +509,65 @@ func (u *referralUsecase) ListCommissions(ctx context.Context, params dto.Commis
 	}
 	out := make([]*dto.CommissionResponse, 0, len(items))
 	for _, c := range items {
-		out = append(out, &dto.CommissionResponse{ID: c.ID, SalesReferralAccountID: c.SalesReferralAccountID, SalesReferralCodeID: c.SalesReferralCodeID, SalesReferralConversionID: c.SalesReferralConversionID, TenantID: c.TenantID, SubscriptionID: c.SubscriptionID, PaymentTransactionID: c.PaymentTransactionID, CommissionType: string(c.CommissionType), Status: string(c.Status), SourceNetAmountIDR: c.SourceNetAmountIDR, CommissionBps: c.CommissionBps, CommissionAmountIDR: c.CommissionAmountIDR, EarnedAt: c.EarnedAt, ApprovedAt: c.ApprovedAt, VoidedAt: c.VoidedAt, VoidReason: c.VoidReason, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt})
+		out = append(out, commissionResponse(c))
 	}
 	return out, response.NewPaginationMeta(page, perPage, int(total)), nil
+}
+
+func (u *referralUsecase) GetCommissionDetail(ctx context.Context, id string) (*dto.CommissionDetailResponse, error) {
+	commission, err := u.repo.FindCommissionByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if commission == nil {
+		return nil, ErrReferralNotFound
+	}
+	detail := &dto.CommissionDetailResponse{Commission: commissionResponse(commission)}
+	if account, err := u.repo.FindAccountByID(ctx, commission.SalesReferralAccountID); err != nil {
+		return nil, err
+	} else if account != nil {
+		detail.Account = toAccountResponse(account)
+	}
+	if code, err := u.repo.FindCodeByID(ctx, commission.SalesReferralCodeID); err != nil {
+		return nil, err
+	} else if code != nil {
+		detail.Code = toCodeResponse(code)
+	}
+	if commission.SalesReferralConversionID != nil {
+		conv, err := u.repo.FindConversionByID(ctx, *commission.SalesReferralConversionID)
+		if err != nil {
+			return nil, err
+		}
+		if conv != nil {
+			detail.Conversion = &dto.CommissionConversionDetail{ID: conv.ID, LeadID: conv.SalesReferralLeadID, ConversionType: string(conv.ConversionType), GrossAmountIDR: conv.GrossAmountIDR, NetAmountIDR: conv.NetAmountIDR, CreatedAt: conv.CreatedAt}
+			lead, err := u.repo.FindLeadByID(ctx, conv.SalesReferralLeadID)
+			if err != nil {
+				return nil, err
+			}
+			if lead != nil {
+				detail.Lead = &dto.CommissionLeadDetail{ID: lead.ID, EmailNormalized: lead.EmailNormalized, RegistrationCode: lead.RegistrationCode, Status: string(lead.Status), GrossAmountIDR: lead.GrossAmountIDR, NetAmountIDR: lead.NetAmountIDR, CreatedAt: lead.CreatedAt}
+			}
+		}
+	}
+	if payment, err := u.repo.GetPaymentTransaction(ctx, commission.PaymentTransactionID); err != nil {
+		return nil, err
+	} else if payment != nil {
+		detail.Payment = &dto.CommissionPaymentDetail{ID: payment.ID, Status: string(payment.Status), Provider: string(payment.Provider), PaymentMethod: string(payment.PaymentMethod), AmountIDR: payment.AmountIDR, ProviderInvoiceID: payment.ProviderInvoiceID, ProviderPaymentID: payment.ProviderPaymentID, PaidAt: payment.PaidAt, CreatedAt: payment.CreatedAt}
+	}
+	if commission.SubscriptionID != nil {
+		sub, err := u.repo.GetTenantSubscription(ctx, *commission.SubscriptionID)
+		if err != nil {
+			return nil, err
+		}
+		if sub != nil {
+			detail.Subscription = &dto.CommissionSubscriptionDetail{ID: sub.ID, Plan: string(sub.Plan), BillingPeriod: string(sub.BillingPeriod), Status: string(sub.Status), AmountPaidIDR: sub.AmountPaidIDR, StartsAt: sub.StartsAt, ExpiresAt: sub.ExpiresAt, NextBillingAt: sub.NextBillingAt}
+		}
+	}
+	return detail, nil
+}
+
+func commissionResponse(c *models.ReferralCommission) *dto.CommissionResponse {
+	return &dto.CommissionResponse{ID: c.ID, SalesReferralAccountID: c.SalesReferralAccountID, SalesReferralCodeID: c.SalesReferralCodeID, SalesReferralConversionID: c.SalesReferralConversionID, TenantID: c.TenantID, SubscriptionID: c.SubscriptionID, PaymentTransactionID: c.PaymentTransactionID, CommissionType: string(c.CommissionType), Status: string(c.Status), SourceNetAmountIDR: c.SourceNetAmountIDR, CommissionBps: c.CommissionBps, CommissionAmountIDR: c.CommissionAmountIDR, EarnedAt: c.EarnedAt, ApprovedAt: c.ApprovedAt, VoidedAt: c.VoidedAt, VoidReason: c.VoidReason, CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt}
 }
 func (u *referralUsecase) ApproveCommission(ctx context.Context, id, actorID string) error {
 	commission, err := u.repo.FindCommissionByID(ctx, id)

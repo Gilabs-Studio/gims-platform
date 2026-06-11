@@ -51,6 +51,7 @@ import type {
   CommissionConfigResponse,
   CommissionListParams,
   CommissionListResponse,
+  CommissionDetailResponse,
   CreatePayoutRequest,
   PayoutListParams,
   PayoutListResponse,
@@ -459,6 +460,11 @@ export const systemAdminService = {
 
   async listReferralCommissions(params?: CommissionListParams): Promise<CommissionListResponse> {
     const { data } = await sysAdminClient.get<CommissionListResponse>("/referrals/commissions", { params });
+    return data;
+  },
+
+  async getReferralCommission(id: string): Promise<CommissionDetailResponse> {
+    const { data } = await sysAdminClient.get<CommissionDetailResponse>(`/referrals/commissions/${id}`);
     return data;
   },
 
