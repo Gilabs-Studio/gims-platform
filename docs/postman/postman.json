@@ -10991,6 +10991,37 @@
           "response": []
         },
         {
+          "name": "Get Referral Commission Detail",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/internal/referrals/commissions/{{referral_commission_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "internal",
+                "referrals",
+                "commissions",
+                "{{referral_commission_id}}"
+              ]
+            },
+            "description": "Get commission detail audit trail."
+          },
+          "response": []
+        },
+        {
           "name": "Approve Referral Commission",
           "request": {
             "auth": {

@@ -39,7 +39,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/features/finance/assets/components/date-picker";
 import { AsyncSelect } from "@/components/ui/async-select";
-import { Copy, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Ban, Check, Copy, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   useSalesReferralAccounts,
@@ -552,7 +552,7 @@ function CodeDialog({ open, code, accounts, coupons, onClose, onSubmit, isSaving
   );
 }
 
-function CommissionMiniTable({ rows, emptyText }: { rows: ReferralCommission[]; emptyText: string }) {
+function CommissionMiniTable({ rows, emptyText, onDetail }: { rows: ReferralCommission[]; emptyText: string; onDetail?: (id: string) => void }) {
   if (rows.length === 0) return <p className="rounded-md border p-4 text-sm text-muted-foreground">{emptyText}</p>;
   return (
     <div className="rounded-md border">
@@ -564,8 +564,12 @@ function CommissionMiniTable({ rows, emptyText }: { rows: ReferralCommission[]; 
             <TableHead>Base</TableHead>
             <TableHead>Rate</TableHead>
             <TableHead>Commission</TableHead>
+            <TableHead>ID</TableHead>
             <TableHead>Payment TX</TableHead>
+            <TableHead>Code</TableHead>
+            <TableHead>Account</TableHead>
             <TableHead>Earned</TableHead>
+            <TableHead className="text-right">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -576,8 +580,14 @@ function CommissionMiniTable({ rows, emptyText }: { rows: ReferralCommission[]; 
               <TableCell>{formatIDR(row.source_net_amount_idr)}</TableCell>
               <TableCell>{formatBpsPercent(row.commission_bps)}</TableCell>
               <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
+              <TableCell className="font-mono text-xs">{shortID(row.id)}</TableCell>
               <TableCell className="font-mono text-xs">{shortID(row.payment_transaction_id)}</TableCell>
+              <TableCell className="font-mono text-xs">{shortID(row.sales_referral_code_id)}</TableCell>
+              <TableCell className="font-mono text-xs">{shortID(row.sales_referral_account_id)}</TableCell>
               <TableCell>{formatDate(row.earned_at)}</TableCell>
+              <TableCell className="text-right">
+                {onDetail ? <Button type="button" variant="ghost" size="icon" onClick={() => onDetail(row.id)}><Eye className="h-4 w-4" /></Button> : null}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -603,7 +613,7 @@ function DetailFieldTable({ rows }: { rows: Array<{ label: string; value: React.
   );
 }
 
-function CodeDetailDialog({ code, commissions, onClose }: { code: SalesReferralCode | null; commissions: ReferralCommission[]; onClose: () => void }) {
+function CodeDetailDialog({ code, commissions, onClose, onCommissionDetail }: { code: SalesReferralCode | null; commissions: ReferralCommission[]; onClose: () => void; onCommissionDetail: (id: string) => void }) {
   if (!code) return null;
   return (
     <Dialog open={Boolean(code)} onOpenChange={(value) => !value && onClose()}>
@@ -630,7 +640,7 @@ function CodeDetailDialog({ code, commissions, onClose }: { code: SalesReferralC
             ]} />
           </TabsContent>
           <TabsContent value="commissions" className="pt-4">
-            <CommissionMiniTable rows={commissions} emptyText="No commissions for this code yet." />
+            <CommissionMiniTable rows={commissions} emptyText="No commissions for this code yet." onDetail={onCommissionDetail} />
           </TabsContent>
         </Tabs>
       </DialogContent>
@@ -638,7 +648,7 @@ function CodeDetailDialog({ code, commissions, onClose }: { code: SalesReferralC
   );
 }
 
-function AccountDetailDialog({ account, codes, commissions, onClose }: { account: SalesReferralAccount | null; codes: SalesReferralCode[]; commissions: ReferralCommission[]; onClose: () => void }) {
+function AccountDetailDialog({ account, codes, commissions, onClose, onCommissionDetail }: { account: SalesReferralAccount | null; codes: SalesReferralCode[]; commissions: ReferralCommission[]; onClose: () => void; onCommissionDetail: (id: string) => void }) {
   if (!account) return null;
   return (
     <Dialog open={Boolean(account)} onOpenChange={(value) => !value && onClose()}>
@@ -689,7 +699,7 @@ function AccountDetailDialog({ account, codes, commissions, onClose }: { account
             )}
           </TabsContent>
           <TabsContent value="commissions" className="pt-4">
-            <CommissionMiniTable rows={commissions} emptyText="No commissions for this account yet." />
+            <CommissionMiniTable rows={commissions} emptyText="No commissions for this account yet." onDetail={onCommissionDetail} />
           </TabsContent>
         </Tabs>
       </DialogContent>
@@ -805,7 +815,14 @@ export function SalesReferralList() {
   const [accountPage, setAccountPage] = useState(1);
   const [codePage, setCodePage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
+  const [commissionSearchInput, setCommissionSearchInput] = useState("");
+  const [payoutSearchInput, setPayoutSearchInput] = useState("");
+  const [commissionStatusFilter, setCommissionStatusFilter] = useState<"all" | "pending" | "approved" | "paid" | "void">("all");
+  const [payoutStatusFilter, setPayoutStatusFilter] = useState<"all" | "paid">("all");
+  const [payoutAccountFilter, setPayoutAccountFilter] = useState("");
   const debouncedSearch = useDebounce(searchInput, 500);
+  const debouncedCommissionSearch = useDebounce(commissionSearchInput, 500);
+  const debouncedPayoutSearch = useDebounce(payoutSearchInput, 500);
   const [activeTab, setActiveTab] = useState<"codes" | "accounts" | "commissions" | "payouts">("codes");
   const [codeFilter, setCodeFilter] = useState<ReferralFilter>("all");
   const [accountFilter, setAccountFilter] = useState<ReferralFilter>("all");
@@ -849,6 +866,19 @@ export function SalesReferralList() {
     [codeRows, codeFilter],
   );
   const commissionRows = useMemo(() => commissions.data?.data ?? [], [commissions.data?.data]);
+  const filteredCommissionRows = useMemo(() => commissionRows.filter((row) => {
+    if (commissionStatusFilter !== "all" && row.status !== commissionStatusFilter) return false;
+    if (!debouncedCommissionSearch.trim()) return true;
+    const q = debouncedCommissionSearch.toLowerCase();
+    return [row.id, row.sales_referral_code_id, row.sales_referral_account_id, row.payment_transaction_id, row.commission_type, row.status].some((value) => String(value).toLowerCase().includes(q));
+  }), [commissionRows, commissionStatusFilter, debouncedCommissionSearch]);
+  const filteredPayoutRows = useMemo(() => (payouts.data?.data ?? []).filter((row) => {
+    if (payoutStatusFilter !== "all" && row.status !== payoutStatusFilter) return false;
+    if (payoutAccountFilter && row.sales_referral_account_id !== payoutAccountFilter) return false;
+    if (!debouncedPayoutSearch.trim()) return true;
+    const q = debouncedPayoutSearch.toLowerCase();
+    return [row.id, row.sales_referral_account_id, row.payment_reference, row.notes, row.status].some((value) => String(value || "").toLowerCase().includes(q));
+  }), [payouts.data?.data, payoutStatusFilter, payoutAccountFilter, debouncedPayoutSearch]);
   const approvedCommissionRows = useMemo(() => commissionRows.filter((row) => row.status === "approved"), [commissionRows]);
   const approvedCommissionRowsByAccount = useMemo(
     () => approvedCommissionRows.filter((row) => !payoutAccountID || row.sales_referral_account_id === payoutAccountID),
@@ -1038,38 +1068,62 @@ export function SalesReferralList() {
           </TabsContent>
 
           <TabsContent value="commissions" className="pt-4">
+            <div className="mb-3 flex flex-col gap-2 md:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Search commission id, code, account, payment TX..." value={commissionSearchInput} onChange={(event) => setCommissionSearchInput(event.target.value)} />
+              </div>
+              <Select value={commissionStatusFilter} onValueChange={(value) => setCommissionStatusFilter(value as typeof commissionStatusFilter)}>
+                <SelectTrigger className="w-full md:w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="void">Void</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="rounded-md border">
               <Table className={DETAIL_TABLE_CLASS}>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>ID</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Base</TableHead>
                     <TableHead>Rate</TableHead>
                     <TableHead>Commission</TableHead>
                     <TableHead>Payment TX</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Account</TableHead>
                     <TableHead>Earned</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {commissions.isLoading ? Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={index}><TableCell colSpan={8}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
-                  )) : (commissions.data?.data ?? []).length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">No commissions found.</TableCell></TableRow>
-                  ) : (commissions.data?.data ?? []).map((row) => (
+                    <TableRow key={index}><TableCell colSpan={11}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                  )) : filteredCommissionRows.length === 0 ? (
+                    <TableRow><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">No commissions found.</TableCell></TableRow>
+                  ) : filteredCommissionRows.map((row) => (
                     <TableRow key={row.id}>
+                      <TableCell className="font-mono text-xs">{shortID(row.id)}</TableCell>
                       <TableCell className="capitalize">{row.commission_type}</TableCell>
                       <TableCell><Badge variant={row.status === "pending" ? "secondary" : row.status === "approved" ? "default" : "outline"}>{row.status}</Badge></TableCell>
                       <TableCell>{formatIDR(row.source_net_amount_idr)}</TableCell>
                       <TableCell>{formatBpsPercent(row.commission_bps)}</TableCell>
                       <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
                       <TableCell className="font-mono text-xs">{shortID(row.payment_transaction_id)}</TableCell>
+                      <TableCell className="font-mono text-xs">{shortID(row.sales_referral_code_id)}</TableCell>
+                      <TableCell className="font-mono text-xs">{shortID(row.sales_referral_account_id)}</TableCell>
                       <TableCell>{formatDate(row.earned_at)}</TableCell>
-                      <TableCell className="space-x-2 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => setCommissionDetailID(row.id)}>Detail</Button>
-                        <Button size="sm" variant="outline" disabled={row.status !== "pending" || mutations.approveCommission.isPending} onClick={() => mutations.approveCommission.mutate(row.id)}>Approve</Button>
-                        <Button size="sm" variant="ghost" disabled={row.status === "paid" || mutations.voidCommission.isPending} onClick={() => setVoidTarget(row.id)}>Void</Button>
+                      <TableCell className="text-right">
+                        <div className="inline-flex gap-1">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => setCommissionDetailID(row.id)}><Eye className="h-4 w-4" /></Button>
+                          <Button type="button" variant="ghost" size="icon" disabled={row.status !== "pending" || mutations.approveCommission.isPending} onClick={() => mutations.approveCommission.mutate(row.id)}><Check className="h-4 w-4" /></Button>
+                          <Button type="button" variant="ghost" size="icon" disabled={row.status === "paid" || mutations.voidCommission.isPending} onClick={() => setVoidTarget(row.id)}><Ban className="h-4 w-4" /></Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1079,6 +1133,23 @@ export function SalesReferralList() {
           </TabsContent>
 
           <TabsContent value="payouts" className="pt-4">
+            <div className="mb-3 flex flex-col gap-2 md:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Search payout id, account, reference, notes..." value={payoutSearchInput} onChange={(event) => setPayoutSearchInput(event.target.value)} />
+              </div>
+              <Select value={payoutStatusFilter} onValueChange={(value) => setPayoutStatusFilter(value as typeof payoutStatusFilter)}>
+                <SelectTrigger className="w-full md:w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="paid">Paid</SelectItem></SelectContent>
+              </Select>
+              <Select value={payoutAccountFilter || "all"} onValueChange={(value) => setPayoutAccountFilter(value === "all" ? "" : value)}>
+                <SelectTrigger className="w-full md:w-56"><SelectValue placeholder="Account" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All accounts</SelectItem>
+                  {accountRows.map((account) => <SelectItem key={account.id} value={account.id}>{account.name || account.email}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -1093,9 +1164,9 @@ export function SalesReferralList() {
                 <TableBody>
                   {payouts.isLoading ? Array.from({ length: 5 }).map((_, index) => (
                     <TableRow key={index}><TableCell colSpan={5}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
-                  )) : (payouts.data?.data ?? []).length === 0 ? (
+                  )) : filteredPayoutRows.length === 0 ? (
                     <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No payouts found.</TableCell></TableRow>
-                  ) : (payouts.data?.data ?? []).map((row) => (
+                  ) : filteredPayoutRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell><Badge>{row.status}</Badge></TableCell>
                       <TableCell>{formatIDR(row.total_amount_idr)}</TableCell>
@@ -1148,12 +1219,14 @@ export function SalesReferralList() {
           code={detailCode}
           commissions={detailCodeCommissions}
           onClose={() => setDetailCode(null)}
+          onCommissionDetail={(id) => setCommissionDetailID(id)}
         />
         <AccountDetailDialog
           account={detailAccount}
           codes={detailAccountCodes}
           commissions={detailAccountCommissions}
           onClose={() => setDetailAccount(null)}
+          onCommissionDetail={(id) => setCommissionDetailID(id)}
         />
         <CommissionDetailDialog
           open={Boolean(commissionDetailID)}
@@ -1190,15 +1263,15 @@ export function SalesReferralList() {
                   disabled={!payoutAccountID || approvedCommissionRowsByAccount.length === 0}
                   defaultOptions={approvedCommissionRowsByAccount.filter((row) => !payoutCommissionIDs.includes(row.id))}
                   fetcher={async (query) => approvedCommissionRowsByAccount.filter((row) => {
-                    const haystack = `${row.id} ${row.payment_transaction_id} ${row.commission_type} ${row.commission_amount_idr}`.toLowerCase();
+                    const haystack = `${row.id} ${row.payment_transaction_id} ${row.sales_referral_code_id} ${row.sales_referral_account_id} ${row.commission_type} ${row.commission_amount_idr}`.toLowerCase();
                     return !payoutCommissionIDs.includes(row.id) && haystack.includes(query.toLowerCase());
                   })}
                   getValue={(row) => row.id}
-                  getLabel={(row) => `${shortID(row.id)} · ${formatIDR(row.commission_amount_idr)}`}
+                  getLabel={(row) => `${shortID(row.id)} · ${formatIDR(row.commission_amount_idr)} · ${shortID(row.sales_referral_code_id)} · ${shortID(row.sales_referral_account_id)}`}
                   renderOption={(row) => (
                     <div className="flex flex-col">
                       <span>{shortID(row.id)} · {formatIDR(row.commission_amount_idr)}</span>
-                      <span className="text-xs text-muted-foreground">{row.commission_type} · payment {shortID(row.payment_transaction_id)}</span>
+                      <span className="text-xs text-muted-foreground">{row.commission_type} · code {shortID(row.sales_referral_code_id)} · account {shortID(row.sales_referral_account_id)}</span>
                     </div>
                   )}
                   placeholder={payoutAccountID ? "Select approved commission" : "Select sales account first"}
@@ -1219,6 +1292,8 @@ export function SalesReferralList() {
                           <TableHead>ID</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Payment TX</TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Account</TableHead>
                           <TableHead>Amount</TableHead>
                           <TableHead className="text-right">Action</TableHead>
                         </TableRow>
@@ -1229,9 +1304,14 @@ export function SalesReferralList() {
                             <TableCell className="font-mono text-xs">{shortID(row.id)}</TableCell>
                             <TableCell className="capitalize">{row.commission_type}</TableCell>
                             <TableCell className="font-mono text-xs">{shortID(row.payment_transaction_id)}</TableCell>
+                            <TableCell className="font-mono text-xs">{shortID(row.sales_referral_code_id)}</TableCell>
+                            <TableCell className="font-mono text-xs">{shortID(row.sales_referral_account_id)}</TableCell>
                             <TableCell>{formatIDR(row.commission_amount_idr)}</TableCell>
                             <TableCell className="text-right">
-                              <Button type="button" variant="ghost" size="sm" onClick={() => setPayoutCommissionIDs((prev) => prev.filter((id) => id !== row.id))}>Remove</Button>
+                              <div className="inline-flex gap-1">
+                                <Button type="button" variant="ghost" size="icon" onClick={() => setCommissionDetailID(row.id)}><Eye className="h-4 w-4" /></Button>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => setPayoutCommissionIDs((prev) => prev.filter((id) => id !== row.id))}><Trash2 className="h-4 w-4" /></Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}

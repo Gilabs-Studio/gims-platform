@@ -115,6 +115,13 @@ requests:
       type: bearer
       token: "{{token}}"
 
+  - name: Get Referral Commission Detail
+    method: GET
+    url: "{{base_url}}/internal/referrals/commissions/{{referral_commission_id}}"
+    auth:
+      type: bearer
+      token: "{{token}}"
+
   - name: Approve Referral Commission
     method: POST
     url: "{{base_url}}/internal/referrals/commissions/{{referral_commission_id}}/approve"

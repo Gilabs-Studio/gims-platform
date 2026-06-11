@@ -159,6 +159,14 @@ Implemented backend surface:
 - `PUT /api/v1/internal/referrals/codes/:id`
 - `PATCH /api/v1/internal/referrals/codes/:id/status`
 - `DELETE /api/v1/internal/referrals/codes/:id`
+- `GET /api/v1/internal/referrals/commission-config`
+- `PUT /api/v1/internal/referrals/commission-config`
+- `GET /api/v1/internal/referrals/commissions`
+- `GET /api/v1/internal/referrals/commissions/:id`
+- `POST /api/v1/internal/referrals/commissions/:id/approve`
+- `POST /api/v1/internal/referrals/commissions/:id/void`
+- `GET /api/v1/internal/referrals/payouts`
+- `POST /api/v1/internal/referrals/payouts`
 
 Implemented DB entities:
 
@@ -166,6 +174,10 @@ Implemented DB entities:
 - `sales_referral_codes`
 - `sales_referral_leads`
 - `sales_referral_conversions`
+- `referral_commission_configs`
+- `referral_commissions`
+- `referral_commission_payouts`
+- `referral_commission_payout_items`
 
 Implemented seed entries:
 
@@ -176,3 +188,7 @@ API collections:
 
 - Postman: `docs/postman/postman.json`
 - Bruno YAML: `docs/bruno/sales-referral.yaml`
+
+## Referral Commission Update
+
+Commission is now implemented as extension of Sales Referrals. `SalesReferralCode` stores per-code `close_commission_bps` and `recurring_commission_bps`; UI accepts percent values and converts to bps for API. Commission detail endpoint joins referral, lead, conversion, payment, and subscription data so System Admin can audit paid, cancelled, not-renewed, refunded, chargeback, approved, voided, and paid-payout scenarios from one modal.
