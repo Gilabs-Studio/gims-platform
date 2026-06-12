@@ -20,24 +20,17 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "software inventory",
-            "stok gudang multi lokasi",
-            "batch kadaluarsa",
-            "stock opname",
-            "pergerakan stok",
-            "ledger stok",
-            "inventory real-time",
-            "salesview inventory",
+            "software stok barang gudang terintegrasi",
+            "aplikasi stock opname barang minimarket",
+            "sistem kontrol persediaan barang bisnis",
+            "aplikasi cek stok barang online",
+            "salesview stock",
           ]
         : [
-            "inventory software",
-            "multi-warehouse stock",
-            "batch expiry tracking",
-            "stock opname",
-            "stock movement",
-            "stock ledger",
-            "real-time inventory",
-            "salesview inventory",
+            "integrated inventory stock management software",
+            "stock opname barcode scanner application",
+            "real time inventory level tracking",
+            "salesview stock",
           ],
     imageAlt: "SalesView multi-warehouse inventory overview",
   });

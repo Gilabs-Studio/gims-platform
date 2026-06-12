@@ -20,23 +20,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "absensi karyawan",
-            "attendance GPS",
-            "clock in clock out",
-            "WFH attendance",
-            "kalender kehadiran",
-            "statistik absensi bulanan",
-            "absensi manual",
+            "aplikasi absensi karyawan online gps",
+            "software manajemen kehadiran kerja terintegrasi",
+            "sistem absen mobile tracker lapangan",
+            "aplikasi pencatatan absensi real time perusahaan",
             "salesview attendance",
           ]
         : [
-            "employee attendance",
-            "GPS attendance",
-            "clock in clock out",
-            "WFH attendance",
-            "attendance calendar",
-            "monthly attendance stats",
-            "manual attendance",
+            "gps mobile employee attendance app",
+            "real time employee tracking software cloud",
+            "integrated attendance and shifts management system",
             "salesview attendance",
           ],
     imageAlt: "SalesView employee attendance system overview",

@@ -16,8 +16,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Create professional quotations, manage proposal revisions, and speed up customer approval before sales orders.",
     keywords:
       locale === "id"
-        ? ["software quotation", "penawaran harga b2b", "proposal harga", "approval penawaran", "salesview quotations"]
-        : ["quotation software", "b2b proposal", "pricing proposal", "quotation approval", "salesview quotations"],
+        ? [
+            "aplikasi buat surat penawaran harga online",
+            "software quotation sales proposal",
+            "sistem persetujuan quotation customer",
+            "aplikasi kalkulasi harga penawaran proyek",
+            "salesview quotations",
+          ]
+        : [
+            "online business quotation creator software",
+            "sales proposal generator tool cloud",
+            "quotation approval workflow platform",
+            "salesview quotations",
+          ],
     imageAlt: "SalesView quotations overview",
   });
 }

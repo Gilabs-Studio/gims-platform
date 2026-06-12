@@ -20,23 +20,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "penerimaan barang",
-            "goods receipt",
-            "validasi barang masuk",
-            "purchase order matching",
-            "barang masuk gudang",
-            "audit trail penerimaan",
-            "konversi faktur supplier",
+            "aplikasi penerimaan barang gudang online",
+            "software qc masuk barang inventory",
+            "sistem verifikasi surat jalan supplier",
+            "aplikasi pencatatan mutasi barang masuk",
             "salesview goods receipt",
           ]
         : [
-            "goods receipt",
-            "inbound receiving",
-            "purchase order matching",
-            "warehouse receiving",
-            "receipt audit trail",
-            "supplier invoice conversion",
-            "goods receipt software",
+            "warehouse goods receipt management software",
+            "incoming inventory inspection tracking tool",
+            "supplier delivery note matching system",
             "salesview goods receipt",
           ],
     imageAlt: "SalesView goods receipt management overview",

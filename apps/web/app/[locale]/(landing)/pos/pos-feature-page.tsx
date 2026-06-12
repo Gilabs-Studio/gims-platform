@@ -45,8 +45,8 @@ export const POS_FEATURES = {
       en: "Arrange table layouts, service areas, and dine-in status visually so restaurant operations stay organized.",
     },
     keywords: {
-      id: ["layout meja restoran", "floor layout cafe", "software meja restoran", "pos f&b", "salesview floor layout"],
-      en: ["restaurant floor layout", "cafe table layout", "table management software", "f&b pos", "salesview floor layout"],
+      id: ["software layout meja restoran cafe", "aplikasi floor plan outlet f&b", "sistem visual map meja makan pos", "manajemen area pelayanan restoran", "salesview floor layout"],
+      en: ["restaurant table layout software design", "f&b outlet floor plan designer app", "visual table management system pos", "salesview floor layout"],
     },
     schemaDescription: {
       id: "Sistem visual untuk mengatur layout meja dan area layanan POS F&B.",
@@ -119,8 +119,8 @@ export const POS_FEATURES = {
       en: "Let customers scan QR codes, choose menu items, and send orders directly to outlet operations.",
     },
     keywords: {
-      id: ["self order qr", "pesan mandiri restoran", "qr menu cafe", "pos self order", "salesview self order"],
-      en: ["qr self order", "restaurant self ordering", "qr menu cafe", "pos self order", "salesview self order"],
+      id: ["aplikasi self order scan qr restoran", "menu digital qr code cafe online", "sistem pemesanan mandiri meja pelanggan", "cara buat qr menu rumah makan", "salesview self order"],
+      en: ["restaurant qr self ordering system", "digital menu catalog scanning app", "table customer order automation pos", "salesview self order"],
     },
     schemaDescription: {
       id: "Sistem self order berbasis QR untuk pelanggan restoran dan cafe.",
@@ -193,8 +193,8 @@ export const POS_FEATURES = {
       en: "Collect customer ratings and reviews through QR codes after transactions so outlet feedback is easier to monitor.",
     },
     keywords: {
-      id: ["qr review pelanggan", "review barcode pos", "feedback restoran", "rating pelanggan", "salesview qr review"],
-      en: ["customer qr review", "pos barcode review", "restaurant feedback", "customer rating", "salesview qr review"],
+      id: ["aplikasi feedback pelanggan scan qr struk", "software rating kepuasan konsumen outlet", "sistem pengumpulan kuesioner kasir pos", "kuesioner ulasan pembeli offline", "salesview qr review"],
+      en: ["receipt qr customer feedback software", "outlet satisfaction rating collection tool", "pos customer survey response system", "salesview qr review"],
     },
     schemaDescription: {
       id: "Sistem pengumpulan review pelanggan melalui QR/barcode setelah transaksi POS.",
@@ -267,8 +267,8 @@ export const POS_FEATURES = {
       en: "Keep POS orders moving when connection drops with offline mode, sync queue, and cash payments that safely sync later.",
     },
     keywords: {
-      id: ["pos offline", "kasir offline", "aplikasi kasir tanpa internet", "offline support pos", "salesview offline support"],
-      en: ["offline pos", "offline cashier", "pos without internet", "offline support pos", "salesview offline support"],
+      id: ["aplikasi kasir pos offline tanpa internet", "software kasir antrian sinkronisasi lokal", "pos offline transaction queue system", "aplikasi kasir hemat kuota internet", "salesview offline support"],
+      en: ["offline mode point of sale software", "cashier local sync transaction queue app", "unstable connection pos backup system", "salesview offline support"],
     },
     schemaDescription: {
       id: "Dukungan offline untuk aplikasi POS: banner koneksi, transaksi tunai antrian, dan sinkronisasi ulang saat online.",

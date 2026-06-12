@@ -16,8 +16,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Manage automated journals, chart of accounts, and integrated ledgers as the foundation of a faster, more accurate, and audit-ready finance closing process.",
     keywords:
       locale === "id"
-        ? ["software accounting", "jurnal otomatis", "buku besar", "chart of accounts", "salesview accounting"]
-        : ["accounting software", "automated journal", "general ledger", "chart of accounts", "salesview accounting"],
+        ? [
+            "software akuntansi jurnal otomatis indonesia",
+            "aplikasi pembukuan buku besar terintegrasi",
+            "sistem manajemen ledger keuangan perusahaan",
+            "cloud accounting software untuk audit finance",
+            "salesview accounting",
+          ]
+        : [
+            "automated journal entry accounting software",
+            "integrated ledger bookkeeping application",
+            "cloud based financial management system business",
+            "salesview accounting",
+          ],
     imageAlt: "SalesView accounting overview",
   });
 }

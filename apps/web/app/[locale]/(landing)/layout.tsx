@@ -22,19 +22,16 @@ export async function generateMetadata({
       : "An all-in-one platform for sales, purchasing, inventory, HR, and finance. Run your business operations faster with SalesView.",
     keywords: isId
       ? [
-          "erp indonesia",
-          "software crm",
-          "hris indonesia",
-          "aplikasi kasir pos",
-          "software akuntansi",
+          "sistem erp bisnis all in one indonesia",
+          "software manajemen operasional perusahaan",
+          "aplikasi bisnis terintegrasi penjualan keuangan hrd",
+          "platform erp murah terbaik indonesia",
           "salesview",
         ]
       : [
-          "erp software",
-          "crm software",
-          "hris platform",
-          "point of sale software",
-          "accounting software",
+          "all in one business management erp software",
+          "integrated sales inventory finance system",
+          "cloud erp software for small medium enterprise",
           "salesview",
         ],
     imageAlt: "SalesView platform overview",

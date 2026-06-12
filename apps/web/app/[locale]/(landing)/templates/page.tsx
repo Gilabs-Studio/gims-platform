@@ -20,8 +20,20 @@ export async function generateMetadata({
       ? "Akses template bisnis siap pakai untuk sales, finance, HR, inventory, dan operasional agar tim Anda bisa implementasi proses lebih cepat dan rapi."
       : "Access ready-to-use templates for sales, finance, HR, inventory, and operations so your team can implement processes faster and with better consistency.",
     keywords: isId
-      ? ["template bisnis", "template sales", "template invoice", "template laporan keuangan"]
-      : ["business templates", "sales templates", "invoice template", "financial report template"],
+      ? [
+          "template dokumen bisnis download gratis",
+          "format surat penawaran invoice word excel",
+          "template slip gaji excel karyawan hrd",
+          "contoh laporan keuangan perusahaan dagang",
+          "salesview templates",
+        ]
+      : [
+          "free business document templates download",
+          "sales proposal invoice format word excel",
+          "payslip template free download hr",
+          "financial report sample spreadsheet",
+          "salesview templates",
+        ],
     imageAlt: "SalesView business templates",
   });
 }

@@ -26,8 +26,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     title,
     description: desc,
     keywords: locale === "id"
-      ? ["software pos", "aplikasi kasir", "pos retail", "kasir f&b", "point of sale indonesia", "salesview pos"]
-      : ["pos software", "point of sale", "retail pos", "restaurant pos", "multi-branch pos", "salesview pos"],
+      ? [
+          "aplikasi kasir pos terintegrasi inventory",
+          "software point of sale toko multi cabang",
+          "aplikasi kasir ritel offline online",
+          "sistem pembayaran pos cloud terbaik",
+          "salesview pos",
+        ]
+      : [
+          "integrated inventory point of sale software",
+          "multi outlet retail pos system cloud",
+          "offline online sync pos software",
+          "salesview pos",
+        ],
     imageAlt: "SalesView point-of-sale overview",
   });
 }

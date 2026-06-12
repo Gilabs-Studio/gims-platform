@@ -16,8 +16,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Manage asset registers, book values, depreciation, and usage history in an audit-ready asset workflow.",
     keywords:
       locale === "id"
-        ? ["aset tetap", "penyusutan aset", "register aset", "nilai buku", "salesview assets"]
-        : ["fixed assets", "asset depreciation", "asset register", "book value", "salesview assets"],
+        ? [
+            "software manajemen aset tetap perusahaan",
+            "aplikasi pencatatan depresiasi aset online",
+            "sistem pelacakan inventaris aset bisnis",
+            "aplikasi fixed asset depreciation kalkulator",
+            "salesview fixed assets",
+          ]
+        : [
+            "fixed asset management tracking software",
+            "depreciation calculator asset tracking tool",
+            "corporate asset inventory control system",
+            "salesview fixed assets",
+          ],
     imageAlt: "SalesView fixed asset overview",
   });
 }

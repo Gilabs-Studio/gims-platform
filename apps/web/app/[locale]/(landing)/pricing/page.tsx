@@ -21,21 +21,17 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     description,
     keywords: isId
       ? [
-          "harga erp salesview",
-          "harga salesview",
-          "pricing erp indonesia",
-          "harga software crm",
-          "harga aplikasi kasir pos",
-          "harga hris",
-          "paket software bisnis",
+          "harga paket langganan software salesview",
+          "biaya erp cloud per bulan indonesia",
+          "skema harga crm hris all in one",
+          "uji coba gratis software erp",
+          "salesview pricing",
         ]
       : [
+          "salesview cloud erp pricing plans",
+          "cost of integrated business software",
+          "all in one crm hris pricing model",
           "salesview pricing",
-          "erp pricing indonesia",
-          "crm pricing",
-          "hris pricing",
-          "pos pricing",
-          "business software plans",
         ],
     imageAlt: "SalesView pricing overview",
   });

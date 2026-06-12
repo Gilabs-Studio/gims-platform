@@ -16,8 +16,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Manage invoice cycles, payment status, and collection follow-ups to keep business cash flow healthier.",
     keywords:
       locale === "id"
-        ? ["software invoicing", "aplikasi faktur", "penagihan b2b", "status pembayaran", "salesview invoicing"]
-        : ["invoicing software", "billing software", "b2b invoice", "collections workflow", "salesview invoicing"],
+        ? [
+            "aplikasi buat invoice tagihan otomatis",
+            "software invoicing online perusahaan dagang",
+            "sistem pengiriman invoice email whatsapp",
+            "aplikasi pencatatan piutang customer",
+            "salesview invoicing",
+          ]
+        : [
+            "automated client invoicing software cloud",
+            "online billing invoice generator business",
+            "receivables tracking and invoice management",
+            "salesview invoicing",
+          ],
     imageAlt: "SalesView invoicing overview",
   });
 }

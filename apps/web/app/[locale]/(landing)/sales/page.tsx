@@ -16,8 +16,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Manage sales orders from quotation conversion to fulfillment so sales execution stays consistent across teams.",
     keywords:
       locale === "id"
-        ? ["software sales order", "eksekusi penjualan", "order fulfillment", "penjualan b2b", "salesview sales"]
-        : ["sales order software", "sales execution", "order fulfillment", "b2b sales process", "salesview sales"],
+        ? [
+            "software sales order penjualan b2b",
+            "aplikasi pelacakan pesanan penjualan online",
+            "sistem pemenuhan order penjualan barang",
+            "aplikasi sales tracker logistik",
+            "salesview sales",
+          ]
+        : [
+            "b2b sales order processing software",
+            "online sales order tracking tool",
+            "order fulfillment and shipping integration",
+            "salesview sales",
+          ],
     imageAlt: "SalesView sales orders overview",
   });
 }

@@ -20,24 +20,17 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "pergerakan stok",
-            "stock movement",
-            "mutasi gudang",
-            "transfer antar gudang",
-            "IN OUT stok",
-            "adjustment stok",
-            "audit pergerakan barang",
-            "salesview movements",
+            "software transfer stok antar gudang",
+            "aplikasi mutasi barang internal perusahaan",
+            "sistem pelacakan pengiriman stok logistik",
+            "aplikasi kontrol stok multi cabang",
+            "salesview stock movements",
           ]
         : [
-            "stock movement",
-            "warehouse transfer",
-            "inventory IN OUT",
-            "stock adjustment",
-            "mutation audit",
-            "inter-warehouse movement",
-            "inventory tracking",
-            "salesview movements",
+            "multi warehouse stock transfer software",
+            "internal inventory movement tracking tool",
+            "stock relocation management system",
+            "salesview stock movements",
           ],
     imageAlt: "SalesView stock movements tracking overview",
   });

@@ -20,23 +20,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "sistem recruitment",
-            "kanban kandidat",
-            "pipeline recruitment",
-            "convert applicant karyawan",
-            "approval hiring",
-            "rekrutmen HR",
-            "tahapan seleksi",
+            "aplikasi recruitment tracking system ats",
+            "software lowongan kerja perusahaan online",
+            "sistem seleksi wawancara karyawan baru",
+            "aplikasi penerimaan calon pekerja hrd",
             "salesview recruitment",
           ]
         : [
-            "recruitment system",
-            "candidate kanban",
-            "recruitment pipeline",
-            "convert applicant to employee",
-            "hiring approval",
-            "HR recruitment",
-            "candidate selection stages",
+            "applicant tracking system recruitment software",
+            "online hiring management tool hr",
+            "job opening career page builder",
             "salesview recruitment",
           ],
     imageAlt: "SalesView recruitment pipeline overview",

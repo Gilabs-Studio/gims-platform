@@ -19,8 +19,19 @@ export async function generateMetadata({
       ? "Bagaimana platform SalesView menggunakan cookie untuk otentikasi aman dan pencegahan CSRF."
       : "How the SalesView platform uses cookies for secure authentication and CSRF prevention.",
     keywords: isId
-      ? ["kebijakan cookie", "cookie salesview", "cookie aman", "salesview hukum"]
-      : ["cookie policy", "salesview cookies", "secure cookies", "salesview legal"],
+      ? [
+          "kebijakan cookie platform salesview",
+          "penggunaan cookie teknis keamanan website",
+          "csrf token cookie penjelasan",
+          "keamanan data pengguna salesview id",
+          "salesview cookies",
+        ]
+      : [
+          "salesview cookie policy usage",
+          "technical security cookies website",
+          "csrf token session cookies detail",
+          "salesview cookies",
+        ],
     imageAlt: "SalesView Cookie Policy",
   });
 }

@@ -25,17 +25,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     description: desc,
     keywords: locale === "id"
       ? [
-          "software crm",
-          "crm pipeline sales",
-          "follow up prospek",
-          "crm b2b indonesia",
+          "aplikasi crm pelacakan pipeline sales",
+          "software follow up prospek penjualan otomatis",
+          "sistem manajemen leads b2b indonesia",
+          "crm salesforce automation bisnis berkembang",
           "salesview crm",
         ]
       : [
-          "crm software",
-          "sales pipeline crm",
-          "lead follow up",
-          "b2b crm platform",
+          "sales pipeline tracking crm software",
+          "automated lead follow up sales application",
+          "b2b client relationship management platform",
           "salesview crm",
         ],
     imageAlt: "SalesView CRM overview",
