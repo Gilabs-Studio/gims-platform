@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -17,7 +18,9 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	infraEvents "github.com/gilabs/gims/api/internal/core/infrastructure/events"
 	jwtManager "github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
+	security "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	xenditClient "github.com/gilabs/gims/api/internal/core/infrastructure/xendit"
+	referralUC "github.com/gilabs/gims/api/internal/referral/domain/usecase"
 	refreshTokenModels "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
 	tenantModels "github.com/gilabs/gims/api/internal/tenant/data/models"
@@ -30,7 +33,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	security "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 )
 
 var (
@@ -87,6 +89,7 @@ type PendingRegistration struct {
 	UserCount      int    `json:"user_count"`
 	InvoiceID      string `json:"invoice_id"`
 	CouponCode     string `json:"coupon_code,omitempty"`
+	ReferralCode   string `json:"referral_code,omitempty"`
 	AmountPaid     int64  `json:"amount_paid"`
 	CreatedAt      string `json:"created_at"`
 	AgreeToS       bool   `json:"agree_tos"`
@@ -121,7 +124,8 @@ type AuthUsecase interface {
 	ConfirmPendingRegistration(ctx context.Context, token string) (*dto.LoginResponse, error)
 	// HandleRecurringRenewal is called by the Xendit webhook when a recurring invoice
 	// is paid. It extends the tenant's subscription next billing date.
-	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error
+	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string, amountIDR int64) error
+	HandlePaymentRefund(ctx context.Context, xenditInvoiceID, reason string) error
 	// CreateBillingChangeInvoice creates a Xendit invoice for a seat/plan change and
 	// stores the pending mutation until the payment webhook confirms it.
 	CreateBillingChangeInvoice(ctx context.Context, req *tenantDTO.BillingChangeRequest, tenantID string) (*tenantDTO.BillingChangeResponse, error)
@@ -136,15 +140,16 @@ type AuthUsecase interface {
 }
 
 type authUsecase struct {
-	db               *gorm.DB
-	userRepo         userRepo.UserRepository
-	refreshTokenRepo refreshTokenRepo.RefreshTokenRepository
-	jwtManager       *jwtManager.JWTManager
-	eventPublisher   infraEvents.EventPublisher
-	couponUC         couponUC.CouponUsecase
-	planRepo         planRepo.SubscriptionPlanRepository
-	redis            *redis.Client
-	xendit           *xenditClient.Client
+	db                *gorm.DB
+	userRepo          userRepo.UserRepository
+	refreshTokenRepo  refreshTokenRepo.RefreshTokenRepository
+	jwtManager        *jwtManager.JWTManager
+	eventPublisher    infraEvents.EventPublisher
+	couponUC          couponUC.CouponUsecase
+	referralUC        referralUC.ReferralUsecase
+	planRepo          planRepo.SubscriptionPlanRepository
+	redis             *redis.Client
+	xendit            *xenditClient.Client
 	permissionService security.PermissionService
 }
 
@@ -155,6 +160,7 @@ func NewAuthUsecase(
 	jwtManager *jwtManager.JWTManager,
 	eventPublisher infraEvents.EventPublisher,
 	couponUC couponUC.CouponUsecase,
+	refUC referralUC.ReferralUsecase,
 	redisClient *redis.Client,
 	subscriptionPlanRepo planRepo.SubscriptionPlanRepository,
 	permissionService security.PermissionService,
@@ -167,15 +173,16 @@ func NewAuthUsecase(
 		)
 	}
 	return &authUsecase{
-		db:               db,
-		userRepo:         userRepo,
-		refreshTokenRepo: refreshTokenRepo,
-		jwtManager:       jwtManager,
-		eventPublisher:   eventPublisher,
-		couponUC:         couponUC,
-		planRepo:         subscriptionPlanRepo,
-		redis:            redisClient,
-		xendit:           xc,
+		db:                db,
+		userRepo:          userRepo,
+		refreshTokenRepo:  refreshTokenRepo,
+		jwtManager:        jwtManager,
+		eventPublisher:    eventPublisher,
+		couponUC:          couponUC,
+		referralUC:        refUC,
+		planRepo:          subscriptionPlanRepo,
+		redis:             redisClient,
+		xendit:            xc,
 		permissionService: permissionService,
 	}
 }
@@ -300,22 +307,22 @@ func (u *authUsecase) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:               user.ID,
-			Email:            user.Email,
-			Name:             user.Name,
-			AvatarURL:        user.AvatarURL,
-			EmployeeID:       employeeID,
-			Role:             roleCode,
-			RoleName:         roleName,
-			RoleDataScope:    roleDataScope,
-			IsOwner:          isOwner,
-			Permissions:      permissions,
-			Status:           user.Status,
-			CreatedAt:        user.CreatedAt,
-			UpdatedAt:        user.UpdatedAt,
-			TenantID:         tenantID,
-			TenantName:       tenantName,
-			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
+			ID:                 user.ID,
+			Email:              user.Email,
+			Name:               user.Name,
+			AvatarURL:          user.AvatarURL,
+			EmployeeID:         employeeID,
+			Role:               roleCode,
+			RoleName:           roleName,
+			RoleDataScope:      roleDataScope,
+			IsOwner:            isOwner,
+			Permissions:        permissions,
+			Status:             user.Status,
+			CreatedAt:          user.CreatedAt,
+			UpdatedAt:          user.UpdatedAt,
+			TenantID:           tenantID,
+			TenantName:         tenantName,
+			SubscriptionPlan:   activePlanForTenant(u.db, tenantID),
 			SubscriptionAccess: subscriptionAccess,
 		}
 
@@ -503,22 +510,22 @@ func (u *authUsecase) RefreshToken(ctx context.Context, refreshToken string) (*d
 
 		// Convert to auth response format
 		authUserResp := &dto.UserResponse{
-			ID:               user.ID,
-			Email:            user.Email,
-			Name:             user.Name,
-			AvatarURL:        user.AvatarURL,
-			EmployeeID:       employeeID,
-			Role:             roleCode,
-			RoleName:         roleName,
-			RoleDataScope:    roleDataScope,
-			IsOwner:          refreshIsOwner,
-			Permissions:      permissions,
-			Status:           user.Status,
-			CreatedAt:        user.CreatedAt,
-			UpdatedAt:        user.UpdatedAt,
-			TenantID:         tenantID,
-			TenantName:       tenantName,
-			SubscriptionPlan: activePlanForTenant(u.db, tenantID),
+			ID:                 user.ID,
+			Email:              user.Email,
+			Name:               user.Name,
+			AvatarURL:          user.AvatarURL,
+			EmployeeID:         employeeID,
+			Role:               roleCode,
+			RoleName:           roleName,
+			RoleDataScope:      roleDataScope,
+			IsOwner:            refreshIsOwner,
+			Permissions:        permissions,
+			Status:             user.Status,
+			CreatedAt:          user.CreatedAt,
+			UpdatedAt:          user.UpdatedAt,
+			TenantID:           tenantID,
+			TenantName:         tenantName,
+			SubscriptionPlan:   activePlanForTenant(u.db, tenantID),
 			SubscriptionAccess: subscriptionAccess,
 		}
 
@@ -653,6 +660,7 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 		if err != nil {
 			return nil, err
 		}
+		u.markReferralConvertedBestEffort(ctx, req.ReferralCode, req.Email, loginResp.User.TenantID, "", 0)
 		return &RegisterTenantResult{LoginResponse: loginResp}, nil
 	}
 
@@ -669,7 +677,10 @@ func (u *authUsecase) RegisterTenant(ctx context.Context, req *dto.RegisterTenan
 // pending registration in Redis, and returns the invoice URL for the frontend redirect.
 func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
 	if u.xendit == nil || !u.xendit.IsConfigured() {
-		return nil, ErrPaymentGatewayUnavailable
+		if strings.ToLower(strings.TrimSpace(os.Getenv("DEV_SIMULATE_PAID_REGISTRATION"))) != "true" {
+			return nil, ErrPaymentGatewayUnavailable
+		}
+		return u.simulatePaidRegistrationWithoutXendit(ctx, req)
 	}
 
 	// Hash password early — we store it in Redis so the webhook can complete registration.
@@ -758,6 +769,7 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 		UserCount:      userCount,
 		InvoiceID:      invoice.ID,
 		CouponCode:     couponCode,
+		ReferralCode:   req.ReferralCode,
 		AmountPaid:     finalAmount,
 		CreatedAt:      apptime.Now().Format(time.RFC3339),
 		AgreeToS:       req.AgreeToS,
@@ -781,6 +793,90 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 			ExpiresAt:  invoice.ExpiryDate.Format(time.RFC3339),
 		},
 	}, nil
+}
+
+func (u *authUsecase) simulatePaidRegistrationWithoutXendit(ctx context.Context, req *dto.RegisterTenantRequest) (*RegisterTenantResult, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	companyName := strings.TrimSpace(req.CompanyName)
+	if companyName == "" {
+		return nil, ErrCompanyNameRequired
+	}
+	billingPeriod := req.BillingPeriod
+	if billingPeriod == "" {
+		billingPeriod = "monthly"
+	}
+	userCount := req.UserCount
+	if userCount < 1 {
+		userCount = 1
+	}
+	baseAmount, err := u.resolvePlanPrice(ctx, req.Plan, billingPeriod, userCount)
+	if err != nil {
+		return nil, err
+	}
+	finalAmount := baseAmount
+	if couponCode := strings.TrimSpace(req.Coupon); couponCode != "" {
+		discounted, applyErr := u.couponUC.ApplyDiscount(ctx, couponCode, req.Plan, baseAmount, userCount, billingPeriod)
+		if errors.Is(applyErr, couponUC.ErrCouponUserLimit) {
+			return nil, ErrCouponUserLimitExceeded
+		}
+		if applyErr == nil {
+			finalAmount = discounted
+		}
+		if finalAmount == 0 {
+			return u.handleZeroAmountCouponRegistration(ctx, req, couponCode)
+		}
+	}
+	ctx = context.WithValue(ctx, "client_ip", "127.0.0.1")
+	loginResp, err := u.provisionTenantForPaidPlan(ctx, req, string(hashed))
+	if err != nil {
+		return nil, err
+	}
+	tenantID := loginResp.User.TenantID
+	now := apptime.Now()
+	nextBilling := now.AddDate(0, 1, 0)
+	if billingPeriod == "yearly" {
+		nextBilling = now.AddDate(1, 0, 0)
+	}
+	xenditInvoiceID := fmt.Sprintf("dev-paid-%d", now.UnixNano())
+	sub := &tenantModels.TenantSubscription{
+		TenantID:      tenantID,
+		Plan:          tenantModels.SubscriptionPlan(req.Plan),
+		BillingPeriod: tenantModels.SubscriptionBillingPeriod(billingPeriod),
+		Status:        tenantModels.SubscriptionActive,
+		StartsAt:      now,
+		ExpiresAt:     &nextBilling,
+		AmountPaidIDR: finalAmount,
+		UserCount:     userCount,
+		SeatLimit:     userCount,
+		NextBillingAt: &nextBilling,
+		Notes:         fmt.Sprintf("DEV simulated paid registration %s", xenditInvoiceID),
+	}
+	if err := u.ensureSubscriptionRecord(ctx, sub); err != nil {
+		return nil, err
+	}
+	paymentTxn := &tenantModels.PaymentTransaction{
+		TenantID:          tenantID,
+		SubscriptionID:    sub.ID,
+		Provider:          tenantModels.PaymentProviderInternal,
+		Status:            tenantModels.PaymentStatusPaid,
+		AmountIDR:         finalAmount,
+		ProviderInvoiceID: xenditInvoiceID,
+		Description:       fmt.Sprintf("DEV simulated subscription payment for %s (%s)", req.Plan, billingPeriod),
+		PaidAt:            &now,
+		Metadata:          "{}",
+	}
+	if err := u.db.WithContext(ctx).Create(paymentTxn).Error; err != nil {
+		return nil, err
+	}
+	if couponCode := strings.TrimSpace(req.Coupon); couponCode != "" {
+		_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, tenantID, userCount)
+	}
+	u.markReferralConvertedBestEffort(ctx, req.ReferralCode, req.Email, tenantID, sub.ID, finalAmount)
+	u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
+	return &RegisterTenantResult{LoginResponse: loginResp}, nil
 }
 
 // resolvePlanPrice looks up plan price from DB config.
@@ -813,6 +909,7 @@ func (u *authUsecase) handleZeroAmountCouponRegistration(ctx context.Context, re
 	}
 	// Redeem coupon usage after provisioning.
 	_, _ = u.couponUC.RedeemForTenant(ctx, couponCode, req.Email, resp.User.TenantID, req.UserCount)
+	u.markReferralConvertedBestEffort(ctx, req.ReferralCode, req.Email, resp.User.TenantID, "", 0)
 	return &RegisterTenantResult{LoginResponse: resp}, nil
 }
 
@@ -1001,6 +1098,9 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		return nil, fmt.Errorf("failed to persist payment transaction: %w", err)
 	}
 
+	u.markReferralConvertedBestEffort(ctx, pending.ReferralCode, pending.Email, tenantID, sub.ID, pending.AmountPaid)
+	u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
+
 	doneKey := pendingRegDoneKeyPrefix + token
 	if err := u.redis.Set(ctx, doneKey, strings.ToLower(strings.TrimSpace(pending.Email)), pendingRegTTL).Err(); err != nil {
 		return nil, fmt.Errorf("failed to persist completed registration marker: %w", err)
@@ -1012,6 +1112,20 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	}
 
 	return loginResp, nil
+}
+
+func (u *authUsecase) markReferralConvertedBestEffort(ctx context.Context, referralCode, email, tenantID, subscriptionID string, amountPaid int64) {
+	if u.referralUC == nil || strings.TrimSpace(referralCode) == "" || strings.TrimSpace(tenantID) == "" {
+		return
+	}
+	_ = u.referralUC.MarkConverted(ctx, referralCode, email, tenantID, subscriptionID, amountPaid)
+}
+
+func (u *authUsecase) createReferralCommissionBestEffort(ctx context.Context, paymentTransactionID string) {
+	if u.referralUC == nil || strings.TrimSpace(paymentTransactionID) == "" {
+		return
+	}
+	_ = u.referralUC.CreateCommissionForPayment(ctx, paymentTransactionID)
 }
 
 // buildLoginRespForExistingUser looks up a user by email and generates fresh auth tokens.
@@ -1116,7 +1230,7 @@ func (u *authUsecase) ensureSubscriptionRecord(ctx context.Context, sub *tenantM
 // HandleRecurringRenewal is called by the Xendit webhook when a recurring (subscription)
 // invoice is paid. It locates the TenantSubscription by XenditInvoiceID and advances
 // the next billing date by one billing cycle.
-func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string) error {
+func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string, amountIDR int64) error {
 	var sub tenantModels.TenantSubscription
 	err := u.db.WithContext(ctx).
 		Where("xendit_invoice_id = ? AND deleted_at IS NULL", xenditInvoiceID).
@@ -1131,15 +1245,49 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 	if sub.BillingPeriod == tenantModels.BillingYearly {
 		nextBilling = now.AddDate(1, 0, 0)
 	}
+	if amountIDR <= 0 {
+		amountIDR = sub.AmountPaidIDR
+	}
+	paymentTxn := &tenantModels.PaymentTransaction{
+		TenantID:          sub.TenantID,
+		SubscriptionID:    sub.ID,
+		Provider:          tenantModels.PaymentProviderXendit,
+		Status:            tenantModels.PaymentStatusPaid,
+		AmountIDR:         amountIDR,
+		ProviderInvoiceID: xenditInvoiceID,
+		Description:       fmt.Sprintf("Recurring subscription renewal for %s (%s)", sub.Plan, sub.BillingPeriod),
+		PaidAt:            &now,
+		Metadata:          "{}",
+	}
+	if err := u.db.WithContext(ctx).Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, xenditInvoiceID).FirstOrCreate(paymentTxn).Error; err != nil {
+		return err
+	}
 
-	return u.db.WithContext(ctx).
+	if err := u.db.WithContext(ctx).
 		Model(&tenantModels.TenantSubscription{}).
 		Where("id = ?", sub.ID).
 		Updates(map[string]interface{}{
 			"next_billing_at": nextBilling,
 			"expires_at":      nextBilling,
 			"status":          tenantModels.SubscriptionActive,
-		}).Error
+		}).Error; err != nil {
+		return err
+	}
+	u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
+	return nil
+}
+
+func (u *authUsecase) HandlePaymentRefund(ctx context.Context, xenditInvoiceID, reason string) error {
+	if u.referralUC == nil || strings.TrimSpace(xenditInvoiceID) == "" {
+		return nil
+	}
+	var txn tenantModels.PaymentTransaction
+	if err := u.db.WithContext(ctx).
+		Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, xenditInvoiceID).
+		First(&txn).Error; err != nil {
+		return err
+	}
+	return u.referralUC.CreateNegativeAdjustmentForPayment(ctx, txn.ID, reason)
 }
 
 // provisionTenantWithCoupon runs the coupon-based tenant provisioning flow.

@@ -507,7 +507,7 @@ export default function RegisterForm() {
         user_count: userCount,
         agree_tos: agreeToS,
         agree_marketing: agreeMarketing,
-        ...(isCouponValidatedForCurrentCode ? { coupon: validatedCouponCode } : {}),
+        ...(isCouponValidatedForCurrentCode ? { registration_code: validatedCouponCode } : {}),
       };
 
       const response = await authService.register(payload, csrf);

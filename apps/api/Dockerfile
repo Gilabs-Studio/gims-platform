@@ -32,6 +32,14 @@ RUN CGO_ENABLED=1 GOOS=linux go build \
     -o seed \
     ./cmd/tools/seed/main.go
 
+# Build dev referral payment simulator
+RUN CGO_ENABLED=1 GOOS=linux go build \
+    -a \
+    -trimpath \
+    -ldflags="-s -w" \
+    -o simulate-referral-payment \
+    ./cmd/tools/simulate-referral-payment/main.go
+
 # =========================================================
 # Runtime stage
 # =========================================================
@@ -48,6 +56,7 @@ WORKDIR /app
 
 COPY --from=builder /app/server /app/server
 COPY --from=builder /app/seed /app/seed
+COPY --from=builder /app/simulate-referral-payment /app/simulate-referral-payment
 
 RUN mkdir -p /app/uploads \
     && chown -R appuser:appgroup /app

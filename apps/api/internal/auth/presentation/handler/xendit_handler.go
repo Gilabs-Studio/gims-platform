@@ -29,6 +29,8 @@ type xenditWebhookBody struct {
 	ID         string `json:"id"`          // Xendit invoice ID (used for recurring renewal lookup)
 	ExternalID string `json:"external_id"` // Set to pending-reg token for new registrations
 	Status     string `json:"status"`      // "PAID", "EXPIRED", "SETTLED"
+	Amount     int64  `json:"amount"`
+	PaidAmount int64  `json:"paid_amount"`
 }
 
 // InvoicePaid is called by Xendit when a payment invoice status changes.
@@ -59,6 +61,16 @@ func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 	var payload xenditWebhookBody
 	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
 		coreErrors.ErrorResponse(c, "INVALID_PAYLOAD", nil, nil)
+		return
+	}
+
+	if payload.Status == "REFUNDED" || payload.Status == "CHARGEBACK" {
+		if payload.ID != "" {
+			if err := h.authUC.HandlePaymentRefund(c.Request.Context(), payload.ID, payload.Status); err != nil {
+				log.Printf("[xendit] failed refund adjustment invoice_id=%s status=%s: %v", payload.ID, payload.Status, err)
+			}
+		}
+		response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)
 		return
 	}
 
@@ -94,7 +106,11 @@ func (h *XenditHandler) InvoicePaid(c *gin.Context) {
 
 		// No pending registration matched — treat as a recurring subscription renewal.
 		if payload.ID != "" {
-			if renewErr := h.authUC.HandleRecurringRenewal(reqCtx, payload.ID); renewErr != nil {
+			amountIDR := payload.PaidAmount
+			if amountIDR <= 0 {
+				amountIDR = payload.Amount
+			}
+			if renewErr := h.authUC.HandleRecurringRenewal(reqCtx, payload.ID, amountIDR); renewErr != nil {
 				log.Printf("[xendit] failed recurring renewal invoice_id=%s external_id=%s: %v", payload.ID, payload.ExternalID, renewErr)
 				response.SuccessResponse(c, gin.H{"message": "event acknowledged"}, nil)
 				return

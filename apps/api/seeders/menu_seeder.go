@@ -486,6 +486,11 @@ func SeedMenus() error {
 		return err
 	}
 
+	// Sales Referrals (platform admin-facing referral code management)
+	if _, err := createChildMenu("Sales Referrals", "badge-percent", "/master-data/sales-referrals", &masterDataMenu.ID, 10); err != nil {
+		return err
+	}
+
 	// Users (RBAC)
 	if _, err := createChildMenu("Users", "users", "/master-data/users", &masterDataMenu.ID, 99); err != nil {
 		return err

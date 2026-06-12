@@ -26,6 +26,7 @@ import (
 	pos "github.com/gilabs/gims/api/internal/pos/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
 	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
+	referral "github.com/gilabs/gims/api/internal/referral/data/models"
 	refreshToken "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
@@ -104,6 +105,14 @@ func AutoMigrate() error {
 		&tenant.SystemAdmin{},
 		&tenant.Coupon{},
 		&tenant.CouponUsage{},
+		&referral.SalesReferralAccount{},
+		&referral.SalesReferralCode{},
+		&referral.SalesReferralLead{},
+		&referral.SalesReferralConversion{},
+		&referral.ReferralCommissionConfig{},
+		&referral.ReferralCommission{},
+		&referral.ReferralCommissionPayout{},
+		&referral.ReferralCommissionPayoutItem{},
 		&tenant.SubscriptionPlanConfig{},
 		&tenant.PlanModuleEntitlement{},
 		&tenant.PlanPermissionEntitlement{},
@@ -594,6 +603,10 @@ func AutoMigrate() error {
 		log.Printf("Warning: fixed asset list index migration failed (non-fatal): %v", err)
 	}
 
+	if err := ensureReferralIndexes(); err != nil {
+		log.Printf("Warning: referral index migration failed (non-fatal): %v", err)
+	}
+
 	if err := ensureDefaultAreasForAllTenants(); err != nil {
 		log.Printf("Warning: failed to ensure default areas for existing tenants: %v", err)
 	}
@@ -999,6 +1012,25 @@ func ensureFixedAssetListIndexes() error {
 		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_status_active ON fixed_assets (tenant_id, status) WHERE deleted_at IS NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_category_active ON fixed_assets (tenant_id, category_id) WHERE deleted_at IS NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_warranty_end_active ON fixed_assets (tenant_id, warranty_end) WHERE deleted_at IS NULL`,
+	}
+
+	for _, statement := range statements {
+		if err := DB.Exec(statement).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureReferralIndexes() error {
+	statements := []string{
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_accounts_email_active ON sales_referral_accounts (email) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_codes_code_active ON sales_referral_codes (code) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_codes_account_active ON sales_referral_codes (sales_referral_account_id) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_leads_code_email_active ON sales_referral_leads (sales_referral_code_id, email_normalized) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_conversions_code_tenant_active ON sales_referral_conversions (sales_referral_code_id, tenant_id) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_conversions_account_active ON sales_referral_conversions (sales_referral_account_id) WHERE deleted_at IS NULL`,
 	}
 
 	for _, statement := range statements {

@@ -39,6 +39,7 @@ export const systemAdminId = {
       dashboard: "Dasbor",
       tenants: "Tenant",
       coupons: "Kupon",
+      salesReferrals: "Referral Sales",
       plans: "Paket",
       subscriptions: "Langganan",
       permissions: "Hak Akses",

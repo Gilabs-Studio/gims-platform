@@ -70,7 +70,7 @@
     "delete": "Hapus",
     "deleteConfirm": "Apakah Anda yakin ingin menghapus item ini?",
     "create": "Buat",
-      "deactivate": "Nonaktifkan",
+    "deactivate": "Nonaktifkan",
     "save": "Simpan",
     "saving": "Menyimpan...",
     "cancel": "Batal",
@@ -134,8 +134,8 @@
     "description": "Deskripsi",
     "amount": "Jumlah",
     "match": "Cocok",
-      "override": "Ganti",
-      "name": "Nama",
+    "override": "Ganti",
+    "name": "Nama",
     "select": "Pilih",
     "somethingWentWrong": "Terjadi kesalahan"
   },
@@ -179,7 +179,11 @@
       "continue": "Lanjut",
       "planTitle": "Pilih paket Anda",
       "planDescription": "Harga yang bersih dan transparan untuk tim yang berkembang pesat.",
-      "tabs": { "bundle": "Paket", "modular": "Modular", "coupon": "Kupon" },
+      "tabs": {
+        "bundle": "Paket",
+        "modular": "Modular",
+        "coupon": "Kupon"
+      },
       "monthly": "Bulanan",
       "yearly": "Tahunan",
       "save10": "Hemat 10%",
@@ -227,7 +231,7 @@
       "selected": "Terpilih",
       "chooseBundle": "Pilih {name}",
       "validate": "Validasi",
-      "discountLabel": "Kode Diskon",
+      "discountLabel": "Kode Referral / Diskon",
       "discountPlaceholder": "MASUKKAN-DISKON",
       "discountApplied": "Diskon aktif",
       "comingSoon": "Coming soon",
@@ -237,9 +241,9 @@
       "upToDiscount": "{price} -{percent}%",
       "billingCalculation": "{amount} x 12",
       "daysAccess": "hari akses",
-      "couponValid": "Kupon valid",
-      "couponInvalidOrExpired": "Kupon tidak valid atau sudah kedaluwarsa",
-      "couponValidateFailed": "Gagal memvalidasi kupon",
+      "couponValid": "Kode valid",
+      "couponInvalidOrExpired": "Kode tidak valid atau sudah kedaluwarsa",
+      "couponValidateFailed": "Gagal memvalidasi kode",
       "couponReasons": {
         "not_found": "Kupon tidak ditemukan",
         "inactive": "Kupon tidak aktif",
@@ -260,8 +264,8 @@
         "registrationFailed": "Pendaftaran gagal. Silakan coba lagi.",
         "couponUserLimitExceeded": "Jumlah pengguna yang dipilih melebihi batas kupon."
       }
-  },
-  "login": {
+    },
+    "login": {
       "title": "Selamat Datang Kembali",
       "description": "Masuk ke akun Anda untuk melanjutkan",
       "emailLabel": "Email",
@@ -471,8 +475,7 @@
     "plannerWorkspace": "Ruang Kerja Planner",
     "visitReport": "Laporan Kunjungan",
     "chatbot": "Chatbot",
-    "settings": "Pengaturan"
-    ,
+    "settings": "Pengaturan",
     "loyalty": "Loyalitas",
     "loyaltyConfig": "Program Loyalitas",
     "loyaltyMembers": "Anggota Loyalitas"

@@ -14,6 +14,7 @@ import {
   UserCircle,
   KeyRound,
   HelpCircle,
+  BadgePercent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,11 @@ const sidebarLinks = [
     key: "sidebar.coupons" as const,
     href: "/system/coupons",
     icon: Ticket,
+  },
+  {
+    key: "sidebar.salesReferrals" as const,
+    href: "/system/sales-referrals",
+    icon: BadgePercent,
   },
   {
     key: "sidebar.plans" as const,

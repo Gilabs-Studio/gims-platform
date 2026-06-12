@@ -246,6 +246,7 @@ export const authService = {
       password: string;
       company_name?: string;
       coupon?: string;
+      registration_code?: string;
       plan?: string;
       billing_period?: string;
       user_count?: number;
@@ -317,7 +318,7 @@ export const authService = {
       target_plan_slug?: string;
     };
   }> {
-    let url = `/auth/coupons/validate?code=${encodeURIComponent(code.toUpperCase())}`;
+    let url = `/auth/registration-codes/validate?code=${encodeURIComponent(code.toUpperCase())}`;
     if (email) {
       url += `&email=${encodeURIComponent(email)}`;
     }

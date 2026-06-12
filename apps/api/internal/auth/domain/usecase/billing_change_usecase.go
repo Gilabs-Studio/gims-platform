@@ -250,6 +250,7 @@ func (u *authUsecase) CompletePendingBillingChange(ctx context.Context, token st
 					}
 				}
 			}
+			u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
 		} else {
 			now := apptime.Now()
 			legacyTxn := map[string]any{

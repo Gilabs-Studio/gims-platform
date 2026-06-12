@@ -10,7 +10,7 @@ type LoginRequest struct {
 
 // RegisterTenantRequest represents self-service tenant registration payload.
 // Access is gated by one of:
-//   - coupon: a valid promotional code granting a trial subscription
+//   - coupon / registration_code: a valid promotional code granting a trial subscription or referral discount
 //   - plan + billing_period: a paid subscription handled via Xendit invoice
 type RegisterTenantRequest struct {
 	Name     string `json:"name"     binding:"required,min=2,max=100"`
@@ -19,6 +19,10 @@ type RegisterTenantRequest struct {
 	// Coupon bypasses payment and grants a trial subscription.
 	// Only alphanumeric chars accepted; input is normalised to uppercase.
 	Coupon string `json:"coupon" binding:"omitempty,min=4,max=64"`
+	// RegistrationCode is preferred public field for Referral / Discount Code.
+	RegistrationCode string `json:"registration_code" binding:"omitempty,min=4,max=64"`
+	// ReferralCode is internal attribution key copied from registration_code when it resolves to referral.
+	ReferralCode string `json:"-"`
 	// Plan is required when using paid registration (no coupon).
 	// Valid values: pos_essential, pos_growth, pos_enterprise,
 	//               erp_core, erp_pro, erp_enterprise,
@@ -40,9 +44,9 @@ type RegisterTenantRequest struct {
 // The frontend must redirect to InvoiceURL to complete payment; the tenant is
 // provisioned by the Xendit webhook after successful payment.
 type RegisterInitResponse struct {
-	InvoiceURL  string `json:"invoice_url"`
-	InvoiceID   string `json:"invoice_id"`
-	ExpiresAt   string `json:"expires_at"`
+	InvoiceURL string `json:"invoice_url"`
+	InvoiceID  string `json:"invoice_id"`
+	ExpiresAt  string `json:"expires_at"`
 }
 
 // ConfirmPendingRegistrationRequest confirms a paid registration token and
@@ -75,24 +79,24 @@ type SubscriptionAccessResponse struct {
 
 // UserResponse represents user response DTO for auth
 type UserResponse struct {
-	ID               string            `json:"id"`
-	Email            string            `json:"email"`
-	Name             string            `json:"name"`
-	AvatarURL        string            `json:"avatar_url"`
-	EmployeeID       string            `json:"employee_id,omitempty"`
-	Role             string            `json:"role"`
-	RoleName         string            `json:"role_name"`
-	RoleDataScope    string            `json:"role_data_scope"`
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	Name          string `json:"name"`
+	AvatarURL     string `json:"avatar_url"`
+	EmployeeID    string `json:"employee_id,omitempty"`
+	Role          string `json:"role"`
+	RoleName      string `json:"role_name"`
+	RoleDataScope string `json:"role_data_scope"`
 	// IsOwner is true when the logged-in user holds the protected tenant-owner role.
 	// Consumers should use this flag to gate owner-only UI (Billing, Payment) instead of
 	// pattern-matching on the role code string.
-	IsOwner          bool              `json:"is_owner"`
-	Permissions      map[string]string `json:"permissions"` // code -> scope (e.g., {"sales_order.read": "DIVISION"})
-	Status           string            `json:"status"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
-	TenantID         string            `json:"tenant_id,omitempty"`
-	TenantName       string            `json:"tenant_name,omitempty"`
-	SubscriptionPlan string            `json:"subscription_plan,omitempty"`
+	IsOwner            bool                        `json:"is_owner"`
+	Permissions        map[string]string           `json:"permissions"` // code -> scope (e.g., {"sales_order.read": "DIVISION"})
+	Status             string                      `json:"status"`
+	CreatedAt          time.Time                   `json:"created_at"`
+	UpdatedAt          time.Time                   `json:"updated_at"`
+	TenantID           string                      `json:"tenant_id,omitempty"`
+	TenantName         string                      `json:"tenant_name,omitempty"`
+	SubscriptionPlan   string                      `json:"subscription_plan,omitempty"`
 	SubscriptionAccess *SubscriptionAccessResponse `json:"subscription_access,omitempty"`
 }
