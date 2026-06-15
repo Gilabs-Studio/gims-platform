@@ -141,7 +141,7 @@ export const landingId = {
       monthly: "Bulanan",
       yearly: "Tahunan",
       users: "Pengguna",
-      perMonthSeat: "/bulan per seat",
+      perMonthSeat: "bln per seat",
       totalInvoice: "Total invoice",
       selectBundle: "Pilih {name}",
       selectModular: "Pilih modular",

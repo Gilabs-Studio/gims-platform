@@ -141,7 +141,7 @@ export const landingEn = {
       monthly: "Monthly",
       yearly: "Yearly",
       users: "Users",
-      perMonthSeat: "/month per seat",
+      perMonthSeat: "mo per seat",
       totalInvoice: "Total invoice",
       selectBundle: "Select {name}",
       selectModular: "Select modular",

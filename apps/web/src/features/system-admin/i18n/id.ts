@@ -69,7 +69,7 @@ export const systemAdminId = {
       unlimitedUsers: "Pengguna tidak terbatas",
       usersUpTo: "Hingga {count} pengguna",
       usersLocked: "Jumlah pengguna dikunci",
-      packageMonthly: "Paket {price}/bln",
+      packageMonthly: "Paket {price} per bln",
       lifetime: "Selamanya",
       copyCouponCode: "Salin kode kupon",
       editCoupon: "Ubah Kupon",
@@ -107,7 +107,7 @@ export const systemAdminId = {
       descriptionRequired: "Deskripsi wajib diisi",
       durationMin: "Durasi minimal 1 hari",
       maxUsesMin: "Maks. pemakaian minimal 1",
-      packageSummary: "{users} pengguna termasuk di {price}/bln",
+      packageSummary: "{users} pengguna termasuk di {price} per bln",
     },
     plans: {
       title: "Paket Berlangganan",

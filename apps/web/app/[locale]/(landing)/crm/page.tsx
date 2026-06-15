@@ -10,13 +10,13 @@ import { buildLandingMetadata } from "@/lib/seo";
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
-  const title = locale === 'id' 
-    ? `Software CRM untuk Pipeline & Follow-up Sales | SalesView` 
-    : `CRM Software for Pipeline & Sales Follow-ups | SalesView`;
+  const title = locale === "id"
+    ? "Software CRM Pipeline, Follow-up & Sales Lapangan | SalesView"
+    : "CRM Software for Pipeline, Follow-ups & Field Sales | SalesView";
     
-  const desc = locale === 'id'
-    ? `Kelola pipeline, aktivitas tim sales, dan follow-up prospek dalam satu CRM yang terhubung dengan penawaran dan sales order.`
-    : `Manage pipeline, sales activities, and lead follow-ups in one CRM connected to quotations and sales orders.`;
+  const desc = locale === "id"
+    ? "Kelola pipeline, aktivitas sales lapangan, follow-up prospek, area mapping, dan quotation dalam satu CRM yang terhubung langsung ke sales order."
+    : "Manage pipeline, field sales activities, prospect follow-ups, area mapping, and quotations in one CRM connected directly to sales orders.";
 
   return buildLandingMetadata({
     locale,
@@ -25,16 +25,18 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     description: desc,
     keywords: locale === "id"
       ? [
-          "aplikasi crm pelacakan pipeline sales",
-          "software follow up prospek penjualan otomatis",
-          "sistem manajemen leads b2b indonesia",
-          "crm salesforce automation bisnis berkembang",
+          "aplikasi crm sales lapangan area mapping",
+          "software pipeline deal dan follow up prospek",
+          "crm b2b terhubung quotation sales order",
+          "aplikasi kunjungan sales dan target area",
+          "salesforce automation untuk distributor",
           "salesview crm",
         ]
       : [
-          "sales pipeline tracking crm software",
-          "automated lead follow up sales application",
-          "b2b client relationship management platform",
+          "field sales crm with area mapping",
+          "pipeline and follow up crm software",
+          "crm linked to quotations and sales orders",
+          "b2b sales activity tracking software",
           "salesview crm",
         ],
     imageAlt: "SalesView CRM overview",

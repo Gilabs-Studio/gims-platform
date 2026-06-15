@@ -69,7 +69,7 @@ export const systemAdminEn = {
       unlimitedUsers: "Unlimited users",
       usersUpTo: "Up to {count} users",
       usersLocked: "User count locked",
-      packageMonthly: "Package {price}/mo",
+      packageMonthly: "Package {price} per mo",
       lifetime: "Lifetime",
       copyCouponCode: "Copy coupon code",
       editCoupon: "Edit Coupon",
@@ -107,7 +107,7 @@ export const systemAdminEn = {
       descriptionRequired: "Description is required",
       durationMin: "Duration must be at least 1 day",
       maxUsesMin: "Max uses must be at least 1",
-      packageSummary: "{users} included users at {price}/mo",
+      packageSummary: "{users} included users at {price} per mo",
     },
     plans: {
       title: "Subscription Plans",

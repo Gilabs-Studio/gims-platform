@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Sora, Newsreader } from "next/font/google";
+import { headers } from "next/headers";
 import { getLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import { getLanguageAlternates } from "@/lib/seo";
@@ -30,17 +31,28 @@ const accentFont = Newsreader({
   display: "swap",
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  let locale: Locale;
+async function resolveDocumentLocale(): Promise<Locale> {
+  const headerStore = await headers();
+  const headerLocale = headerStore.get("x-gims-locale");
+
+  if (routing.locales.includes(headerLocale as Locale)) {
+    return headerLocale as Locale;
+  }
 
   try {
     const localeValue = await getLocale();
-    locale = routing.locales.includes(localeValue as Locale)
-      ? (localeValue as Locale)
-      : routing.defaultLocale;
+    if (routing.locales.includes(localeValue as Locale)) {
+      return localeValue as Locale;
+    }
   } catch {
-    locale = routing.defaultLocale;
+    // Fall through to default locale.
   }
+
+  return routing.defaultLocale;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await resolveDocumentLocale();
 
   return {
     metadataBase: new URL("https://salesview.id"),
@@ -130,15 +142,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let locale: Locale;
-  try {
-    const localeValue = await getLocale();
-    locale = routing.locales.includes(localeValue as Locale)
-      ? (localeValue as Locale)
-      : routing.defaultLocale;
-  } catch {
-    locale = routing.defaultLocale;
-  }
+  const locale = await resolveDocumentLocale();
 
   return (
     <html lang={locale} suppressHydrationWarning>

@@ -5,6 +5,14 @@ import {
   getLocalePreferenceFromCookieValue,
   LOCALE_PREFERENCE_COOKIE,
 } from "@/lib/locale-preference";
+import {
+  INDEXABLE_MARKETING_PATHS,
+  LEGACY_APP_SLUG_REDIRECTS,
+} from "@/lib/seo-routes";
+
+const INDEXABLE_MARKETING_PATH_SET = new Set<string>(
+  INDEXABLE_MARKETING_PATHS.filter((path) => path !== "/"),
+);
 
 /**
  * Proxy middleware for handling authentication routing.
@@ -42,7 +50,14 @@ export function proxy(request: NextRequest) {
   const detectedLocale =
     pathLocale ?? cookieLocale ?? getLocaleFromCountryCode(requestCountryCode);
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-gims-locale", detectedLocale);
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
   if (cookieLocale !== detectedLocale) {
     response.cookies.set({
       name: LOCALE_PREFERENCE_COOKIE,
@@ -67,6 +82,48 @@ export function proxy(request: NextRequest) {
     pathname === "/forgot-password" ||
     pathname === "/delete-account/confirm" ||
     isLegacySettingsPath;
+
+  const legacyAppSegments = hasLocalePrefix
+    ? pathSegments.slice(1)
+    : pathSegments;
+  const isLegacyAppsPath = legacyAppSegments[0] === "apps";
+  const legacyAppSlug = legacyAppSegments[1];
+  const legacyAppTarget =
+    legacyAppSlug ? LEGACY_APP_SLUG_REDIRECTS[legacyAppSlug] : null;
+
+  if (isLegacyAppsPath && legacyAppTarget) {
+    const locale = pathLocale ?? detectedLocale;
+    const targetPath =
+      legacyAppTarget === "/" ? `/${locale}` : `/${locale}${legacyAppTarget}`;
+    const targetURL = new URL(targetPath, request.url);
+    targetURL.search = request.nextUrl.search;
+
+    const redirectResponse = NextResponse.redirect(targetURL, 308);
+    redirectResponse.cookies.set({
+      name: LOCALE_PREFERENCE_COOKIE,
+      value: locale,
+      path: "/",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return redirectResponse;
+  }
+
+  if (!hasLocalePrefix && INDEXABLE_MARKETING_PATH_SET.has(pathname)) {
+    const targetURL = new URL(`/${detectedLocale}${pathname}`, request.url);
+    targetURL.search = request.nextUrl.search;
+
+    const redirectResponse = NextResponse.redirect(targetURL, 308);
+    redirectResponse.cookies.set({
+      name: LOCALE_PREFERENCE_COOKIE,
+      value: detectedLocale,
+      path: "/",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return redirectResponse;
+  }
+
   if (!hasLocalePrefix && isLocaleAgnosticAuthPath) {
     const normalizedPath = isLegacySettingsPath ? "/profile" : pathname;
     const targetURL = new URL(

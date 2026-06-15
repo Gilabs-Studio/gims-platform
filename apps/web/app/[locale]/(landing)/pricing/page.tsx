@@ -8,11 +8,11 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const isId = locale === "id";
 
   const title = isId
-    ? "Harga Paket ERP, CRM, HRIS, POS & Finance | SalesView"
-    : "Pricing Plans for ERP, CRM, HRIS, POS & Finance | SalesView";
+    ? "Harga ERP, POS, CRM, HRIS & Finance untuk Distributor, Retail, dan F&B | SalesView"
+    : "ERP, POS, CRM, HRIS & Finance Pricing for Distribution, Retail, and F&B | SalesView";
   const description = isId
-    ? "Lihat harga SalesView untuk paket ERP, CRM, HRIS, POS, dan Finance. Bandingkan bundle vs modular lalu pilih paket yang sesuai kebutuhan dan skala bisnis Anda."
-    : "See SalesView pricing for ERP, CRM, HRIS, POS, and Finance. Compare bundle vs modular options and choose the plan that fits your business size and needs.";
+    ? "Bandingkan harga bundle dan modular untuk ERP distributor, POS restoran atau retail, CRM sales lapangan, HRIS, dan finance agar rollout software sesuai kebutuhan tim Anda."
+    : "Compare bundle and modular pricing for distributor ERP, restaurant or retail POS, field sales CRM, HRIS, and finance so your rollout matches your team structure.";
 
   return buildLandingMetadata({
     locale,
@@ -21,16 +21,18 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     description,
     keywords: isId
       ? [
-          "harga paket langganan software salesview",
-          "biaya erp cloud per bulan indonesia",
-          "skema harga crm hris all in one",
-          "uji coba gratis software erp",
+          "harga erp distributor per user indonesia",
+          "biaya pos restoran cafe multi outlet",
+          "harga crm sales lapangan dan follow up",
+          "paket software accounting inventory hris",
+          "erp modular untuk distributor retail fnb",
           "salesview pricing",
         ]
       : [
-          "salesview cloud erp pricing plans",
-          "cost of integrated business software",
-          "all in one crm hris pricing model",
+          "distributor erp software pricing plans",
+          "restaurant retail pos pricing per user",
+          "field sales crm and finance software pricing",
+          "modular erp pricing for growing business teams",
           "salesview pricing",
         ],
     imageAlt: "SalesView pricing overview",

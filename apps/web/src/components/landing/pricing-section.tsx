@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CompactBillingSuffix } from "@/components/ui/compact-billing-suffix";
 import { Check, XCircle, Minus, Plus, Phone } from "lucide-react";
 import { authService, type SubscriptionPlanConfig } from "@/features/auth/services/auth-service";
 import { useRouter } from "@/i18n/routing";
@@ -440,7 +441,11 @@ export function PricingSection() {
                             )}
                             <p className="text-sm font-bold tracking-tight text-foreground sm:text-lg">
                               {formatIDR(monthly)}
-                              <span className="ml-1 text-[10px] font-normal text-muted-foreground sm:text-xs">{t("pricing.perMonthSeat")}</span>
+                              <CompactBillingSuffix
+                                text={t("pricing.perMonthSeat")}
+                                srLabel={locale === "id" ? "per bulan per seat" : "per month per seat"}
+                                className="ml-1 text-[10px] font-normal text-muted-foreground sm:text-xs"
+                              />
                             </p>
                             <p className="text-[10px] font-medium uppercase tracking-tight text-muted-foreground">
                               {t("pricing.totalInvoice")}: {formatIDR(total)}
@@ -521,20 +526,24 @@ export function PricingSection() {
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{plan.category}</p>
                       <p className="mt-1 text-sm font-semibold text-foreground">{plan.name}</p>
                       <div className="mt-3">
-                        <p className="text-lg font-semibold text-foreground">
-                          {pricingBilling === "yearly" ? (
-                            <span className="flex flex-col gap-0.5">
+                            <p className="text-lg font-semibold text-foreground">
+                              {pricingBilling === "yearly" ? (
+                                <span className="flex flex-col gap-0.5">
                               <span className="text-[10px] text-muted-foreground/70 line-through decoration-destructive/60 decoration-2 sm:text-xs">
                                 {formatIDR(baseMonthly)}
                               </span>
                               <span>{formatIDR(monthlyTotal)}</span>
                             </span>
-                          ) : (
-                            formatIDR(monthlyTotal)
-                          )}
-                          <span className="ml-1 text-xs font-normal text-muted-foreground">{tRegister("perMonthShort")}</span>
-                        </p>
-                      </div>
+                              ) : (
+                                formatIDR(monthlyTotal)
+                              )}
+                              <CompactBillingSuffix
+                                text={tRegister("perMonthShort")}
+                                srLabel={tRegister("perMonth")}
+                                className="ml-1 text-xs font-normal text-muted-foreground"
+                              />
+                            </p>
+                          </div>
                       <ul className="mt-3 space-y-1">
                         {plan.features.slice(0, 3).map((feature) => (
                           <li key={feature} className="flex items-center gap-1.5 text-xs text-muted-foreground">

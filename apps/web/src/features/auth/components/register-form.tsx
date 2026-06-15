@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CompactBillingSuffix } from "@/components/ui/compact-billing-suffix";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useRouter } from "@/i18n/routing";
@@ -913,7 +914,14 @@ export default function RegisterForm() {
                               </div>
                             ) : hasDiscount ? (
                               <div>
-                                <p className="text-sm text-muted-foreground line-through">{formatIDR(originalMonthly)}<span className="text-xs">/mo</span></p>
+                                <p className="text-sm text-muted-foreground line-through">
+                                  {formatIDR(originalMonthly)}
+                                  <CompactBillingSuffix
+                                    text={t("perMonthShort")}
+                                    srLabel={t("perMonth")}
+                                    className="text-xs"
+                                  />
+                                </p>
                                 <p className="text-3xl font-bold text-foreground">{formatIDR(finalMonthly)}</p>
                                 <p className="text-xs text-muted-foreground">{t("perMonth")}</p>
                               </div>
@@ -1228,13 +1236,21 @@ export default function RegisterForm() {
                                           ) : (
                                             formatIDR(discountedTotal / (billing === "yearly" ? 12 : 1))
                                           )}
-                                          <span className="ml-0.5 text-[10px] font-normal text-muted-foreground leading-none">{t("perMonthShort")}</span>
+                                          <CompactBillingSuffix
+                                            text={t("perMonthShort")}
+                                            srLabel={t("perMonth")}
+                                            className="ml-0.5 text-[10px] font-normal leading-none text-muted-foreground"
+                                          />
                                         </p>
-                                        
+
                                         {billing === "yearly" && (
                                           <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-tight">
                                             Total: {formatIDR(discountedTotal)}
-                                            <span className="ml-0.5 lowercase text-[8px] font-normal">{t("perYearShort")}</span>
+                                            <CompactBillingSuffix
+                                              text={t("perYearShort")}
+                                              srLabel={t("perYear")}
+                                              className="ml-0.5 text-[8px] font-normal lowercase"
+                                            />
                                           </p>
                                         )}
                                       </div>
@@ -1406,7 +1422,11 @@ export default function RegisterForm() {
                                   ) : (
                                     formatIDR(monthly)
                                   )}
-                                  <span className="ml-1 text-xs font-normal text-muted-foreground">{t("perMonthShort")}</span>
+                                  <CompactBillingSuffix
+                                    text={t("perMonthShort")}
+                                    srLabel={t("perMonth")}
+                                    className="ml-1 text-xs font-normal text-muted-foreground"
+                                  />
                                 </p>
                               </div>
                               <ul className="mt-3 space-y-1">
