@@ -666,7 +666,43 @@ export default function LandingPage() {
         </section>
 
         {/* ════════════════════════════════════════════════════════
-          9. CTA
+          9. CONTACT SALES
+        ════════════════════════════════════════════════════════ */}
+        <section id="contact-sales" className="flex flex-col items-center justify-center py-24 text-center">
+          <div className={W}>
+            <motion.div
+              variants={fadeUp} initial="hidden"
+              whileInView="visible" viewport={{ once: true, margin: "-80px" }}
+              className="mx-auto overflow-hidden rounded-3xl border border-border bg-card/60 p-8 shadow-sm backdrop-blur-sm sm:p-12"
+            >
+              <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                {t("contactSales.eyebrow")}
+              </p>
+              <h2 className="mx-auto max-w-3xl text-4xl font-light leading-tight tracking-tight text-foreground sm:text-5xl">
+                {t("contactSales.title")}
+              </h2>
+              <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                {t("contactSales.subtitle")}
+              </p>
+              <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                <a
+                  href="https://wa.me/6289526770703"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button size="lg" className="cursor-pointer px-10 text-base shadow-md">
+                    <PhoneCall className="mr-2 h-4 w-4" />
+                    {t("contactSales.whatsappCta")}
+                  </Button>
+                </a>
+                <p className="text-sm text-muted-foreground">+62 895-2677-0703</p>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+          10. CTA
         ════════════════════════════════════════════════════════ */}
         <section className="flex min-h-screen flex-col items-center justify-center py-24 text-center">
           <div className={W}>

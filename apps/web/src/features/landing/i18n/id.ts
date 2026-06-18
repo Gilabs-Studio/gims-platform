@@ -240,6 +240,13 @@ export const landingId = {
       seeFeatures: "Mulai Uji Coba Gratis",
       signIn: "Pelajari Lebih Lanjut",
     },
+    contactSales: {
+      eyebrow: "Hubungi sales",
+      title: "Diskusikan kebutuhan operasional Anda dengan tim kami.",
+      subtitle:
+        "Butuh harga, detail onboarding, atau demo terpandu? Chat dengan sales SalesView melalui WhatsApp dan dapatkan respons cepat.",
+      whatsappCta: "Chat via WhatsApp",
+    },
     footer: {
       tagline: "All-in-One ERP · CRM · POS · Finance · HR",
     },

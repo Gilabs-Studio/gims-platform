@@ -240,6 +240,13 @@ export const landingEn = {
       seeFeatures: "Start Free Trial",
       signIn: "Learn More",
     },
+    contactSales: {
+      eyebrow: "Contact sales",
+      title: "Talk to our team about your operation.",
+      subtitle:
+        "Need pricing, onboarding details, or a guided demo? Chat with SalesView sales on WhatsApp and get a fast response.",
+      whatsappCta: "Chat on WhatsApp",
+    },
     footer: {
       tagline: "All-in-One ERP · CRM · POS · Finance · HR",
     },
