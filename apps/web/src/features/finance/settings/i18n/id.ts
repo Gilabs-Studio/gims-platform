@@ -19,6 +19,9 @@ export const financeSettingsId = {
   dynamicDescription: "Pengaturan finance kustom",
   requiredValue: "Silakan pilih pemetaan akun.",
   inventory: {
+    pageTitle: "Pengaturan Persediaan",
+    pageDescription:
+      "Atur metode valuasi dan akun pembulatan untuk posting persediaan.",
     title: "Pengaturan Penilaian Persediaan",
     fields: {
       company: "Perusahaan",
@@ -68,6 +71,9 @@ export const financeSettingsId = {
     },
   },
   openingBalance: {
+    pageTitle: "Saldo Awal",
+    pageDescription:
+      "Siapkan saldo jurnal pembuka sebelum posting operasional dimulai.",
     title: "Saldo Awal",
     fields: {
       company: "Perusahaan",
@@ -115,6 +121,9 @@ export const financeSettingsId = {
     },
   },
   tax: {
+    pageTitle: "Konfigurasi Pajak",
+    pageDescription:
+      "Atur mapping PPN dan PPh untuk posting jurnal otomatis.",
     title: "Konfigurasi Pajak",
     fields: {
       company: "Perusahaan",
@@ -157,7 +166,11 @@ export const financeSettingsId = {
     },
   },
   fiscalYears: {
+    pageTitle: "Tahun Fiskal",
+    pageDescription:
+      "Aktifkan dan kunci tahun fiskal untuk mengontrol posting periode akuntansi.",
     company: "Perusahaan",
+    selectCompany: "Pilih perusahaan",
     name: "Nama Tahun Buku",
     startDate: "Tanggal Mulai",
     endDate: "Tanggal Selesai",

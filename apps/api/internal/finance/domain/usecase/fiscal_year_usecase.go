@@ -10,6 +10,7 @@ import (
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
 	"github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"github.com/gilabs/gims/api/internal/finance/domain/dto"
+	financeService "github.com/gilabs/gims/api/internal/finance/domain/service"
 	"gorm.io/gorm"
 )
 
@@ -105,6 +106,11 @@ func (uc *fiscalYearUsecase) Create(ctx context.Context, req *dto.CreateFiscalYe
 }
 
 func (uc *fiscalYearUsecase) List(ctx context.Context, req *dto.ListFiscalYearsRequest) ([]dto.FiscalYearResponse, int64, error) {
+	_, err := financeService.EnsureDefaultActiveFiscalYear(ctx, uc.repo, req.CompanyID, nil)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, 0, err
+	}
+
 	items, total, err := uc.repo.List(ctx, repositories.FiscalYearListParams{
 		CompanyID: req.CompanyID,
 		Status:    req.Status,

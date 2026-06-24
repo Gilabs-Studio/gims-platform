@@ -26,7 +26,6 @@ type OnboardingStepsData struct {
 	Products    bool
 	Warehouse   bool
 	Users       bool
-	FiscalYear  bool
 }
 
 type onboardingRepository struct {
@@ -69,8 +68,6 @@ func (r *onboardingRepository) Save(ctx context.Context, state *generalModels.Te
 // Company is considered complete when any identifying field (address, phone, email, npwp) is filled.
 // All other steps are complete when at least one record exists in the relevant table.
 func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingStepsData, error) {
-	tenantID := middleware.TenantFromContext(ctx)
-
 	var steps OnboardingStepsData
 	g, gCtx := errgroup.WithContext(ctx)
 
@@ -86,7 +83,7 @@ func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingSteps
 		return total, nil
 	}
 
-	var companyCount, outletCount, floorCount, productCount, warehouseCount, userCount, fiscalYearCount int64
+	var companyCount, outletCount, floorCount, productCount, warehouseCount, userCount int64
 
 	g.Go(func() error {
 		var err error
@@ -124,25 +121,6 @@ func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingSteps
 		return err
 	})
 
-	g.Go(func() error {
-		var err error
-		if tenantID != "" {
-			err = r.db.WithContext(gCtx).
-				Table("fiscal_years fy").
-				Joins("JOIN companies c ON c.id = fy.company_id AND c.deleted_at IS NULL").
-				Where("fy.deleted_at IS NULL").
-				Where("(fy.tenant_id = ? OR c.tenant_id = ?)", tenantID, tenantID).
-				Count(&fiscalYearCount).Error
-			if err != nil {
-				// Fallback to tenant-scoped default query path.
-				fiscalYearCount, err = count(gCtx, "fiscal_years", "deleted_at IS NULL")
-			}
-		} else {
-			fiscalYearCount, err = count(gCtx, "fiscal_years", "deleted_at IS NULL")
-		}
-		return err
-	})
-
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
@@ -153,7 +131,6 @@ func (r *onboardingRepository) CheckSteps(ctx context.Context) (*OnboardingSteps
 	steps.Products = productCount > 0
 	steps.Warehouse = warehouseCount > 0
 	steps.Users = userCount > 1
-	steps.FiscalYear = fiscalYearCount > 0
 
 	return &steps, nil
 }

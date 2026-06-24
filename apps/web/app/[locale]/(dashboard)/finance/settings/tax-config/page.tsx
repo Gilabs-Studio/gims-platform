@@ -8,18 +8,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "financeSettings" });
   return {
-    title: `${t("title")} - Tax Configuration`,
+    title: `${t("title")} - ${t("tax.pageTitle")}`,
   };
 }
 
-export default async function FinanceSettingsTaxConfigPage() {
+export default async function FinanceSettingsTaxConfigPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "financeSettings" });
+
   return (
     <PermissionGuard requiredPermission="tax_configuration.read">
       <PageMotion className="container mx-auto py-10 w-full max-w-6xl">
-        <h1 className="text-3xl font-bold tracking-tight">Tax Configuration</h1>
-        <p className="text-muted-foreground mt-2">
-          Configure PPN and PPh mappings for automatic journal posting.
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("tax.pageTitle")}</h1>
+        <p className="text-muted-foreground mt-2">{t("tax.pageDescription")}</p>
         <div className="mt-6">
           <TaxConfigPanel />
         </div>

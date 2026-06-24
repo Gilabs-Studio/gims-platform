@@ -9,8 +9,9 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
-	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
+	financeService "github.com/gilabs/gims/api/internal/finance/domain/service"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	"gorm.io/gorm"
 )
 
@@ -103,6 +104,16 @@ func (r *purchaseFiscalYearResolver) resolveFiscalYearID(ctx context.Context, co
 
 	fiscalYear, err := r.fiscalYearRepo.FindActiveByCompany(ctx, companyID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			created, createErr := financeService.EnsureDefaultActiveFiscalYear(ctx, r.fiscalYearRepo, companyID, nil)
+			if createErr == nil && created != nil && strings.TrimSpace(created.ID) != "" {
+				return strings.TrimSpace(created.ID), nil
+			}
+			if createErr != nil && !errors.Is(createErr, gorm.ErrRecordNotFound) {
+				return "", createErr
+			}
+		}
+
 		return "", fmt.Errorf("%w: company %s on %s", ErrActivePurchaseFiscalYearRequired, companyID, resolvedDate)
 	}
 	if fiscalYear == nil || strings.TrimSpace(fiscalYear.ID) == "" {
