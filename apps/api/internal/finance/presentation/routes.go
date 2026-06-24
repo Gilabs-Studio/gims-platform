@@ -88,7 +88,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	financeSettingRepo := repositories.NewFinanceSettingRepository(db)
 	systemAccountMappingRepo := repositories.NewSystemAccountMappingRepository(db)
 	settingsService := financesettings.NewSettingsService(financeSettingRepo, systemAccountMappingRepo)
-	coaValidationSvc := service.NewCOAValidationService(financeSettingRepo)
+	coaValidationSvc := service.NewCOAValidationService(financeSettingRepo, systemAccountMappingRepo)
 	accountingEngine := accounting.NewAccountingEngine(settingsService, coaRepo, coaValidationSvc)
 
 	journalUC := usecase.NewJournalEntryUsecase(db, coaRepo, journalRepo, journalMapper, auditService, settingsService)

@@ -51,6 +51,7 @@ import {
   useSupplierInvoiceAuditTrail,
 } from "../hooks/use-supplier-invoices";
 import { supplierInvoicesService } from "../services/supplier-invoices-service";
+import { getPurchaseErrorMessage } from "../../utils/error-utils";
 
 const PurchaseOrderDetail = dynamic(
   () =>
@@ -627,8 +628,8 @@ function SupplierInvoiceDetailView({
             toast.success(t("toast.deleted"));
             setDeleteOpen(false);
             onClose();
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
           }
         }}
         isLoading={deleteMutation.isPending}
@@ -706,8 +707,8 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                       try {
                         await submitMutation.mutateAsync(detail.id);
                         toast.success(t("toast.submitted"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error) {
+                        toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                       }
                     }}
                   >
@@ -726,8 +727,8 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                       try {
                         await approveMutation.mutateAsync(detail.id);
                         toast.success(t("toast.approved"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error) {
+                        toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                       }
                     }}
                   >
@@ -746,8 +747,8 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                       try {
                         await rejectMutation.mutateAsync(detail.id);
                         toast.success(t("toast.rejected"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error) {
+                        toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                       }
                     }}
                   >
@@ -766,8 +767,8 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                       try {
                         await pendingMutation.mutateAsync(detail.id);
                         toast.success(t("toast.pending"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error) {
+                        toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                       }
                     }}
                   >
@@ -810,8 +811,8 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                       try {
                         await cancelMutation.mutateAsync(detail.id);
                         toast.success(t("toast.cancelled"));
-                      } catch {
-                        toast.error(t("toast.failed"));
+                      } catch (error) {
+                        toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                       }
                     }}
                   >
@@ -858,8 +859,8 @@ export function SupplierInvoiceDetail({ open, onClose, invoiceId }: SupplierInvo
                 toast.success(t("toast.deleted"));
                 setDeleteOpen(false);
                 onClose();
-              } catch {
-                toast.error(t("toast.failed"));
+              } catch (error) {
+                toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
               }
             }}
             isLoading={deleteMutation.isPending}

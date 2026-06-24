@@ -33,10 +33,15 @@ type COAValidationService interface {
 
 type coaValidationService struct {
 	settingsRepo repositories.FinanceSettingRepository
+	mappingRepo  repositories.SystemAccountMappingRepository
 }
 
-func NewCOAValidationService(settingsRepo repositories.FinanceSettingRepository) COAValidationService {
-	return &coaValidationService{settingsRepo: settingsRepo}
+func NewCOAValidationService(settingsRepo repositories.FinanceSettingRepository, mappingRepo ...repositories.SystemAccountMappingRepository) COAValidationService {
+	s := &coaValidationService{settingsRepo: settingsRepo}
+	if len(mappingRepo) > 0 {
+		s.mappingRepo = mappingRepo[0]
+	}
+	return s
 }
 
 // ValidateRequiredSettings ensures all given COA setting keys exist.
@@ -66,20 +71,69 @@ func (s *coaValidationService) ValidateSetting(ctx context.Context, settingKey s
 		return fmt.Errorf("setting key cannot be empty")
 	}
 
-	setting, err := s.settingsRepo.FindByKey(ctx, strings.TrimSpace(settingKey))
+	normalizedKey := strings.TrimSpace(settingKey)
+
+	if s.mappingRepo != nil {
+		for _, mappingKey := range coaValidationMappingKeys(normalizedKey) {
+			if coaCode, err := s.mappingRepo.GetByKey(ctx, mappingKey, nil); err == nil && strings.TrimSpace(coaCode) != "" {
+				return nil
+			}
+		}
+	}
+
+	setting, err := s.settingsRepo.FindByKey(ctx, normalizedKey)
 	if err != nil {
-		return fmt.Errorf("setting '%s' not found: %w", settingKey, err)
+		return fmt.Errorf("setting '%s' not found: %w", normalizedKey, err)
 	}
 
 	if setting == nil {
-		return fmt.Errorf("setting '%s' not configured", settingKey)
+		return fmt.Errorf("setting '%s' not configured", normalizedKey)
 	}
 
 	if strings.TrimSpace(setting.Value) == "" {
-		return fmt.Errorf("setting '%s' is empty - please configure COA code in Finance → Settings", settingKey)
+		return fmt.Errorf("setting '%s' is empty - please configure COA code in Finance → Settings", normalizedKey)
 	}
 
 	return nil
+}
+
+func coaValidationMappingKeys(settingKey string) []string {
+	keys := make([]string, 0, 2)
+	switch strings.TrimSpace(settingKey) {
+	case "coa.inventory", "coa.inventory_asset":
+		keys = append(keys, "purchase.inventory_asset")
+	case "coa.gr_ir", "coa.purchase_gr_ir":
+		keys = append(keys, "purchase.gr_ir_clearing")
+	case "coa.purchase_vat_in", "coa.vat_in":
+		keys = append(keys, "purchase.tax_input")
+	case "coa.purchase_payable", "coa.accounts_payable":
+		keys = append(keys, "purchase.accounts_payable")
+	case "coa.sales_receivable":
+		keys = append(keys, "sales.accounts_receivable")
+	case "coa.sales_revenue":
+		keys = append(keys, "sales.revenue")
+	case "coa.sales_vat_out":
+		keys = append(keys, "sales.tax_output")
+	case "coa.sales_cogs", "coa.cogs":
+		keys = append(keys, "sales.cogs")
+	case "coa.sales_return":
+		keys = append(keys, "sales.sales_return")
+	case "coa.inventory_gain":
+		keys = append(keys, "inventory.adjustment_gain")
+	case "coa.inventory_loss":
+		keys = append(keys, "inventory.adjustment_loss")
+	case "coa.depreciation_accumulated":
+		keys = append(keys, "asset.accumulated_depreciation")
+	case "coa.depreciation_expense":
+		keys = append(keys, "asset.depreciation_expense")
+	case "coa.bank":
+		keys = append(keys, "finance.bank_default")
+	case "coa.cash":
+		keys = append(keys, "finance.cash_default")
+	}
+
+	keys = append(keys, strings.TrimSpace(settingKey))
+	return keys
 }
 
 // EnsureInventoryValuationCOAs validates COAs for inventory valuation.

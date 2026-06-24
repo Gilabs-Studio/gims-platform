@@ -63,6 +63,7 @@ import { SupplierInvoiceDPDetailModal } from "../../supplier-invoice-down-paymen
 import { supplierInvoicesService } from "../services/supplier-invoices-service";
 import { SupplierDetailModal } from "@/features/master-data/supplier/components/supplier/supplier-detail-modal";
 import { GoodsReceiptDetail } from "../../goods-receipt/components/goods-receipt-detail";
+import { getPurchaseErrorMessage } from "../../utils/error-utils";
 
 // ─── Due Date Cell ────────────────────────────────────────────────────────────
 
@@ -230,8 +231,8 @@ export function SupplierInvoicesList() {
         endpoint: "/purchase/supplier-invoices/export",
         params: listParams,
       });
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   }
 
@@ -513,8 +514,8 @@ export function SupplierInvoicesList() {
                                   try {
                                     await submitMutation.mutateAsync(row.id);
                                     toast.success(t("toast.submitted"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
+                                  } catch (error) {
+                                    toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                   }
                                 }}
                               >
@@ -530,8 +531,8 @@ export function SupplierInvoicesList() {
                                   try {
                                     await approveMutation.mutateAsync(row.id);
                                     toast.success(t("toast.approved"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
+                                  } catch (error) {
+                                    toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                   }
                                 }}
                               >
@@ -547,8 +548,8 @@ export function SupplierInvoicesList() {
                                   try {
                                     await rejectMutation.mutateAsync(row.id);
                                     toast.success(t("toast.rejected"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
+                                  } catch (error) {
+                                    toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                   }
                                 }}
                               >
@@ -564,8 +565,8 @@ export function SupplierInvoicesList() {
                                   try {
                                     await pendingMutation.mutateAsync(row.id);
                                     toast.success(t("toast.pending"));
-                                  } catch {
-                                    toast.error(t("toast.failed"));
+                                  } catch (error) {
+                                    toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                   }
                                 }}
                               >
@@ -593,8 +594,8 @@ export function SupplierInvoicesList() {
                                     try {
                                       await cancelMutation.mutateAsync(row.id);
                                       toast.success(t("toast.cancelled"));
-                                    } catch {
-                                      toast.error(t("toast.failed"));
+                                    } catch (error) {
+                                      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
                                     }
                                   }}
                                 >
@@ -737,8 +738,8 @@ export function SupplierInvoicesList() {
           try {
             await deleteMutation.mutateAsync(deletingRow.id);
             toast.success(t("toast.deleted"));
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
           } finally {
             setDeletingRow(null);
           }

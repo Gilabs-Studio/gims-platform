@@ -6,7 +6,13 @@ type ApiFieldError = {
 };
 
 type ApiErrorPayload = {
-  error?: {
+  code?: string;
+  details?: {
+    message?: string;
+    [key: string]: unknown;
+  };
+  error?: string | {
+    code?: string;
     message?: string;
     details?: {
       message?: string;
@@ -84,14 +90,15 @@ export function extractPurchaseFieldErrors(error: unknown): ApiFieldError[] {
       response?: { data?: ApiErrorPayload };
     }
   ).response?.data;
+  const nestedError = typeof responseData?.error === "object" ? responseData.error : undefined;
 
-  const fieldErrors = responseData?.error?.field_errors;
+  const fieldErrors = nestedError?.field_errors;
   if (Array.isArray(fieldErrors)) {
     return fieldErrors;
   }
 
-  const detailField = responseData?.error?.details?.field;
-  const detailMessage = responseData?.error?.details?.message;
+  const detailField = nestedError?.details?.field ?? responseData?.details?.field;
+  const detailMessage = nestedError?.details?.message ?? responseData?.details?.message;
   if (typeof detailField === "string" && detailField.trim().length > 0) {
     return [{
       field: detailField,
@@ -149,9 +156,12 @@ export function getPurchaseErrorMessage(error: unknown, fallback: string): strin
         response?: { data?: ApiErrorPayload };
       }
     ).response?.data;
+    const nestedError = typeof responseData?.error === "object" ? responseData.error : undefined;
+    const topLevelError = typeof responseData?.error === "string" ? responseData.error : undefined;
+    const topLevelDetails = responseData?.details;
 
     // Check for specific error codes from backend
-    const errorCode = (responseData?.error as Record<string, unknown>)?.code;
+    const errorCode = nestedError?.code ?? responseData?.code;
     if (typeof errorCode === "string" && errorCode) {
       const knownErrors: Record<string, string> = {
         QUANTITY_EXCEEDS_ORDER: "Received quantity exceeds the purchase order quantity.",
@@ -162,14 +172,14 @@ export function getPurchaseErrorMessage(error: unknown, fallback: string): strin
         THREE_WAY_MATCH_FAILED: "3-way matching failed. Price/quantity mismatch between PO, GR, and Invoice.",
       };
       if (knownErrors[errorCode]) {
-        const apiDetail = responseData?.error?.details?.message;
+        const apiDetail = topLevelError ?? nestedError?.details?.message ?? topLevelDetails?.message;
         return typeof apiDetail === "string" && apiDetail.trim().length > 0
           ? apiDetail
           : knownErrors[errorCode];
       }
     }
 
-    const fieldErrors = responseData?.error?.field_errors;
+    const fieldErrors = nestedError?.field_errors;
     if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
       const firstFieldError = fieldErrors[0];
       const field = getPurchaseFieldLabel(firstFieldError.field ?? "Field");
@@ -179,12 +189,12 @@ export function getPurchaseErrorMessage(error: unknown, fallback: string): strin
       }
     }
 
-    const detailMessage = responseData?.error?.details?.message;
+    const detailMessage = nestedError?.details?.message ?? topLevelDetails?.message;
     if (typeof detailMessage === "string" && detailMessage.trim().length > 0) {
       return detailMessage;
     }
 
-    const apiMessage = responseData?.error?.message;
+    const apiMessage = nestedError?.message ?? topLevelError;
     if (typeof apiMessage === "string" && apiMessage.trim().length > 0) {
       return apiMessage;
     }
@@ -213,7 +223,8 @@ export function isAccountingMappingError(error: unknown): boolean {
     }
   ).response?.data;
 
-  const errorCode = (responseData?.error as { code?: string } | undefined)?.code?.toUpperCase();
+  const nestedError = typeof responseData?.error === "object" ? responseData.error : undefined;
+  const errorCode = (nestedError?.code ?? responseData?.code)?.toUpperCase();
   if (errorCode) {
     const mappingCodes = ["MAPPING", "COA", "ACCOUNT", "SETTING"];
     if (mappingCodes.some((code) => errorCode.includes(code))) {
@@ -222,8 +233,10 @@ export function isAccountingMappingError(error: unknown): boolean {
   }
 
   const messages = [
-    responseData?.error?.message,
-    responseData?.error?.details?.message,
+    nestedError?.message,
+    nestedError?.details?.message,
+    typeof responseData?.error === "string" ? responseData.error : undefined,
+    responseData?.details?.message,
     responseData?.message,
   ]
     .filter((message): message is string => typeof message === "string")
