@@ -42,15 +42,16 @@ import (
 //
 // PRODUCTION SAFETY:
 // - This function is SAFE for production use
-// - Tables are NEVER dropped in production mode (ENV=production)
-// - Drop tables only happens in development mode when DROP_TABLES=true
-// - Multiple safety checks prevent accidental data loss
+// - Tables are NEVER dropped automatically on startup in any environment
+// - RUN_MIGRATIONS=true only applies forward-safe migrations and schema alignment
+// - Destructive resets must be triggered manually via explicit developer tooling
 // - No code changes needed for production deployment
 func AutoMigrate() error {
-	// Check if we should drop all tables (development only)
-	// This check has built-in production protection
+	// Startup migrations must remain non-destructive in all environments.
+	// Schema resets, if ever needed, must be invoked manually rather than as a side
+	// effect of RUN_MIGRATIONS=true.
 	if shouldDropTables() {
-		log.Println("Development mode: Dropping all tables...")
+		log.Println("Startup table drop request ignored: automatic destructive resets are disabled")
 		if err := DropAllTables(); err != nil {
 			return fmt.Errorf("failed to drop tables: %w", err)
 		}
@@ -1696,42 +1697,17 @@ func createSearchIndexes() error {
 	return nil
 }
 
-// shouldDropTables checks if we should drop all tables (development only)
-// This function ensures that tables are NEVER dropped in production mode
+// shouldDropTables is intentionally disabled for startup flows.
+// Automatic table drops are unsafe for both development and production-like
+// environments because RUN_MIGRATIONS may be enabled against real data.
 func shouldDropTables() bool {
-	// CRITICAL: Never drop tables in production
-	// Check both config and environment variable for safety
-	env := ""
-	if config.AppConfig != nil {
-		env = config.AppConfig.Server.Env
-	}
-
-	// Fallback to environment variable if config is not loaded yet
-	if env == "" {
-		env = os.Getenv("ENV")
-	}
-
-	// Safety check: Never allow in production
-	if env == "production" || env == "prod" {
-		log.Println("🔒 Production mode detected: Table drop is disabled (safety protection)")
-		return false
-	}
-
-	// Only allow dropping tables in development mode
-	// Check environment variable DROP_TABLES or DROP_ALL_TABLES (from package.json scripts)
 	dropTables := os.Getenv("DROP_TABLES")
 	if dropTables == "" {
 		dropTables = os.Getenv("DROP_ALL_TABLES")
 	}
 
 	if dropTables == "true" || dropTables == "1" {
-		// Double check: ensure we're not in production
-		if env == "" || env == "development" || env == "dev" {
-			log.Println("🔧 Development mode: Table drop is enabled")
-			return true
-		}
-		log.Printf("⚠️  Warning: DROP_TABLES is set but ENV=%s is not development. Skipping table drop.", env)
-		return false
+		log.Println("🔒 DROP_TABLES/DROP_ALL_TABLES ignored during startup. Use explicit manual reset tooling if a destructive schema reset is required.")
 	}
 	return false
 }
