@@ -526,6 +526,36 @@ func writePurchasePaymentBusinessError(c *gin.Context, err error) bool {
 			},
 		)
 		return true
+	case strings.Contains(message, "current transaction is aborted") || strings.Contains(message, "sqlstate 25p02"):
+		userMessage := "Payment could not be completed because a database transaction failed before the final posting step. Please retry the payment. If it happens again, contact support with the request ID."
+		response.StandardErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			response.ErrCodeInternalServerError,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"module":  "purchase",
+				"action":  "Retry the payment once. If the same error repeats, share the request ID with support for investigation.",
+			},
+		)
+		return true
+	case strings.Contains(message, "value too long for type character varying") || strings.Contains(message, "sqlstate 22001"):
+		userMessage := "Payment could not be completed because the cash/bank account schema in this environment is still using an older field length. Run the latest compatibility migration for bank accounts, then retry the payment."
+		response.StandardErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			response.ErrCodeInternalServerError,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"module":  "purchase",
+				"action":  "Apply the latest bank_accounts compatibility migration and retry the payment.",
+			},
+		)
+		return true
 	case strings.Contains(message, "lock") || strings.Contains(message, "deadlock") || strings.Contains(message, "concurrent") || strings.Contains(message, "serialization"):
 		userMessage := "Another process is updating this payment. Please refresh the data and try again."
 		response.StandardErrorResponse(

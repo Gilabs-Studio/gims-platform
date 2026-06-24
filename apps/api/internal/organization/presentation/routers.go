@@ -5,6 +5,10 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/jwt"
 	"github.com/gilabs/gims/api/internal/core/middleware"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
+	financeSettings "github.com/gilabs/gims/api/internal/finance/domain/financesettings"
+	financeMapper "github.com/gilabs/gims/api/internal/finance/domain/mapper"
+	financeDomainService "github.com/gilabs/gims/api/internal/finance/domain/service"
+	financeUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	orgRepositories "github.com/gilabs/gims/api/internal/organization/data/repositories"
 	"github.com/gilabs/gims/api/internal/organization/domain/service"
 	"github.com/gilabs/gims/api/internal/organization/domain/usecase"
@@ -44,9 +48,15 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 
 	// Core repositories
 	timezoneRepo := repositories.NewTimeZoneRepository(db)
+	financeSettingRepo := financeRepositories.NewFinanceSettingRepository(db)
+	systemAccountMappingRepo := financeRepositories.NewSystemAccountMappingRepository(db)
+	coaRepo := financeRepositories.NewChartOfAccountRepository(db)
 
 	// Initialize services
 	timezoneService := service.NewTimezoneService(timezoneRepo)
+	settingsService := financeSettings.NewSettingsService(financeSettingRepo, systemAccountMappingRepo)
+	coaUC := financeUsecase.NewChartOfAccountUsecase(db, coaRepo, financeMapper.NewChartOfAccountMapper())
+	companyFinanceBootstrapService := financeDomainService.NewCompanyFinanceBootstrapService(db, settingsService, coaUC)
 
 	// Initialize usecases
 	divisionUC := usecase.NewDivisionUsecase(divisionRepo)
@@ -59,7 +69,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	// Initialize outlets and warehouse repositories early for company cascade deactivation
 	outletRepo := orgRepositories.NewOutletRepository(db)
 	warehouseRepo := warehouseRepositories.NewWarehouseRepository(db)
-	companyUC := usecase.NewCompanyUsecase(companyRepo, outletRepo, warehouseRepo, timezoneService)
+	companyUC := usecase.NewCompanyUsecase(companyRepo, outletRepo, warehouseRepo, timezoneService, companyFinanceBootstrapService)
 	employeeUC := usecase.NewEmployeeUsecase(employeeRepo, employeeAreaRepo, employeeOutletRepo, employeeWarehouseRepo, divisionRepo, jobPositionRepo, companyRepo, areaRepo, outletRepo, warehouseRepo, employeeContractRepo, educationHistoryRepo, certificationRepo, assetRepo, signatureRepo, financeAssetRepo, auditLogRepo)
 
 	// Initialize handlers

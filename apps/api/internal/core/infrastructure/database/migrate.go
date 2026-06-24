@@ -121,7 +121,6 @@ func AutoMigrate() error {
 	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN payment_terms_name_snapshot TYPE varchar(150)`)
 	_ = DB.Exec(`ALTER TABLE supplier_invoice_items ALTER COLUMN product_code_snapshot TYPE varchar(50)`)
 	_ = DB.Exec(`ALTER TABLE supplier_invoice_items ALTER COLUMN product_name_snapshot TYPE varchar(200)`)
-
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		// SaaS: Tenant & System Admin tables (must come before domain tables)

@@ -31,6 +31,7 @@ type SystemAccountMappingUsecase interface {
 	List(ctx context.Context, companyID *string) ([]dto.SystemAccountMappingResponse, error)
 	GetByKey(ctx context.Context, key string, companyID *string) (*dto.SystemAccountMappingResponse, error)
 	Upsert(ctx context.Context, key, coaCode, label string, companyID *string) (*dto.SystemAccountMappingResponse, error)
+	BatchUpsert(ctx context.Context, mappings []dto.UpsertFinanceSettingRequest, companyID *string) ([]dto.SystemAccountMappingResponse, error)
 	Delete(ctx context.Context, key string, companyID *string) error
 }
 
@@ -161,6 +162,29 @@ func (uc *systemAccountMappingUsecase) Upsert(ctx context.Context, key, coaCode,
 	}
 
 	return uc.toResponse(ctx, *after)
+}
+
+func (uc *systemAccountMappingUsecase) BatchUpsert(ctx context.Context, mappings []dto.UpsertFinanceSettingRequest, companyID *string) ([]dto.SystemAccountMappingResponse, error) {
+	for _, mapping := range mappings {
+		key := strings.TrimSpace(mapping.SettingKey)
+		if key == "" {
+			continue
+		}
+
+		coaCode := strings.TrimSpace(mapping.Value)
+		if coaCode == "" {
+			if err := uc.Delete(ctx, key, companyID); err != nil && !errors.Is(err, ErrMappingNotConfigured) {
+				return nil, err
+			}
+			continue
+		}
+
+		if _, err := uc.Upsert(ctx, key, coaCode, mapping.Description, companyID); err != nil {
+			return nil, err
+		}
+	}
+
+	return uc.List(ctx, companyID)
 }
 
 func (uc *systemAccountMappingUsecase) Delete(ctx context.Context, key string, companyID *string) error {
