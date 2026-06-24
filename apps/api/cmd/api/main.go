@@ -329,7 +329,7 @@ func main() {
 	paymentMethodUC := tenantUsecase.NewPaymentMethodUsecase(paymentMethodRepo, xenditClient.NewClient(
 		func() string {
 			if config.AppConfig != nil {
-				return config.AppConfig.Xendit.SecretKey
+				return config.AppConfig.Xendit.BillingRecurringSecretKey
 			}
 			return ""
 		}(),

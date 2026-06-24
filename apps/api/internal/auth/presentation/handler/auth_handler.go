@@ -735,6 +735,8 @@ func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
 		switch {
 		case goerrors.Is(err, usecase.ErrPendingRegistrationNotFound):
 			errors.ErrorResponse(c, "PENDING_REGISTRATION_NOT_FOUND", nil, nil)
+		case goerrors.Is(err, usecase.ErrPendingRegistrationPaymentPending):
+			errors.ErrorResponse(c, "PENDING_REGISTRATION_PAYMENT_PENDING", nil, nil)
 		case goerrors.Is(err, usecase.ErrPendingRegistrationDataInvalid):
 			errors.ErrorResponse(c, "INVALID_PAYLOAD", nil, nil)
 		case goerrors.Is(err, usecase.ErrEmailAlreadyTaken):

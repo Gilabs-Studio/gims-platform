@@ -485,7 +485,7 @@ export function PricingSection() {
                             <Button
                               type="button"
                               variant={isSelected ? "default" : "outline"}
-                              onClick={() => router.push(`/checkout-demo?plan=${bundle.id}&users=${pricingUsers}&billing=${pricingBilling}`)}
+                              onClick={() => router.push(`/register?plan=${bundle.id}&users=${pricingUsers}&billing=${pricingBilling}`)}
                               className={cn(
                                 "h-9 w-full text-xs font-bold transition-all duration-300 sm:h-10 sm:text-sm cursor-pointer hover:-translate-y-0.5 active:translate-y-0 hover:shadow-lg hover:shadow-primary/30",
                                 isSelected ? "scale-[1.02] shadow-md ring-2 ring-primary/20" : "hover:scale-[1.01]",
@@ -558,7 +558,7 @@ export function PricingSection() {
                       <Button
                         type="button"
                         variant={isSelected ? "default" : "outline"}
-                        onClick={() => router.push(`/checkout-demo?plan=${plan.id}&users=${pricingUsers}&billing=${pricingBilling}`)}
+                        onClick={() => router.push(`/register?plan=${plan.id}&users=${pricingUsers}&billing=${pricingBilling}`)}
                         className="mt-3 h-9 text-xs font-semibold cursor-pointer hover:-translate-y-0.5 active:translate-y-0 hover:shadow-lg hover:shadow-primary/30"
                       >
                         {isSelected ? tRegister("selected") : t("pricing.selectModular")}

@@ -286,9 +286,9 @@
     },
     "registerSuccess": {
       "confirmingTitle": "Completing your registration...",
-      "confirmingDescription": "Your payment has been received. We are setting up your account.",
+      "confirmingDescription": "Waiting for Xendit payment confirmation. Your account will be created automatically after the initial payment succeeds.",
       "successTitle": "Payment confirmed!",
-      "successDescription": "Your account is ready. Redirecting to login page...",
+      "successDescription": "Your account is ready. Redirecting to your dashboard...",
       "failedTitle": "Registration could not be verified",
       "failedDescription": "We could not automatically verify your registration. Please contact support with the reference below.",
       "referenceLabel": "Reference",

@@ -154,6 +154,10 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusNotFound,
 		Message:    "Pending registration not found or already finalized",
 	},
+	"PENDING_REGISTRATION_PAYMENT_PENDING": {
+		HTTPStatus: http.StatusTooEarly,
+		Message:    "Payment is still being confirmed by the payment gateway",
+	},
 	"INVALID_PAYLOAD": {
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Invalid payload",

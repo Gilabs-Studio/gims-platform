@@ -36,30 +36,31 @@ import (
 )
 
 var (
-	ErrInvalidCredentials             = errors.New("invalid credentials")
-	ErrUserNotFound                   = errors.New("user not found")
-	ErrUserInactive                   = errors.New("user is inactive")
-	ErrRefreshTokenInvalid            = errors.New("refresh token is invalid")
-	ErrRefreshTokenRevoked            = errors.New("refresh token has been revoked")
-	ErrRefreshTokenExpired            = errors.New("refresh token has expired")
-	ErrEmailAlreadyTaken              = errors.New("email already registered")
-	ErrSlugAlreadyTaken               = errors.New("organization slug already taken")
-	ErrPaymentRequired                = errors.New("payment or valid coupon required to register")
-	ErrPaymentGatewayUnavailable      = errors.New("payment gateway is not configured")
-	ErrCouponInvalid                  = errors.New("coupon is invalid, inactive, or exhausted")
-	ErrCouponAlreadyUsed              = errors.New("coupon already used by this email")
-	ErrCouponUserLimitExceeded        = errors.New("coupon user limit exceeded")
-	ErrCompanyNameRequired            = errors.New("company name is required")
-	ErrPendingRegistrationNotFound    = errors.New("pending registration not found or expired")
-	ErrPendingRegistrationDataInvalid = errors.New("pending registration data is invalid")
-	ErrPendingBillingChangeNotFound   = errors.New("pending billing change not found or expired")
-	ErrPendingBillingChangeInvalid    = errors.New("pending billing change data is invalid")
-	ErrBillingChangeUnsupported       = errors.New("billing change action is not supported")
-	ErrSeatLimitExceeded              = errors.New("seat limit exceeded")
-	ErrSubscriptionSuspended          = errors.New("subscription access is suspended")
-	ErrSubscriptionNotFound           = errors.New("no active subscription found")
-	ErrSubscriptionAlreadyCancelled   = errors.New("subscription is already cancelled")
-	ErrToSAgreementRequired           = errors.New("must agree to the Terms of Service and Privacy Policy")
+	ErrInvalidCredentials                = errors.New("invalid credentials")
+	ErrUserNotFound                      = errors.New("user not found")
+	ErrUserInactive                      = errors.New("user is inactive")
+	ErrRefreshTokenInvalid               = errors.New("refresh token is invalid")
+	ErrRefreshTokenRevoked               = errors.New("refresh token has been revoked")
+	ErrRefreshTokenExpired               = errors.New("refresh token has expired")
+	ErrEmailAlreadyTaken                 = errors.New("email already registered")
+	ErrSlugAlreadyTaken                  = errors.New("organization slug already taken")
+	ErrPaymentRequired                   = errors.New("payment or valid coupon required to register")
+	ErrPaymentGatewayUnavailable         = errors.New("payment gateway is not configured")
+	ErrCouponInvalid                     = errors.New("coupon is invalid, inactive, or exhausted")
+	ErrCouponAlreadyUsed                 = errors.New("coupon already used by this email")
+	ErrCouponUserLimitExceeded           = errors.New("coupon user limit exceeded")
+	ErrCompanyNameRequired               = errors.New("company name is required")
+	ErrPendingRegistrationNotFound       = errors.New("pending registration not found or expired")
+	ErrPendingRegistrationDataInvalid    = errors.New("pending registration data is invalid")
+	ErrPendingRegistrationPaymentPending = errors.New("pending registration payment has not been confirmed")
+	ErrPendingBillingChangeNotFound      = errors.New("pending billing change not found or expired")
+	ErrPendingBillingChangeInvalid       = errors.New("pending billing change data is invalid")
+	ErrBillingChangeUnsupported          = errors.New("billing change action is not supported")
+	ErrSeatLimitExceeded                 = errors.New("seat limit exceeded")
+	ErrSubscriptionSuspended             = errors.New("subscription access is suspended")
+	ErrSubscriptionNotFound              = errors.New("no active subscription found")
+	ErrSubscriptionAlreadyCancelled      = errors.New("subscription is already cancelled")
+	ErrToSAgreementRequired              = errors.New("must agree to the Terms of Service and Privacy Policy")
 )
 
 // pendingRegTTL is how long a pending (awaiting payment) registration is kept in Redis.
@@ -80,22 +81,26 @@ const masterDataMenuPrefix = "/master-data"
 
 // PendingRegistration is the Redis payload for a registration that awaits Xendit payment.
 type PendingRegistration struct {
-	Name           string `json:"name"`
-	Email          string `json:"email"`
-	HashedPwd      string `json:"hashed_pwd"`
-	CompanyName    string `json:"company_name"`
-	Plan           string `json:"plan"`
-	BillingPeriod  string `json:"billing_period"`
-	UserCount      int    `json:"user_count"`
-	InvoiceID      string `json:"invoice_id"`
-	CouponCode     string `json:"coupon_code,omitempty"`
-	ReferralCode   string `json:"referral_code,omitempty"`
-	AmountPaid     int64  `json:"amount_paid"`
-	CreatedAt      string `json:"created_at"`
-	AgreeToS       bool   `json:"agree_tos"`
-	AgreeMarketing bool   `json:"agree_marketing"`
-	IPAddress      string `json:"ip_address"`
-	UserAgent      string `json:"user_agent"`
+	Name                 string `json:"name"`
+	Email                string `json:"email"`
+	HashedPwd            string `json:"hashed_pwd"`
+	CompanyName          string `json:"company_name"`
+	Plan                 string `json:"plan"`
+	BillingPeriod        string `json:"billing_period"`
+	UserCount            int    `json:"user_count"`
+	InvoiceID            string `json:"invoice_id"`
+	PaymentSessionID     string `json:"payment_session_id,omitempty"`
+	PaymentTokenID       string `json:"payment_token_id,omitempty"`
+	RecurringReferenceID string `json:"recurring_reference_id,omitempty"`
+	RecurringPlanID      string `json:"recurring_plan_id,omitempty"`
+	CouponCode           string `json:"coupon_code,omitempty"`
+	ReferralCode         string `json:"referral_code,omitempty"`
+	AmountPaid           int64  `json:"amount_paid"`
+	CreatedAt            string `json:"created_at"`
+	AgreeToS             bool   `json:"agree_tos"`
+	AgreeMarketing       bool   `json:"agree_marketing"`
+	IPAddress            string `json:"ip_address"`
+	UserAgent            string `json:"user_agent"`
 }
 
 // RegisterTenantResult wraps the two possible outcomes of RegisterTenant:
@@ -125,6 +130,7 @@ type AuthUsecase interface {
 	// HandleRecurringRenewal is called by the Xendit webhook when a recurring invoice
 	// is paid. It extends the tenant's subscription next billing date.
 	HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string, amountIDR int64) error
+	LinkRecurringSubscription(ctx context.Context, referenceID, recurringPlanID, paymentSessionID, paymentTokenID, recurringStatus string) error
 	HandlePaymentRefund(ctx context.Context, xenditInvoiceID, reason string) error
 	// CreateBillingChangeInvoice creates a Xendit invoice for a seat/plan change and
 	// stores the pending mutation until the payment webhook confirms it.
@@ -168,7 +174,7 @@ func NewAuthUsecase(
 	var xc *xenditClient.Client
 	if config.AppConfig != nil {
 		xc = xenditClient.NewClient(
-			config.AppConfig.Xendit.SecretKey,
+			strings.TrimSpace(config.AppConfig.Xendit.BillingRecurringSecretKey),
 			config.AppConfig.Xendit.BaseURL,
 		)
 	}
@@ -735,18 +741,84 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 		frontendBaseURL = config.AppConfig.Server.FrontendBaseURL
 	}
 
-	invoice, err := u.xendit.CreateInvoice(ctx, xenditClient.CreateInvoiceRequest{
-		ExternalID:         token,
-		Amount:             finalAmount,
-		PayerEmail:         req.Email,
-		Description:        fmt.Sprintf("GIMS %s (%s) for %d user(s) — %s", req.Plan, billingPeriod, userCount, companyName),
-		SuccessRedirectURL: frontendBaseURL + "/register/success?token=" + token,
-		FailureRedirectURL: frontendBaseURL + "/register?status=failed",
-		Currency:           "IDR",
-		InvoiceDuration:    86400,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create payment invoice: %w", err)
+	checkoutURL := ""
+	checkoutID := ""
+	checkoutType := "invoice"
+	expiresAt := apptime.Now().Add(24 * time.Hour)
+	paymentSessionID := ""
+	paymentTokenID := ""
+	recurringReferenceID := ""
+
+	if u.shouldUseRecurringSessions(frontendBaseURL) {
+		recurringReferenceID = token
+		session, err := u.xendit.CreatePaymentSession(ctx, xenditClient.CreatePaymentSessionRequest{
+			ReferenceID: recurringReferenceID,
+			SessionType: "SUBSCRIPTION",
+			Mode:        "PAYMENT_LINK",
+			Amount:      finalAmount,
+			Currency:    "IDR",
+			Country:     "ID",
+			Customer: xenditClient.PaymentSessionCustomerDetails{
+				ReferenceID: xenditSafeReference("cust", token),
+				Type:        "INDIVIDUAL",
+				Email:       req.Email,
+				IndividualDetail: xenditClient.PaymentSessionIndividualDetail{
+					GivenNames: sanitizeXenditName(req.Name),
+				},
+			},
+			Locale:      "id",
+			Description: fmt.Sprintf("GIMS %s (%s) for %d user(s) - %s", req.Plan, billingPeriod, userCount, companyName),
+			Subscription: &xenditClient.PaymentSessionSubscription{
+				Schedule: xenditClient.PaymentSessionSubscriptionSchedule{
+					Interval:                    "MONTH",
+					IntervalCount:               xenditIntervalCount(billingPeriod),
+					AnchorDate:                  xenditAnchorDate(apptime.Now()),
+					RetryInterval:               "DAY",
+					RetryIntervalCount:          1,
+					TotalRetry:                  3,
+					PaymentLinkForFailedAttempt: true,
+				},
+				FailedCycleAction: "RESUME",
+				ImmediatePayment:  true,
+			},
+			SuccessReturnURL:     frontendBaseURL + "/register/success?token=" + token,
+			CancelReturnURL:      frontendBaseURL + "/register?status=failed",
+			NotificationChannels: []string{"EMAIL"},
+			Metadata: map[string]interface{}{
+				"tenant_registration_token": token,
+				"plan":                      req.Plan,
+				"billing_period":            billingPeriod,
+				"user_count":                userCount,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Xendit subscription session: %w", err)
+		}
+		if strings.TrimSpace(session.PaymentSessionID) == "" || strings.TrimSpace(session.PaymentLinkURL) == "" {
+			return nil, fmt.Errorf("failed to create Xendit subscription session: incomplete payment session response")
+		}
+		checkoutURL = session.PaymentLinkURL
+		checkoutID = session.PaymentSessionID
+		checkoutType = "recurring_session"
+		paymentSessionID = session.PaymentSessionID
+		paymentTokenID = session.PaymentTokenID
+	} else {
+		invoice, err := u.xendit.CreateInvoice(ctx, xenditClient.CreateInvoiceRequest{
+			ExternalID:         token,
+			Amount:             finalAmount,
+			PayerEmail:         req.Email,
+			Description:        fmt.Sprintf("GIMS %s (%s) for %d user(s) - %s", req.Plan, billingPeriod, userCount, companyName),
+			SuccessRedirectURL: frontendBaseURL + "/register/success?token=" + token,
+			FailureRedirectURL: frontendBaseURL + "/register?status=failed",
+			Currency:           "IDR",
+			InvoiceDuration:    86400,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create payment invoice: %w", err)
+		}
+		checkoutURL = invoice.InvoiceURL
+		checkoutID = invoice.ID
+		expiresAt = invoice.ExpiryDate
 	}
 
 	// Persist pending registration in Redis with a 24-hour TTL.
@@ -760,22 +832,25 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	}
 
 	pending := PendingRegistration{
-		Name:           req.Name,
-		Email:          req.Email,
-		HashedPwd:      string(hashed),
-		CompanyName:    companyName,
-		Plan:           req.Plan,
-		BillingPeriod:  billingPeriod,
-		UserCount:      userCount,
-		InvoiceID:      invoice.ID,
-		CouponCode:     couponCode,
-		ReferralCode:   req.ReferralCode,
-		AmountPaid:     finalAmount,
-		CreatedAt:      apptime.Now().Format(time.RFC3339),
-		AgreeToS:       req.AgreeToS,
-		AgreeMarketing: req.AgreeMarketing,
-		IPAddress:      ipAddr,
-		UserAgent:      ua,
+		Name:                 req.Name,
+		Email:                req.Email,
+		HashedPwd:            string(hashed),
+		CompanyName:          companyName,
+		Plan:                 req.Plan,
+		BillingPeriod:        billingPeriod,
+		UserCount:            userCount,
+		InvoiceID:            checkoutID,
+		PaymentSessionID:     paymentSessionID,
+		PaymentTokenID:       paymentTokenID,
+		RecurringReferenceID: recurringReferenceID,
+		CouponCode:           couponCode,
+		ReferralCode:         req.ReferralCode,
+		AmountPaid:           finalAmount,
+		CreatedAt:            apptime.Now().Format(time.RFC3339),
+		AgreeToS:             req.AgreeToS,
+		AgreeMarketing:       req.AgreeMarketing,
+		IPAddress:            ipAddr,
+		UserAgent:            ua,
 	}
 	pendingJSON, err := json.Marshal(pending)
 	if err != nil {
@@ -788,9 +863,12 @@ func (u *authUsecase) initPaidRegistration(ctx context.Context, req *dto.Registe
 	return &RegisterTenantResult{
 		RequiresPayment: true,
 		InvoiceResponse: &dto.RegisterInitResponse{
-			InvoiceURL: invoice.InvoiceURL,
-			InvoiceID:  invoice.ID,
-			ExpiresAt:  invoice.ExpiryDate.Format(time.RFC3339),
+			InvoiceURL:       checkoutURL,
+			InvoiceID:        checkoutID,
+			CheckoutURL:      checkoutURL,
+			CheckoutType:     checkoutType,
+			PaymentSessionID: paymentSessionID,
+			ExpiresAt:        expiresAt.Format(time.RFC3339),
 		},
 	}, nil
 }
@@ -842,17 +920,18 @@ func (u *authUsecase) simulatePaidRegistrationWithoutXendit(ctx context.Context,
 	}
 	xenditInvoiceID := fmt.Sprintf("dev-paid-%d", now.UnixNano())
 	sub := &tenantModels.TenantSubscription{
-		TenantID:      tenantID,
-		Plan:          tenantModels.SubscriptionPlan(req.Plan),
-		BillingPeriod: tenantModels.SubscriptionBillingPeriod(billingPeriod),
-		Status:        tenantModels.SubscriptionActive,
-		StartsAt:      now,
-		ExpiresAt:     &nextBilling,
-		AmountPaidIDR: finalAmount,
-		UserCount:     userCount,
-		SeatLimit:     userCount,
-		NextBillingAt: &nextBilling,
-		Notes:         fmt.Sprintf("DEV simulated paid registration %s", xenditInvoiceID),
+		TenantID:         tenantID,
+		Plan:             tenantModels.SubscriptionPlan(req.Plan),
+		BillingPeriod:    tenantModels.SubscriptionBillingPeriod(billingPeriod),
+		Status:           tenantModels.SubscriptionActive,
+		StartsAt:         now,
+		ExpiresAt:        &nextBilling,
+		AmountPaidIDR:    finalAmount,
+		RenewalAmountIDR: finalAmount,
+		UserCount:        userCount,
+		SeatLimit:        userCount,
+		NextBillingAt:    &nextBilling,
+		Notes:            fmt.Sprintf("DEV simulated paid registration %s", xenditInvoiceID),
 	}
 	if err := u.ensureSubscriptionRecord(ctx, sub); err != nil {
 		return nil, err
@@ -896,6 +975,76 @@ func (u *authUsecase) resolvePlanPrice(ctx context.Context, planSlug, billingPer
 	return plan.TotalPriceIDR(billingPeriod, userCount), nil
 }
 
+func (u *authUsecase) shouldUseRecurringSessions(frontendBaseURL string) bool {
+	if config.AppConfig == nil || !config.AppConfig.Xendit.UseRecurringSessions {
+		return false
+	}
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(frontendBaseURL)), "https://")
+}
+
+func xenditIntervalCount(billingPeriod string) int {
+	if strings.EqualFold(strings.TrimSpace(billingPeriod), "yearly") {
+		return 12
+	}
+	return 1
+}
+
+func xenditAnchorDate(now time.Time) string {
+	anchor := now.UTC().Add(5 * time.Minute)
+	if anchor.Day() > 28 {
+		anchor = time.Date(anchor.Year(), anchor.Month()+1, 1, anchor.Hour(), anchor.Minute(), anchor.Second(), 0, time.UTC)
+	}
+	return anchor.Format(time.RFC3339)
+}
+
+func xenditSafeReference(prefix, token string) string {
+	cleaned := strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' {
+			return r
+		}
+		if r >= 'A' && r <= 'Z' {
+			return r
+		}
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, prefix+token)
+	if cleaned == "" {
+		return "gims"
+	}
+	if len(cleaned) > 64 {
+		return cleaned[:64]
+	}
+	return cleaned
+}
+
+func sanitizeXenditName(value string) string {
+	cleaned := strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' {
+			return r
+		}
+		if r >= 'A' && r <= 'Z' {
+			return r
+		}
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		if r == ' ' {
+			return r
+		}
+		return -1
+	}, strings.TrimSpace(value))
+	cleaned = strings.Join(strings.Fields(cleaned), " ")
+	if cleaned == "" {
+		return "Customer"
+	}
+	if len(cleaned) > 50 {
+		return cleaned[:50]
+	}
+	return cleaned
+}
+
 // handleZeroAmountCouponRegistration routes a discount coupon that results in 0 IDR
 // through the coupon (trial) provisioning path instead of creating a payment invoice.
 func (u *authUsecase) handleZeroAmountCouponRegistration(ctx context.Context, req *dto.RegisterTenantRequest, couponCode string) (*RegisterTenantResult, error) {
@@ -917,15 +1066,15 @@ func (u *authUsecase) handleZeroAmountCouponRegistration(ctx context.Context, re
 // payment. It retrieves the pending registration from Redis, provisions the tenant,
 // and creates the paid TenantSubscription record.
 func (u *authUsecase) CompletePendingRegistration(ctx context.Context, token string) error {
-	_, err := u.completePendingRegistrationInternal(ctx, token)
+	_, err := u.completePendingRegistrationInternal(ctx, token, false)
 	return err
 }
 
 func (u *authUsecase) ConfirmPendingRegistration(ctx context.Context, token string) (*dto.LoginResponse, error) {
-	return u.completePendingRegistrationInternal(ctx, token)
+	return u.completePendingRegistrationInternal(ctx, token, true)
 }
 
-func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, token string) (*dto.LoginResponse, error) {
+func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, token string, requireRecurringPaymentConfirmed bool) (*dto.LoginResponse, error) {
 	if u.redis == nil {
 		return nil, ErrPendingRegistrationNotFound
 	}
@@ -947,6 +1096,9 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 	var pending PendingRegistration
 	if err := json.Unmarshal([]byte(val), &pending); err != nil {
 		return nil, ErrPendingRegistrationDataInvalid
+	}
+	if requireRecurringPaymentConfirmed && strings.TrimSpace(pending.PaymentSessionID) != "" {
+		return nil, ErrPendingRegistrationPaymentPending
 	}
 
 	// Provision tenant using the stored data.
@@ -1001,6 +1153,9 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		nextBilling = now.AddDate(1, 0, 0)
 	}
 	xenditInvoiceID := pending.InvoiceID
+	xenditPaymentSessionID := pending.PaymentSessionID
+	xenditPaymentTokenID := pending.PaymentTokenID
+	recurringReferenceID := pending.RecurringReferenceID
 	userCount := pending.UserCount
 	if userCount < 1 {
 		userCount = 1
@@ -1039,19 +1194,31 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		}
 	}
 	sub := &tenantModels.TenantSubscription{
-		TenantID:        tenantID,
-		Plan:            tenantModels.SubscriptionPlan(pending.Plan),
-		BillingPeriod:   tenantModels.SubscriptionBillingPeriod(pending.BillingPeriod),
-		Status:          tenantModels.SubscriptionActive,
-		StartsAt:        now,
-		ExpiresAt:       &nextBilling,
-		AmountPaidIDR:   pending.AmountPaid,
-		UserCount:       userCount,
-		SeatLimit:       userCount,
-		CouponID:        couponID,
-		XenditInvoiceID: &xenditInvoiceID,
-		NextBillingAt:   &nextBilling,
-		Notes:           fmt.Sprintf("Paid via Xendit invoice %s", xenditInvoiceID),
+		TenantID:         tenantID,
+		Plan:             tenantModels.SubscriptionPlan(pending.Plan),
+		BillingPeriod:    tenantModels.SubscriptionBillingPeriod(pending.BillingPeriod),
+		Status:           tenantModels.SubscriptionActive,
+		StartsAt:         now,
+		ExpiresAt:        &nextBilling,
+		AmountPaidIDR:    pending.AmountPaid,
+		UserCount:        userCount,
+		SeatLimit:        userCount,
+		CouponID:         couponID,
+		XenditInvoiceID:  &xenditInvoiceID,
+		NextBillingAt:    &nextBilling,
+		RenewalAmountIDR: pending.AmountPaid,
+		Notes:            fmt.Sprintf("Paid via Xendit invoice %s", xenditInvoiceID),
+	}
+	if strings.TrimSpace(xenditPaymentSessionID) != "" {
+		sub.XenditPaymentSessionID = &xenditPaymentSessionID
+		sub.RecurringStatus = "pending_activation"
+		sub.Notes = fmt.Sprintf("Paid via Xendit recurring session %s", xenditPaymentSessionID)
+	}
+	if strings.TrimSpace(xenditPaymentTokenID) != "" {
+		sub.XenditPaymentTokenID = &xenditPaymentTokenID
+	}
+	if strings.TrimSpace(recurringReferenceID) != "" {
+		sub.RecurringReferenceID = &recurringReferenceID
 	}
 	if pending.CouponCode != "" {
 		sub.Notes += fmt.Sprintf(" (coupon: %s)", pending.CouponCode)
@@ -1077,6 +1244,7 @@ func (u *authUsecase) completePendingRegistrationInternal(ctx context.Context, t
 		Status:            tenantModels.PaymentStatusPaid,
 		AmountIDR:         pending.AmountPaid,
 		ProviderInvoiceID: pending.InvoiceID,
+		ProviderPaymentID: pending.PaymentSessionID,
 		Description:       fmt.Sprintf("Subscription payment for %s (%s)", pending.Plan, pending.BillingPeriod),
 		PaidAt:            &now,
 		InvoiceURL:        "",
@@ -1223,6 +1391,30 @@ func (u *authUsecase) ensureSubscriptionRecord(ctx context.Context, sub *tenantM
 			return nil
 		}
 	}
+	if sub.XenditPaymentSessionID != nil && strings.TrimSpace(*sub.XenditPaymentSessionID) != "" {
+		var sessionCount int64
+		if err := u.db.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Where("xendit_payment_session_id = ? AND deleted_at IS NULL", *sub.XenditPaymentSessionID).
+			Count(&sessionCount).Error; err != nil {
+			return err
+		}
+		if sessionCount > 0 {
+			return nil
+		}
+	}
+	if sub.RecurringReferenceID != nil && strings.TrimSpace(*sub.RecurringReferenceID) != "" {
+		var referenceCount int64
+		if err := u.db.WithContext(ctx).
+			Table("tenant_subscriptions").
+			Where("recurring_reference_id = ? AND deleted_at IS NULL", *sub.RecurringReferenceID).
+			Count(&referenceCount).Error; err != nil {
+			return err
+		}
+		if referenceCount > 0 {
+			return nil
+		}
+	}
 
 	return u.db.WithContext(ctx).Create(sub).Error
 }
@@ -1231,13 +1423,22 @@ func (u *authUsecase) ensureSubscriptionRecord(ctx context.Context, sub *tenantM
 // invoice is paid. It locates the TenantSubscription by XenditInvoiceID and advances
 // the next billing date by one billing cycle.
 func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceID string, amountIDR int64) error {
+	identifier := strings.TrimSpace(xenditInvoiceID)
+	if identifier == "" {
+		return errors.New("missing recurring renewal identifier")
+	}
 	var sub tenantModels.TenantSubscription
 	err := u.db.WithContext(ctx).
-		Where("xendit_invoice_id = ? AND deleted_at IS NULL", xenditInvoiceID).
+		Where(`deleted_at IS NULL AND (
+			xendit_invoice_id = ? OR
+			xendit_payment_session_id = ? OR
+			xendit_recurring_plan_id = ? OR
+			recurring_reference_id = ?
+		)`, identifier, identifier, identifier, identifier).
 		First(&sub).Error
 	if err != nil {
 		// No matching subscription — this may be a new-registration invoice, not a renewal.
-		return fmt.Errorf("subscription not found for invoice %s", xenditInvoiceID)
+		return fmt.Errorf("subscription not found for recurring identifier %s", identifier)
 	}
 
 	now := apptime.Now()
@@ -1246,7 +1447,10 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 		nextBilling = now.AddDate(1, 0, 0)
 	}
 	if amountIDR <= 0 {
-		amountIDR = sub.AmountPaidIDR
+		amountIDR = sub.RenewalAmountIDR
+		if amountIDR <= 0 {
+			amountIDR = sub.AmountPaidIDR
+		}
 	}
 	paymentTxn := &tenantModels.PaymentTransaction{
 		TenantID:          sub.TenantID,
@@ -1254,12 +1458,13 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 		Provider:          tenantModels.PaymentProviderXendit,
 		Status:            tenantModels.PaymentStatusPaid,
 		AmountIDR:         amountIDR,
-		ProviderInvoiceID: xenditInvoiceID,
+		ProviderInvoiceID: identifier,
+		ProviderPaymentID: identifier,
 		Description:       fmt.Sprintf("Recurring subscription renewal for %s (%s)", sub.Plan, sub.BillingPeriod),
 		PaidAt:            &now,
 		Metadata:          "{}",
 	}
-	if err := u.db.WithContext(ctx).Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, xenditInvoiceID).FirstOrCreate(paymentTxn).Error; err != nil {
+	if err := u.db.WithContext(ctx).Where("provider = ? AND provider_invoice_id = ? AND deleted_at IS NULL", tenantModels.PaymentProviderXendit, identifier).FirstOrCreate(paymentTxn).Error; err != nil {
 		return err
 	}
 
@@ -1267,13 +1472,76 @@ func (u *authUsecase) HandleRecurringRenewal(ctx context.Context, xenditInvoiceI
 		Model(&tenantModels.TenantSubscription{}).
 		Where("id = ?", sub.ID).
 		Updates(map[string]interface{}{
-			"next_billing_at": nextBilling,
-			"expires_at":      nextBilling,
-			"status":          tenantModels.SubscriptionActive,
+			"next_billing_at":         nextBilling,
+			"expires_at":              nextBilling,
+			"status":                  tenantModels.SubscriptionActive,
+			"amount_paid_idr":         amountIDR,
+			"renewal_amount_idr":      amountIDR,
+			"recurring_status":        "active",
+			"last_recurring_event_id": identifier,
 		}).Error; err != nil {
 		return err
 	}
 	u.createReferralCommissionBestEffort(ctx, paymentTxn.ID)
+	return nil
+}
+
+func (u *authUsecase) LinkRecurringSubscription(ctx context.Context, referenceID, recurringPlanID, paymentSessionID, paymentTokenID, recurringStatus string) error {
+	referenceID = strings.TrimSpace(referenceID)
+	recurringPlanID = strings.TrimSpace(recurringPlanID)
+	paymentSessionID = strings.TrimSpace(paymentSessionID)
+	paymentTokenID = strings.TrimSpace(paymentTokenID)
+	recurringStatus = strings.TrimSpace(recurringStatus)
+
+	updates := map[string]interface{}{}
+	if recurringPlanID != "" {
+		updates["xendit_recurring_plan_id"] = recurringPlanID
+	}
+	if paymentSessionID != "" {
+		updates["xendit_payment_session_id"] = paymentSessionID
+	}
+	if paymentTokenID != "" {
+		updates["xendit_payment_token_id"] = paymentTokenID
+	}
+	if referenceID != "" {
+		updates["recurring_reference_id"] = referenceID
+	}
+	if recurringStatus != "" {
+		updates["recurring_status"] = recurringStatus
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+
+	conditions := make([]string, 0, 4)
+	args := make([]interface{}, 0, 4)
+	if referenceID != "" {
+		conditions = append(conditions, "recurring_reference_id = ?")
+		args = append(args, referenceID)
+	}
+	if paymentSessionID != "" {
+		conditions = append(conditions, "xendit_payment_session_id = ?", "xendit_invoice_id = ?")
+		args = append(args, paymentSessionID, paymentSessionID)
+	}
+	if recurringPlanID != "" {
+		conditions = append(conditions, "xendit_recurring_plan_id = ?")
+		args = append(args, recurringPlanID)
+	}
+	if len(conditions) == 0 {
+		return nil
+	}
+
+	result := u.db.WithContext(ctx).
+		Model(&tenantModels.TenantSubscription{}).
+		Where("deleted_at IS NULL").
+		Where("("+strings.Join(conditions, " OR ")+")", args...).
+		Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrPendingRegistrationNotFound
+	}
 	return nil
 }
 

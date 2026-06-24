@@ -140,8 +140,8 @@ Apply after `AuthMiddleware` on all `/api/v1/*` routes:
 
 - **Provider:** Xendit (https://xendit.co)
 - **Flow:** Create Invoice → Redirect user → Webhook on payment success → Create TenantSubscription
-- **Webhook endpoint:** `POST /api/v1/webhooks/xendit/payment` (to be implemented)
-- **Security:** Verify `X-CALLBACK-TOKEN` header against `XENDIT_WEBHOOK_TOKEN` env var
+- **Webhook endpoint:** `POST /api/v1/webhooks/xendit/invoice`
+- **Security:** Verify `X-CALLBACK-TOKEN` header against `XENDIT_BILLING_WEBHOOK_TOKEN` env var
 - **Models:** `XenditPaymentID` and `XenditInvoiceID` fields already present on `TenantSubscription`
 
 ### Implementation steps:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	posModels "github.com/gilabs/gims/api/internal/pos/data/models"
@@ -41,9 +42,15 @@ func (u *xenditConfigUsecase) Get(ctx context.Context, companyID string) (*dto.X
 	cfg, err := u.repo.FindByCompanyID(ctx, companyID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if platformXenditMoneyInSecretKey() != "" {
+				return platformManagedXenditConfigResponse(companyID), nil
+			}
 			return nil, ErrXenditConfigNotFound
 		}
 		return nil, err
+	}
+	if !cfg.IsConnected() && platformXenditMoneyInSecretKey() != "" {
+		return platformManagedXenditConfigResponse(companyID), nil
 	}
 	return mapper.ToXenditConfigResponse(cfg), nil
 }
@@ -52,6 +59,14 @@ func (u *xenditConfigUsecase) GetConnectionStatus(ctx context.Context, companyID
 	cfg, err := u.repo.FindByCompanyID(ctx, companyID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if platformXenditMoneyInSecretKey() != "" {
+				return &dto.XenditConnectionStatusResponse{
+					IsConnected:       true,
+					Status:            string(posModels.XenditStatusConnected),
+					ProviderMode:      xenditProviderModePlatformManaged,
+					ManagedByPlatform: true,
+				}, nil
+			}
 			return &dto.XenditConnectionStatusResponse{
 				IsConnected: false,
 				Status:      string(posModels.XenditStatusNotConnected),
@@ -59,10 +74,36 @@ func (u *xenditConfigUsecase) GetConnectionStatus(ctx context.Context, companyID
 		}
 		return nil, err
 	}
+	if !cfg.IsConnected() && platformXenditMoneyInSecretKey() != "" {
+		return &dto.XenditConnectionStatusResponse{
+			IsConnected:       true,
+			Status:            string(posModels.XenditStatusConnected),
+			ProviderMode:      xenditProviderModePlatformManaged,
+			ManagedByPlatform: true,
+		}, nil
+	}
 	return &dto.XenditConnectionStatusResponse{
-		IsConnected: cfg.IsConnected(),
-		Status:      string(cfg.ConnectionStatus),
+		IsConnected:       cfg.IsConnected(),
+		Status:            string(cfg.ConnectionStatus),
+		ProviderMode:      xenditProviderModeMerchantConfig,
+		ManagedByPlatform: false,
 	}, nil
+}
+
+func platformManagedXenditConfigResponse(companyID string) *dto.XenditConfigResponse {
+	environment := "production"
+	if strings.Contains(strings.ToLower(platformXenditMoneyInSecretKey()), "development") {
+		environment = "sandbox"
+	}
+	return &dto.XenditConfigResponse{
+		CompanyID:         strings.TrimSpace(companyID),
+		BusinessName:      "GIMS Managed Xendit",
+		Environment:       environment,
+		ConnectionStatus:  string(posModels.XenditStatusConnected),
+		IsActive:          true,
+		ProviderMode:      xenditProviderModePlatformManaged,
+		ManagedByPlatform: true,
+	}
 }
 
 func (u *xenditConfigUsecase) TestConnection(ctx context.Context, req *dto.TestXenditConnectionRequest) (*dto.TestXenditConnectionResponse, error) {

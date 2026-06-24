@@ -175,10 +175,12 @@ func (u *authUsecase) CompletePendingBillingChange(ctx context.Context, token st
 		}
 
 		updates := map[string]any{
-			"seat_limit":        pending.NewSeatLimit,
-			"outlet_limit":      pending.NewOutletLimit,
-			"user_count":        pending.NewSeatLimit,
-			"xendit_invoice_id": pending.InvoiceID,
+			"seat_limit":                 pending.NewSeatLimit,
+			"outlet_limit":               pending.NewOutletLimit,
+			"user_count":                 pending.NewSeatLimit,
+			"xendit_invoice_id":          pending.InvoiceID,
+			"renewal_amount_idr":         pending.NewAmount,
+			"pending_renewal_amount_idr": nil,
 		}
 		if amountColumn, colErr := u.resolveTenantSubscriptionAmountColumn(ctx); colErr != nil {
 			return colErr
@@ -601,9 +603,11 @@ func (u *authUsecase) buildBillingChange(ctx context.Context, req *tenantDTO.Bil
 func (u *authUsecase) applyBillingChangeImmediately(ctx context.Context, snapshot *billingSubscriptionSnapshot, decision *billingChangeDecision, couponDecision couponApplicationDecision) error {
 	return u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		updates := map[string]any{
-			"seat_limit":   decision.NewSeatLimit,
-			"outlet_limit": decision.NewOutletLimit,
-			"user_count":   decision.NewSeatLimit,
+			"seat_limit":                 decision.NewSeatLimit,
+			"outlet_limit":               decision.NewOutletLimit,
+			"user_count":                 decision.NewSeatLimit,
+			"renewal_amount_idr":         decision.NewAmountPerCycle,
+			"pending_renewal_amount_idr": nil,
 		}
 		if amountColumn, colErr := u.resolveTenantSubscriptionAmountColumn(ctx); colErr != nil {
 			return colErr

@@ -13,6 +13,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	coreRepos "github.com/gilabs/gims/api/internal/core/data/repositories"
+	coreConfig "github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	coreDatabase "github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	securityInfra "github.com/gilabs/gims/api/internal/core/infrastructure/security"
 	loyaltyDTO "github.com/gilabs/gims/api/internal/loyalty/domain/dto"
@@ -83,6 +84,18 @@ func (u *posPaymentUsecase) WithPOSHub(hub POSHubPublisher) *posPaymentUsecase {
 
 const maxXenditDescriptionLen = 200
 
+const (
+	xenditProviderModeMerchantConfig  = "merchant_config"
+	xenditProviderModePlatformManaged = "platform_managed"
+)
+
+type resolvedXenditCredentials struct {
+	secretKey    string
+	accountID    string
+	webhookToken string
+	providerMode string
+}
+
 // NewPOSPaymentUsecase constructs a POSPaymentUsecase.
 func NewPOSPaymentUsecase(
 	db *gorm.DB,
@@ -114,6 +127,68 @@ func NewPOSPaymentUsecase(
 		bankAccountRepo:   bankAccountRepo,
 		cipher:            cipher,
 	}
+}
+
+func (u *posPaymentUsecase) resolveXenditCredentials(ctx context.Context, companyID string) (*resolvedXenditCredentials, error) {
+	if strings.TrimSpace(companyID) == "" {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: missing company context")
+	}
+
+	if u.xenditRepo != nil {
+		cfg, err := u.xenditRepo.FindByCompanyID(ctx, companyID)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		if err == nil && cfg != nil && cfg.IsConnected() {
+			secretKey, err := u.cipher.Decrypt(cfg.SecretKey)
+			if err != nil || strings.TrimSpace(secretKey) == "" {
+				return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
+			}
+
+			webhookToken := ""
+			if strings.TrimSpace(cfg.WebhookToken) != "" {
+				webhookToken, err = u.cipher.Decrypt(cfg.WebhookToken)
+				if err != nil {
+					return nil, fmt.Errorf("XENDIT_WEBHOOK_INVALID: invalid webhook token configuration")
+				}
+			}
+			if strings.TrimSpace(webhookToken) == "" {
+				webhookToken = platformXenditWebhookToken()
+			}
+
+			return &resolvedXenditCredentials{
+				secretKey:    strings.TrimSpace(secretKey),
+				accountID:    strings.TrimSpace(cfg.XenditAccountID),
+				webhookToken: strings.TrimSpace(webhookToken),
+				providerMode: xenditProviderModeMerchantConfig,
+			}, nil
+		}
+	}
+
+	secretKey := platformXenditMoneyInSecretKey()
+	if strings.TrimSpace(secretKey) == "" {
+		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway not configured")
+	}
+
+	return &resolvedXenditCredentials{
+		secretKey:    strings.TrimSpace(secretKey),
+		webhookToken: platformXenditWebhookToken(),
+		providerMode: xenditProviderModePlatformManaged,
+	}, nil
+}
+
+func platformXenditMoneyInSecretKey() string {
+	if coreConfig.AppConfig == nil {
+		return ""
+	}
+	return strings.TrimSpace(coreConfig.AppConfig.Xendit.BillingRecurringSecretKey)
+}
+
+func platformXenditWebhookToken() string {
+	if coreConfig.AppConfig == nil {
+		return ""
+	}
+	return strings.TrimSpace(coreConfig.AppConfig.Xendit.BillingWebhookToken)
 }
 
 func (u *posPaymentUsecase) resolveAutoPaymentBankAccount(ctx context.Context, method salesModels.SalesPaymentMethod) (*coreModels.BankAccount, error) {
@@ -270,24 +345,14 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		return nil, err
 	}
 
-	// Fetch the merchant's Xendit account config; payment requires an active connection
+	// Resolve payment credentials. Merchant-specific credentials still work, but the
+	// platform-managed billing key is now the secure default for self-order/POS.
 	if strings.TrimSpace(companyID) == "" {
 		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: missing company context")
 	}
-	xenditCfg, err := u.xenditRepo.FindByCompanyID(ctx, companyID)
+	xenditCreds, err := u.resolveXenditCredentials(ctx, companyID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway not configured for this company")
-		}
 		return nil, err
-	}
-	if !xenditCfg.IsConnected() {
-		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway is not active")
-	}
-
-	decryptedSecretKey, err := u.cipher.Decrypt(xenditCfg.SecretKey)
-	if err != nil {
-		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
 	}
 
 	// Persist customer/loyalty info from payment form if provided.
@@ -369,8 +434,9 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 		// Match registration billing: omit payment_methods so Xendit's hosted invoice
 		// shows every active method configured on the merchant account.
 
-		// Create Xendit invoice routed to the merchant's sub-account.
-		xenditProvider := provider.NewXenditProvider(decryptedSecretKey, xenditCfg.XenditAccountID)
+		// Merchant config uses for-user-id routing; platform-managed mode intentionally
+		// omits it so funds land in the platform balance before 100% merchant settlement.
+		xenditProvider := provider.NewXenditProvider(xenditCreds.secretKey, xenditCreds.accountID)
 		invoice, err := xenditProvider.CreateInvoice(ctx, invoiceReq)
 		if err != nil {
 			return fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
@@ -793,17 +859,11 @@ func (u *posPaymentUsecase) ConfirmXenditWebhook(ctx context.Context, payload *d
 			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: outlet company is missing")
 		}
 
-		cfg, err := u.xenditRepo.FindByCompanyID(txCtx, companyID)
+		creds, err := u.resolveXenditCredentials(txCtx, companyID)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("XENDIT_WEBHOOK_INVALID: payment gateway config not found")
-			}
 			return err
 		}
-		expectedToken, err := u.cipher.Decrypt(cfg.WebhookToken)
-		if err != nil {
-			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: invalid webhook token configuration")
-		}
+		expectedToken := strings.TrimSpace(creds.webhookToken)
 		if strings.TrimSpace(expectedToken) == "" || strings.TrimSpace(callbackToken) != strings.TrimSpace(expectedToken) {
 			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: callback token mismatch")
 		}
@@ -918,27 +978,12 @@ func (u *posPaymentUsecase) SyncXenditPayment(ctx context.Context, orderID, paym
 		return nil, fmt.Errorf("%w: payment has no Xendit external id", ErrPOSInvalidPayment)
 	}
 
-	cfg, err := u.xenditRepo.FindByCompanyID(ctx, companyID)
+	creds, err := u.resolveXenditCredentials(ctx, companyID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway not configured for this company")
-		}
 		return nil, err
 	}
-	if !cfg.IsConnected() {
-		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway is not active")
-	}
 
-	secretKey, err := u.cipher.Decrypt(cfg.SecretKey)
-	if err != nil {
-		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: invalid payment gateway credentials")
-	}
-	callbackToken, err := u.cipher.Decrypt(cfg.WebhookToken)
-	if err != nil {
-		return nil, fmt.Errorf("XENDIT_WEBHOOK_INVALID: invalid webhook token configuration")
-	}
-
-	xenditProvider := provider.NewXenditProvider(secretKey, cfg.XenditAccountID)
+	xenditProvider := provider.NewXenditProvider(creds.secretKey, creds.accountID)
 	invoice, err := xenditProvider.GetInvoice(ctx, *payment.XenditInvoiceID)
 	if err != nil {
 		return nil, fmt.Errorf("XENDIT_INVOICE_FAILED: %w", err)
@@ -950,7 +995,7 @@ func (u *posPaymentUsecase) SyncXenditPayment(ctx context.Context, orderID, paym
 		ID:         invoice.ID,
 		PaidAmount: invoice.Amount,
 	}
-	if err := u.ConfirmXenditWebhook(ctx, payload, callbackToken); err != nil {
+	if err := u.ConfirmXenditWebhook(ctx, payload, creds.webhookToken); err != nil {
 		return nil, err
 	}
 

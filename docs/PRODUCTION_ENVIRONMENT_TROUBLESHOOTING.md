@@ -185,7 +185,7 @@ func InitSentry(dsn string) error {
 - `PROXY_HEADERS_ENABLED`, `TRUSTED_PROXIES`
 - `XENDIT_CREDENTIAL_ENCRYPTION_KEY`
 - `CEREBRAS_BASE_URL`, `CEREBRAS_API_KEY`, `CEREBRAS_MODEL`
-- `XENDIT_SECRET_KEY`, `XENDIT_WEBHOOK_TOKEN`, `XENDIT_BASE_URL`
+- `XENDIT_BILLING_RECURRING_SECRET_KEY`, `XENDIT_BILLING_WEBHOOK_TOKEN`, `XENDIT_MERCHANT_SETTLEMENT_SECRET_KEY`, `XENDIT_SETTLEMENT_WEBHOOK_TOKEN`, `XENDIT_BASE_URL`
 - `STORAGE_UPLOAD_DIR`, `STORAGE_BASE_URL`, `STORAGE_MAX_UPLOAD_SIZE`
 - `HSTS_MAX_AGE`, `HSTS_INCLUDE_SUBDOMAINS`, `HSTS_PRELOAD`
 - `PPROF_ENABLED`, `PPROF_TOKEN`
@@ -332,4 +332,3 @@ If still getting `SERVICE_UNAVAILABLE`:
 - **Config Loading:** `apps/api/internal/core/infrastructure/config/config.go`
 - **Redis Setup:** `apps/api/internal/core/infrastructure/redis/redis.go`
 - **.env.production.example:** Updated with only used variables
-

@@ -44,9 +44,12 @@ type RegisterTenantRequest struct {
 // The frontend must redirect to InvoiceURL to complete payment; the tenant is
 // provisioned by the Xendit webhook after successful payment.
 type RegisterInitResponse struct {
-	InvoiceURL string `json:"invoice_url"`
-	InvoiceID  string `json:"invoice_id"`
-	ExpiresAt  string `json:"expires_at"`
+	InvoiceURL       string `json:"invoice_url"`
+	InvoiceID        string `json:"invoice_id"`
+	CheckoutURL      string `json:"checkout_url,omitempty"`
+	CheckoutType     string `json:"checkout_type,omitempty"` // invoice or recurring_session
+	PaymentSessionID string `json:"payment_session_id,omitempty"`
+	ExpiresAt        string `json:"expires_at"`
 }
 
 // ConfirmPendingRegistrationRequest confirms a paid registration token and

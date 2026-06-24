@@ -62,8 +62,8 @@ type PaymentProvider interface {
 }
 
 // XenditProvider implements PaymentProvider using the Xendit API.
-// It uses the XenPlatform sub-account model: every call includes the
-// `for-user-id` header so funds settle in the merchant's own Xendit account.
+// When xenditAcctID is set, calls include `for-user-id` for XenPlatform
+// routing. Platform-managed mode leaves it empty and settles separately.
 type XenditProvider struct {
 	secretKey    string
 	xenditAcctID string // sub-account ID for XenPlatform routing
@@ -117,7 +117,7 @@ func (p *XenditProvider) TestConnection(ctx context.Context) error {
 }
 
 // CreateInvoice calls POST /v2/invoices and returns the resulting invoice details.
-// When xenditAcctID is set, the `for-user-id` header routes funds to the merchant sub-account.
+// When xenditAcctID is set, the `for-user-id` header routes funds to the sub-account.
 func (p *XenditProvider) CreateInvoice(ctx context.Context, req InvoiceRequest) (*InvoiceResponse, error) {
 	if req.Currency == "" {
 		req.Currency = "IDR"

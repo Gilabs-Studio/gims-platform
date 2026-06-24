@@ -1,28 +1,26 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import confetti from "canvas-confetti";
 import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FieldLabel, FieldDescription, FieldError, FieldGroup } from "@/components/ui/field";
+import { Field, FieldLabel, FieldError, FieldGroup } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Check, 
-  CreditCard, 
-  ArrowLeft, 
-  AlertCircle, 
-  Sparkles, 
-  ShieldCheck, 
-  Loader2, 
-  Building2, 
-  User, 
-  Mail, 
-  Phone, 
+import {
+  Check,
+  CreditCard,
+  ArrowLeft,
+  AlertCircle,
+  ShieldCheck,
+  Loader2,
+  Building2,
+  User,
+  Mail,
+  Phone,
   Receipt,
   QrCode,
-  Wallet,
   CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -100,7 +98,10 @@ export function CheckoutDemoClient({ locale }: { locale: string }) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("xendit_va");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>("idle");
-  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceNumber] = useState(() => {
+    const randomNum = Math.floor(100000 + Math.random() * 900000);
+    return `INV-${new Date().getFullYear()}-${randomNum}`;
+  });
 
   // Credit card inputs (only active if credit card is selected)
   const [ccData, setCcData] = useState({
@@ -108,12 +109,6 @@ export function CheckoutDemoClient({ locale }: { locale: string }) {
     expiry: "",
     cvc: "",
   });
-
-  useEffect(() => {
-    // Generate random invoice ID
-    const randomNum = Math.floor(100000 + Math.random() * 900000);
-    setInvoiceNumber(`INV-${new Date().getFullYear()}-${randomNum}`);
-  }, [checkoutStatus]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

@@ -286,9 +286,9 @@
     },
     "registerSuccess": {
       "confirmingTitle": "Menyelesaikan pendaftaran Anda...",
-      "confirmingDescription": "Pembayaran Anda sudah diterima. Kami sedang menyiapkan akun Anda.",
+      "confirmingDescription": "Menunggu konfirmasi pembayaran dari Xendit. Akun akan otomatis disiapkan setelah pembayaran awal berhasil.",
       "successTitle": "Pembayaran terkonfirmasi!",
-      "successDescription": "Akun Anda siap. Mengarahkan ke halaman login...",
+      "successDescription": "Akun Anda siap. Mengarahkan ke dashboard...",
       "failedTitle": "Registrasi belum dapat diverifikasi",
       "failedDescription": "Kami belum dapat memverifikasi registrasi Anda secara otomatis. Silakan hubungi support dengan referensi di bawah ini.",
       "referenceLabel": "Referensi",

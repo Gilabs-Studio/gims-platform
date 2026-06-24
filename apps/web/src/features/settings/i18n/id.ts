@@ -267,13 +267,23 @@ export const settingsId: SettingsTranslations = {
     // Payment settings (Xendit)
     payment: {
       title: "Gerbang Pembayaran Digital",
-      description: "Hubungkan akun Xendit Anda untuk menerima pembayaran digital di terminal POS.",
+      description: "Kelola gateway pembayaran digital untuk POS dan self-order.",
       loading: "Memuat pengaturan pembayaran...",
       connectHeader: "Hubungkan Akun Xendit",
       connectButton: "Hubungkan Akun Xendit",
       cancelButton: "Batal",
       notConnectedMessage:
         "Belum ada gerbang pembayaran yang terhubung. Hubungkan akun Xendit Anda untuk mengaktifkan pembayaran digital (QRIS, Virtual Account, E-Wallet) di terminal POS.",
+      platformManagedTitle: "GIMS Managed Xendit Aktif",
+      platformManagedDescription:
+        "Pembayaran digital POS dan self-order memakai gateway Xendit platform. Merchant tidak perlu mengisi API key Xendit sendiri.",
+      providerModeLabel: "Mode Gateway",
+      platformManagedMode: "Dikelola oleh GIMS",
+      settlementLabel: "Settlement Merchant",
+      settlementValue: "100% ke merchant, tanpa potongan platform",
+      platformManagedStatus: "Aktif untuk POS dan self-order",
+      platformManagedNote:
+        "Dana diterima melalui akun Xendit platform terlebih dahulu. Payout merchant memakai settlement key terpisah agar akses money-out tidak bercampur dengan key billing/recurring.",
       accountDetailsHeader: "Detail Akun",
       updateSettingsHeader: "Perbarui Pengaturan",
       businessNameLabel: "Nama Bisnis",

@@ -86,12 +86,20 @@ type TenantSubscription struct {
 	XenditPaymentID *string `gorm:"type:varchar(255)"                               json:"xendit_payment_id,omitempty"`
 	XenditInvoiceID *string `gorm:"type:varchar(255)"                               json:"xendit_invoice_id,omitempty"`
 	// Xendit subscription fields (recurring billing)
-	XenditSubscriptionID *string        `gorm:"type:varchar(255)"                               json:"xendit_subscription_id,omitempty"`
-	XenditCustomerID     *string        `gorm:"type:varchar(255)"                               json:"xendit_customer_id,omitempty"`
-	Notes                string         `gorm:"type:text"                                       json:"notes,omitempty"`
-	CreatedAt            time.Time      `json:"created_at"`
-	UpdatedAt            time.Time      `json:"updated_at"`
-	DeletedAt            gorm.DeletedAt `gorm:"index"                                           json:"-"`
+	XenditSubscriptionID    *string        `gorm:"type:varchar(255)"                               json:"xendit_subscription_id,omitempty"`
+	XenditCustomerID        *string        `gorm:"type:varchar(255)"                               json:"xendit_customer_id,omitempty"`
+	XenditRecurringPlanID   *string        `gorm:"type:varchar(255);index"                         json:"xendit_recurring_plan_id,omitempty"`
+	XenditPaymentSessionID  *string        `gorm:"type:varchar(255);index"                         json:"xendit_payment_session_id,omitempty"`
+	XenditPaymentTokenID    *string        `gorm:"type:varchar(255)"                               json:"xendit_payment_token_id,omitempty"`
+	RecurringReferenceID    *string        `gorm:"type:varchar(255);index"                         json:"recurring_reference_id,omitempty"`
+	RenewalAmountIDR        int64          `gorm:"type:bigint;not null;default:0"                  json:"renewal_amount_idr"`
+	PendingRenewalAmountIDR *int64         `gorm:"type:bigint"                                    json:"pending_renewal_amount_idr,omitempty"`
+	RecurringStatus         string         `gorm:"type:varchar(50)"                                json:"recurring_status,omitempty"`
+	LastRecurringEventID    string         `gorm:"type:varchar(255)"                               json:"last_recurring_event_id,omitempty"`
+	Notes                   string         `gorm:"type:text"                                       json:"notes,omitempty"`
+	CreatedAt               time.Time      `json:"created_at"`
+	UpdatedAt               time.Time      `json:"updated_at"`
+	DeletedAt               gorm.DeletedAt `gorm:"index"                                           json:"-"`
 
 	// Associations (read-only)
 	Coupon *Coupon `gorm:"foreignKey:CouponID" json:"coupon,omitempty"`

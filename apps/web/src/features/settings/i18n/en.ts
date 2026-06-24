@@ -265,13 +265,23 @@ export const settingsEn = {
     // Payment settings (Xendit)
     payment: {
       title: "Digital Payment Gateway",
-      description: "Connect your Xendit account to accept digital payments at the POS terminal.",
+      description: "Manage the digital payment gateway for POS and self-order.",
       loading: "Loading payment settings...",
       connectHeader: "Connect Xendit Account",
       connectButton: "Connect Xendit Account",
       cancelButton: "Cancel",
       notConnectedMessage:
         "No payment gateway is connected. Connect your Xendit account to enable digital payments (QRIS, Virtual Account, E-Wallet) at the POS terminal.",
+      platformManagedTitle: "GIMS Managed Xendit is Active",
+      platformManagedDescription:
+        "POS and self-order digital payments use the platform Xendit gateway. Merchants do not need to enter their own Xendit API key.",
+      providerModeLabel: "Gateway Mode",
+      platformManagedMode: "Managed by GIMS",
+      settlementLabel: "Merchant Settlement",
+      settlementValue: "100% to merchant, no platform fee",
+      platformManagedStatus: "Active for POS and self-order",
+      platformManagedNote:
+        "Funds are collected through the platform Xendit account first. Merchant payout uses a separate settlement key so money-out access is isolated from billing/recurring access.",
       accountDetailsHeader: "Account Details",
       updateSettingsHeader: "Update Settings",
       businessNameLabel: "Business Name",
