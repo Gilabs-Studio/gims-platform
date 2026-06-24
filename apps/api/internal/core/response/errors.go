@@ -14,6 +14,7 @@ const (
 	ErrCodeAccountInactive        = "ACCOUNT_INACTIVE"
 	ErrCodePeriodClosed           = "PERIOD_CLOSED"
 	ErrCodeMappingNotConfigured   = "MAPPING_NOT_CONFIGURED"
+	ErrCodeCashBankAccountMissing = "CASH_BANK_ACCOUNT_NOT_CONFIGURED"
 	ErrCodeInternalServerError    = "INTERNAL_SERVER_ERROR"
 	ErrCodeServiceUnavailable     = "SERVICE_UNAVAILABLE"
 	ErrCodeBadRequest             = "BAD_REQUEST"
@@ -78,6 +79,11 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "Required system account mapping is not configured",
 		Code:       ErrCodeMappingNotConfigured,
+	},
+	ErrCodeCashBankAccountMissing: {
+		HTTPStatus: http.StatusUnprocessableEntity,
+		Message:    "No active cash/bank account is configured for this company",
+		Code:       ErrCodeCashBankAccountMissing,
 	},
 	ErrCodeInternalServerError: {
 		HTTPStatus: http.StatusInternalServerError,

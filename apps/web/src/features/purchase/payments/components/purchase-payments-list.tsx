@@ -38,7 +38,11 @@ import { PurchasePaymentForm } from "./purchase-payment-form";
 import { PurchasePaymentDetail as PurchasePaymentDetailView } from "./purchase-payment-detail";
 import { PurchasePaymentStatusBadge } from "./purchase-payment-status-badge";
 import { purchasePaymentsService } from "../services/purchase-payments-service";
-import { isAccountingMappingError } from "@/features/purchase/utils/error-utils";
+import {
+  getPurchaseErrorMessage,
+  isAccountingMappingError,
+  isCashBankAccountConfigurationError,
+} from "@/features/purchase/utils/error-utils";
 
 export function PurchasePaymentsList() {
   const t = useTranslations("purchasePayment");
@@ -97,8 +101,8 @@ export function PurchasePaymentsList() {
         limit: 100,
         },
       });
-    } catch {
-      toast.error(t("toast.failed"));
+    } catch (error) {
+      toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
     }
   };
 
@@ -257,19 +261,29 @@ export function PurchasePaymentsList() {
                                     await confirmMutation.mutateAsync(item.id);
                                     toast.success(t("toast.confirmed"));
                                   } catch (error) {
-                                    if (isAccountingMappingError(error)) {
-                                      toast.error(t("errors.mappingRequired"), {
-                                        action: {
-                                          label: t("actions.openMapping"),
-                                          onClick: () => router.push("/finance/settings/accounting-mapping"),
-                                        },
-                                      });
-                                      return;
-                                    }
-
-                                    toast.error(t("toast.failed"));
+                                  if (isAccountingMappingError(error)) {
+                                    toast.error(t("errors.mappingRequired"), {
+                                      action: {
+                                        label: t("actions.openMapping"),
+                                        onClick: () => router.push("/finance/settings/accounting-mapping"),
+                                      },
+                                    });
+                                    return;
                                   }
-                                }}
+
+                                  if (isCashBankAccountConfigurationError(error)) {
+                                    toast.error(t("errors.cashBankAccountRequired"), {
+                                      action: {
+                                        label: t("actions.openCashBankAccounts"),
+                                        onClick: () => router.push("/finance/bank-accounts"),
+                                      },
+                                    });
+                                    return;
+                                  }
+
+                                  toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
+                                }
+                              }}
                                 className="cursor-pointer text-success focus:text-success"
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -354,8 +368,8 @@ export function PurchasePaymentsList() {
           try {
             await deleteMutation.mutateAsync(deletingItem.id);
             toast.success(t("toast.deleted"));
-          } catch {
-            toast.error(t("toast.failed"));
+          } catch (error) {
+            toast.error(getPurchaseErrorMessage(error, t("toast.failed")));
           } finally {
             setDeletingItem(null);
           }
