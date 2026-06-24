@@ -110,6 +110,18 @@ func AutoMigrate() error {
 	_ = DB.Exec(`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_scope varchar(20) NOT NULL DEFAULT 'none'`)
 	_ = DB.Exec(`UPDATE products SET pos_scope = CASE WHEN is_pos_available = true THEN 'global' ELSE 'none' END WHERE pos_scope = 'none' AND is_pos_available IS NOT NULL`)
 
+	// PRE-MIGRATION: keep purchase invoice snapshot/text columns aligned with current models.
+	// Older environments may still carry varchar(20) widths from legacy schemas, which breaks
+	// inserts when supplier/product codes or invoice metadata are longer.
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN code TYPE varchar(50)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN invoice_number TYPE varchar(100)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN tax_invoice_number TYPE varchar(100)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN supplier_code_snapshot TYPE varchar(50)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN supplier_name_snapshot TYPE varchar(200)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN payment_terms_name_snapshot TYPE varchar(150)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoice_items ALTER COLUMN product_code_snapshot TYPE varchar(50)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoice_items ALTER COLUMN product_name_snapshot TYPE varchar(200)`)
+
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		// SaaS: Tenant & System Admin tables (must come before domain tables)
