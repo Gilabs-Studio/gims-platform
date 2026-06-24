@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import type { Resolver, SubmitErrorHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, FileText, DollarSign, ShoppingCart, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -29,7 +30,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { usePurchaseOrderAddData } from "../hooks/use-purchase-order-add-data";
+import {
+  PURCHASE_ORDER_ADD_DATA_QUERY_KEY,
+  usePurchaseOrderAddData,
+} from "../hooks/use-purchase-order-add-data";
 import { useCreatePurchaseOrder, usePurchaseOrder, useUpdatePurchaseOrder } from "../hooks/use-purchase-orders";
 import {
   purchaseOrderSchema,
@@ -47,6 +51,13 @@ import { usePaginatedComboboxOptions } from "@/hooks/use-paginated-combobox-opti
 import { productService } from "@/features/master-data/product/services/product-service";
 import { useSupplier } from "@/features/master-data/supplier/hooks/use-suppliers";
 import type { PurchaseOrderAddSupplierContact } from "../types";
+import type {
+  ApiResponse,
+  PurchaseOrderAddBusinessUnit,
+  PurchaseOrderAddPaymentTerms,
+  PurchaseOrderAddResponse,
+  PurchaseOrderAddSupplier,
+} from "../types";
 import {
   applyPurchaseFormErrors,
   extractPurchaseFieldErrors,
@@ -83,6 +94,7 @@ export function PurchaseOrderForm({
 }: PurchaseOrderFormProps) {
   const t = useTranslations("purchaseOrder");
   const isEdit = mode === "edit";
+  const queryClient = useQueryClient();
 
   const createMutation = useCreatePurchaseOrder();
   const updateMutation = useUpdatePurchaseOrder();
@@ -380,22 +392,96 @@ export function PurchaseOrderForm({
     toast.error(`${t("form.invalid")}: ${labels.join(", ")}`);
   }, [fieldLabels, t]);
 
+  const updateAddDataCache = useCallback((
+    updater: (current: PurchaseOrderAddResponse) => PurchaseOrderAddResponse,
+  ) => {
+    queryClient.setQueryData<ApiResponse<PurchaseOrderAddResponse> | undefined>(
+      PURCHASE_ORDER_ADD_DATA_QUERY_KEY,
+      (current) => {
+        if (!current?.data) return current;
+        return {
+          ...current,
+          data: updater(current.data),
+        };
+      },
+    );
+  }, [queryClient]);
+
   const handleSupplierCreated = useCallback((item: { id: string; name: string }) => {
+    setShouldLoadSelectData(true);
+    updateAddDataCache((current) => {
+      const nextSupplier: PurchaseOrderAddSupplier = {
+        id: item.id,
+        code: "",
+        name: item.name,
+        payment_terms_id: null,
+        business_unit_id: null,
+        contacts: [],
+        products: [],
+      };
+
+      return {
+        ...current,
+        suppliers: current.suppliers.some((supplier) => supplier.id === item.id)
+          ? current.suppliers
+          : [...current.suppliers, nextSupplier],
+      };
+    });
+    void queryClient.invalidateQueries({ queryKey: PURCHASE_ORDER_ADD_DATA_QUERY_KEY });
     setValue("supplier_id", item.id, { shouldValidate: true });
     closeQuickCreate();
-  }, [setValue, closeQuickCreate]);
+  }, [closeQuickCreate, queryClient, setValue, updateAddDataCache]);
 
   const handlePaymentTermCreated = useCallback((item: { id: string; name: string }) => {
+    setShouldLoadSelectData(true);
+    updateAddDataCache((current) => {
+      const nextPaymentTerm: PurchaseOrderAddPaymentTerms = {
+        id: item.id,
+        code: "",
+        name: item.name,
+        days: 0,
+      };
+
+      return {
+        ...current,
+        payment_terms: current.payment_terms.some((paymentTerm) => paymentTerm.id === item.id)
+          ? current.payment_terms
+          : [...current.payment_terms, nextPaymentTerm],
+      };
+    });
+    void queryClient.invalidateQueries({ queryKey: PURCHASE_ORDER_ADD_DATA_QUERY_KEY });
     setValue("payment_terms_id", item.id, { shouldValidate: true });
     closeQuickCreate();
-  }, [setValue, closeQuickCreate]);
+  }, [closeQuickCreate, queryClient, setValue, updateAddDataCache]);
 
   const handleBusinessUnitCreated = useCallback((item: { id: string; name: string }) => {
+    setShouldLoadSelectData(true);
+    updateAddDataCache((current) => {
+      const nextBusinessUnit: PurchaseOrderAddBusinessUnit = {
+        id: item.id,
+        name: item.name,
+      };
+
+      return {
+        ...current,
+        business_units: current.business_units.some((businessUnit) => businessUnit.id === item.id)
+          ? current.business_units
+          : [...current.business_units, nextBusinessUnit],
+      };
+    });
+    void queryClient.invalidateQueries({ queryKey: PURCHASE_ORDER_ADD_DATA_QUERY_KEY });
     setValue("business_unit_id", item.id, { shouldValidate: true });
     closeQuickCreate();
-  }, [setValue, closeQuickCreate]);
+  }, [closeQuickCreate, queryClient, setValue, updateAddDataCache]);
 
   const handleProductCreated = useCallback(async (item: { id: string; name: string }) => {
+    setShouldLoadProductOptions(true);
+    setSourceProducts((current) =>
+      current.some((product) => product.id === item.id)
+        ? current
+        : [...current, { id: item.id, name: item.name }]
+    );
+    void queryClient.invalidateQueries({ queryKey: ["purchase", "purchase-order", "products"] });
     const targetIdx = pendingProductItemIdx;
     if (targetIdx !== -1) {
       setValue(`items.${targetIdx}.product_id`, item.id, { shouldValidate: true });
@@ -408,7 +494,7 @@ export function PurchaseOrderForm({
     }
     closeQuickCreate();
     setPendingProductItemIdx(-1);
-  }, [pendingProductItemIdx, setValue, closeQuickCreate]);
+  }, [closeQuickCreate, pendingProductItemIdx, queryClient, setValue]);
 
   const onSubmit = async (formData: PurchaseOrderFormData) => {
     const basePayload = {

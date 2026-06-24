@@ -9,8 +9,15 @@ import (
 
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
+	orgModels "github.com/gilabs/gims/api/internal/organization/data/models"
 	financeRepositories "github.com/gilabs/gims/api/internal/finance/data/repositories"
 	"gorm.io/gorm"
+)
+
+var (
+	ErrPurchaseCompanyRequired          = errors.New("purchase company is required")
+	ErrPurchaseCompanyIDRequired        = errors.New("company id is required")
+	ErrActivePurchaseFiscalYearRequired = errors.New("active fiscal year is required")
 )
 
 type purchaseFiscalYearResolver struct {
@@ -37,6 +44,10 @@ func (r *purchaseFiscalYearResolver) Resolve(ctx context.Context, referenceDate 
 }
 
 func (r *purchaseFiscalYearResolver) resolveCompanyID(ctx context.Context) (string, error) {
+	if ctxCompanyID, _ := ctx.Value("company_id").(string); strings.TrimSpace(ctxCompanyID) != "" {
+		return strings.TrimSpace(ctxCompanyID), nil
+	}
+
 	userID, _ := ctx.Value("user_id").(string)
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
@@ -53,7 +64,25 @@ func (r *purchaseFiscalYearResolver) resolveCompanyID(ctx context.Context) (stri
 	}
 	companyID = strings.TrimSpace(companyID)
 	if companyID == "" {
-		return "", errors.New("purchase company is required")
+		tenantID, _ := ctx.Value("tenant_id").(string)
+		tenantID = strings.TrimSpace(tenantID)
+		if tenantID == "" {
+			return "", ErrPurchaseCompanyRequired
+		}
+
+		if err := database.GetDB(ctx, r.db).
+			Model(&orgModels.Company{}).
+			Select("id").
+			Where("tenant_id = ? AND deleted_at IS NULL", tenantID).
+			Order("created_at ASC").
+			Limit(1).
+			Scan(&companyID).Error; err != nil {
+			return "", fmt.Errorf("failed to resolve purchase company from tenant: %w", err)
+		}
+		companyID = strings.TrimSpace(companyID)
+		if companyID == "" {
+			return "", ErrPurchaseCompanyRequired
+		}
 	}
 
 	return companyID, nil
@@ -62,7 +91,7 @@ func (r *purchaseFiscalYearResolver) resolveCompanyID(ctx context.Context) (stri
 func (r *purchaseFiscalYearResolver) resolveFiscalYearID(ctx context.Context, companyID string, referenceDate string) (string, error) {
 	companyID = strings.TrimSpace(companyID)
 	if companyID == "" {
-		return "", errors.New("company id is required")
+		return "", ErrPurchaseCompanyIDRequired
 	}
 
 	resolvedDate := strings.TrimSpace(referenceDate)
@@ -74,10 +103,10 @@ func (r *purchaseFiscalYearResolver) resolveFiscalYearID(ctx context.Context, co
 
 	fiscalYear, err := r.fiscalYearRepo.FindActiveByCompany(ctx, companyID)
 	if err != nil {
-		return "", fmt.Errorf("active fiscal year not found for company %s on %s: %w", companyID, resolvedDate, err)
+		return "", fmt.Errorf("%w: company %s on %s", ErrActivePurchaseFiscalYearRequired, companyID, resolvedDate)
 	}
 	if fiscalYear == nil || strings.TrimSpace(fiscalYear.ID) == "" {
-		return "", errors.New("active fiscal year is required")
+		return "", ErrActivePurchaseFiscalYearRequired
 	}
 
 	return strings.TrimSpace(fiscalYear.ID), nil
@@ -135,7 +164,7 @@ func resolvePurchaseJournalScope(
 	}
 
 	if resolvedCompanyID == "" {
-		return "", nil, errors.New("purchase company is required")
+		return "", nil, ErrPurchaseCompanyRequired
 	}
 
 	return resolvedCompanyID, resolvedFiscalYearID, nil
