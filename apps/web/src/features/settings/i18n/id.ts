@@ -263,6 +263,21 @@ export const settingsId: SettingsTranslations = {
       allProviders: "Semua Penyedia",
       noTransactions: "Tidak ada transaksi pembayaran yang ditemukan.",
       helpText: "Klik tombol kwitansi atau invoice untuk mengunduh atau melihat dokumen pembayaran.",
+      tabBilling: "Pembayaran Langganan",
+      tabWithdrawal: "Riwayat Penarikan Dana",
+      payoutId: "Referensi Payout",
+      channel: "Saluran",
+      account: "Rekening",
+      noWithdrawals: "Tidak ada transaksi penarikan dana yang ditemukan.",
+      payoutStatus: {
+        PENDING: "Tertunda",
+        ACCEPTED: "Diterima",
+        REQUESTED: "Diminta",
+        SUCCEEDED: "Berhasil",
+        FAILED: "Gagal",
+        CANCELLED: "Dibatalkan",
+        REVERSED: "Dibalikkan",
+      },
     },
     // Payment settings (Xendit)
     payment: {

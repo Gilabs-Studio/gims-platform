@@ -261,6 +261,21 @@ export const settingsEn = {
       allProviders: "All Providers",
       noTransactions: "No payment transactions found.",
       helpText: "Click on the receipt or invoice buttons to download or view payment documents.",
+      tabBilling: "Subscription Payments",
+      tabWithdrawal: "Withdrawal History",
+      payoutId: "Payout Reference",
+      channel: "Channel",
+      account: "Account",
+      noWithdrawals: "No withdrawal transactions found.",
+      payoutStatus: {
+        PENDING: "Pending",
+        ACCEPTED: "Accepted",
+        REQUESTED: "Requested",
+        SUCCEEDED: "Success",
+        FAILED: "Failed",
+        CANCELLED: "Cancelled",
+        REVERSED: "Reversed",
+      },
     },
     // Payment settings (Xendit)
     payment: {

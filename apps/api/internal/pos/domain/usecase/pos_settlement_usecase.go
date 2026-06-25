@@ -27,6 +27,7 @@ type POSSettlementUsecase interface {
 	GetOverview(ctx context.Context, tenantID string) (*dto.POSSettlementOverviewResponse, error)
 	GetPayoutChannels(ctx context.Context, currency, category string) ([]dto.POSSettlementPayoutChannelResponse, error)
 	CreatePayout(ctx context.Context, tenantID, requestedBy string, req *dto.CreatePOSSettlementPayoutRequest) (*dto.POSSettlementPayoutResponse, error)
+	ListPayouts(ctx context.Context, tenantID string) ([]*dto.POSSettlementPayoutResponse, error)
 }
 
 type posSettlementUsecase struct {
@@ -35,6 +36,18 @@ type posSettlementUsecase struct {
 
 func NewPOSSettlementUsecase(repo repositories.POSSettlementRepository) POSSettlementUsecase {
 	return &posSettlementUsecase{repo: repo}
+}
+
+func (u *posSettlementUsecase) ListPayouts(ctx context.Context, tenantID string) ([]*dto.POSSettlementPayoutResponse, error) {
+	payouts, err := u.repo.ListPayouts(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*dto.POSSettlementPayoutResponse, 0, len(payouts))
+	for _, p := range payouts {
+		result = append(result, mapSettlementPayout(p))
+	}
+	return result, nil
 }
 
 func (u *posSettlementUsecase) GetPayoutChannels(ctx context.Context, currency, category string) ([]dto.POSSettlementPayoutChannelResponse, error) {

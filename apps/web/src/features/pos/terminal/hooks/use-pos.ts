@@ -75,6 +75,7 @@ export const posKeys = {
   settlementOverview: () => [...posKeys.all, "settlement", "overview"] as const,
   settlementPayoutChannels: () =>
     [...posKeys.all, "settlement", "payout-channels"] as const,
+  settlementPayouts: () => [...posKeys.all, "settlement", "payouts"] as const,
 };
 
 // ─── Catalog hook ─────────────────────────────────────────────────────────────
@@ -612,6 +613,15 @@ export function usePOSSettlementPayoutChannels(options?: { enabled?: boolean }) 
     queryFn: () => posSettlementService.getPayoutChannels(),
     enabled: options?.enabled !== false,
     staleTime: 10 * 60_000,
+  });
+}
+
+export function usePOSSettlementPayouts(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: posKeys.settlementPayouts(),
+    queryFn: () => posSettlementService.getPayouts(),
+    enabled: options?.enabled !== false,
+    staleTime: 30_000,
   });
 }
 

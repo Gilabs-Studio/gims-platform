@@ -291,4 +291,10 @@ export const posSettlementService = {
       )
       .then((r) => r.data);
   },
+
+  getPayouts() {
+    return apiClient
+      .get<ApiResponse<POSSettlementPayout[]>>(`${BASE}/settlement/payouts`)
+      .then((r) => r.data);
+  },
 };

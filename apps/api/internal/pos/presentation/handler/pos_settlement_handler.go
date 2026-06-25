@@ -35,6 +35,20 @@ func (h *POSSettlementHandler) GetOverview(c *gin.Context) {
 	response.SuccessResponse(c, overview, nil)
 }
 
+func (h *POSSettlementHandler) GetPayouts(c *gin.Context) {
+	if !requireTenantOwner(c) {
+		return
+	}
+
+	tenantID := strings.TrimSpace(c.GetString("tenant_id"))
+	payouts, err := h.uc.ListPayouts(c.Request.Context(), tenantID)
+	if err != nil {
+		coreErrors.InternalServerErrorResponse(c, "")
+		return
+	}
+	response.SuccessResponse(c, payouts, nil)
+}
+
 func (h *POSSettlementHandler) GetPayoutChannels(c *gin.Context) {
 	if !requireTenantOwner(c) {
 		return

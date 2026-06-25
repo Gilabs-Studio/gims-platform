@@ -14,6 +14,7 @@ type POSSettlementRepository interface {
 	FindPayoutByIdempotencyKey(ctx context.Context, tenantID, idempotencyKey string) (*models.POSSettlementPayout, error)
 	CreatePayout(ctx context.Context, payout *models.POSSettlementPayout) error
 	UpdatePayout(ctx context.Context, payout *models.POSSettlementPayout) error
+	ListPayouts(ctx context.Context, tenantID string) ([]*models.POSSettlementPayout, error)
 }
 
 type posSettlementRepository struct {
@@ -74,4 +75,13 @@ func (r *posSettlementRepository) CreatePayout(ctx context.Context, payout *mode
 
 func (r *posSettlementRepository) UpdatePayout(ctx context.Context, payout *models.POSSettlementPayout) error {
 	return r.scopedDB(ctx).Save(payout).Error
+}
+
+func (r *posSettlementRepository) ListPayouts(ctx context.Context, tenantID string) ([]*models.POSSettlementPayout, error) {
+	var payouts []*models.POSSettlementPayout
+	err := r.scopedDB(ctx).
+		Where("tenant_id = ?", tenantID).
+		Order("created_at DESC").
+		Find(&payouts).Error
+	return payouts, err
 }

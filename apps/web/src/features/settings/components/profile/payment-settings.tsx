@@ -6,18 +6,14 @@ import { useTranslations } from "next-intl";
 import Image from "next/image";
 import {
   AlertCircle,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Loader2,
   Send,
-  WifiOff,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 import {
   useCreatePOSSettlementPayout,
@@ -60,7 +56,7 @@ function normalizeCategory(category?: string) {
   return "OTHER";
 }
 
-const CHANNEL_LOGOS: Record<string, string> = {
+export const CHANNEL_LOGOS: Record<string, string> = {
   QRIS: "/logo/quick-response-code-indonesia-standard-qris-seeklogo.svg",
   DANA: "/logo/Logo%20DANA%20-%20(Koleksilogo.com).svg",
   GOPAY: "/logo/Logo%20GoPay%20-%20(Koleksilogo.com).svg",
@@ -78,7 +74,7 @@ const CHANNEL_LOGOS: Record<string, string> = {
   BSI: "/logo/Bank_Syariah_Indonesia.svg",
 };
 
-function matchChannelLogo(channelCode: string, channelName: string): string | null {
+export function matchChannelLogo(channelCode: string, channelName: string): string | null {
   const code = channelCode.toUpperCase();
   const name = channelName.toUpperCase();
 
@@ -138,34 +134,7 @@ function groupChannels(channels: POSSettlementPayoutChannel[]) {
   );
 }
 
-function ConnectionStatusBadge({ status }: { status: string }) {
-  const t = useTranslations("profile");
 
-  if (status === "connected") {
-    return (
-      <Badge variant="success" className="gap-1.5 px-2.5 py-1">
-        <CheckCircle2 className="h-3.5 w-3.5" />
-        {t("payment.connected")}
-      </Badge>
-    );
-  }
-
-  if (status === "suspended") {
-    return (
-      <Badge variant="destructive" className="gap-1.5 px-2.5 py-1">
-        <WifiOff className="h-3.5 w-3.5" />
-        {t("payment.suspended")}
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge variant="secondary" className="gap-1.5 px-2.5 py-1 text-muted-foreground">
-      <WifiOff className="h-3.5 w-3.5" />
-      {t("payment.notConnectedBadge")}
-    </Badge>
-  );
-}
 
 function OwnerSettlementPanel({ isConnected }: { isConnected: boolean }) {
   const t = useTranslations("profile");
@@ -653,7 +622,6 @@ export function PaymentSettings() {
 
   const status = statusData?.data;
   const isConnected = status?.is_connected === true;
-  const connectionStatus = status?.status ?? "not_connected";
   const canManageSettlement = user?.role?.is_owner === true;
 
   if (statusLoading) {
@@ -666,13 +634,7 @@ export function PaymentSettings() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-end">
-        <ConnectionStatusBadge status={connectionStatus} />
-      </div>
-
-      <Separator />
-
+    <div className="space-y-6">
       {isConnected ? (
         <div className="space-y-6">
           {canManageSettlement ? (
