@@ -273,17 +273,29 @@ export const settingsId: SettingsTranslations = {
       connectButton: "Hubungkan Akun Xendit",
       cancelButton: "Batal",
       notConnectedMessage:
-        "Belum ada gerbang pembayaran yang terhubung. Hubungkan akun Xendit Anda untuk mengaktifkan pembayaran digital (QRIS, Virtual Account, E-Wallet) di terminal POS.",
+        "Pembayaran digital belum tersedia karena billing key Xendit platform belum terkonfigurasi. Setelah key platform aktif, checkout POS dan self-order bisa memakai Xendit tanpa input API key merchant.",
       platformManagedTitle: "GIMS Managed Xendit Aktif",
       platformManagedDescription:
-        "Pembayaran digital POS dan self-order memakai gateway Xendit platform. Merchant tidak perlu mengisi API key Xendit sendiri.",
+        "Pembayaran digital POS dan self-order memakai gateway Xendit platform. Pelanggan membayar lewat Xendit, lalu payout merchant ditangani dari GIMS.",
+      merchantManagedDescription:
+        "Tenant ini memakai konfigurasi Xendit milik merchant untuk pembayaran POS dan self-order.",
       providerModeLabel: "Mode Gateway",
       platformManagedMode: "Dikelola oleh GIMS",
+      merchantManagedMode: "Akun merchant",
+      moneyInLabel: "Uang Masuk",
+      moneyInValue: "Aktif untuk checkout POS dan self-order",
       settlementLabel: "Settlement Merchant",
       settlementValue: "100% ke merchant, tanpa potongan platform",
       platformManagedStatus: "Aktif untuk POS dan self-order",
       platformManagedNote:
-        "Dana diterima melalui akun Xendit platform terlebih dahulu. Payout merchant memakai settlement key terpisah agar akses money-out tidak bercampur dengan key billing/recurring.",
+        "Dana diterima melalui akun Xendit platform terlebih dahulu. Payout merchant memakai settlement key terpisah, sehingga akses money-out tetap terisolasi dari billing dan recurring.",
+      flowPosLabel: "POS dan self-order",
+      flowPosDescription: "Kasir dan pelanggan memilih pembayaran digital dari layar order.",
+      flowXenditLabel: "Checkout Xendit",
+      flowXenditDescription: "Xendit menampilkan metode pembayaran yang tersedia dan mengonfirmasi pembayaran.",
+      flowPayoutLabel: "Payout merchant",
+      flowPayoutDescription: "Settlement mengirim 100% dana yang diterima ke rekening merchant.",
+      notConnectedTitle: "Gateway platform belum aktif",
       accountDetailsHeader: "Detail Akun",
       updateSettingsHeader: "Perbarui Pengaturan",
       businessNameLabel: "Nama Bisnis",
@@ -306,6 +318,10 @@ export const settingsId: SettingsTranslations = {
       environmentHelp: "Sandbox untuk pengujian transaksi. Production untuk pembayaran nyata. Lingkungan harus sesuai dengan jenis secret key Anda.",
       environmentSandbox: "Sandbox (Pengujian)",
       environmentProduction: "Production",
+      environment: {
+        sandbox: "Sandbox",
+        production: "Production",
+      },
       webhook: {
         label: "Webhook Verification Token",
         placeholder: "Opsional — digunakan untuk memverifikasi signature webhook Xendit",

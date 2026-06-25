@@ -72,6 +72,28 @@ func (h *POSPaymentHandler) InitiateDigitalPayment(c *gin.Context) {
 	response.SuccessResponse(c, payment, nil)
 }
 
+// SyncDigitalPayment refreshes a pending Xendit payment after cashier returns
+// from the hosted payment page or wants an immediate status confirmation.
+func (h *POSPaymentHandler) SyncDigitalPayment(c *gin.Context) {
+	uc, ok := extractUserContext(c)
+	if !ok {
+		return
+	}
+
+	orderID := getOrderIDParam(c)
+	paymentID := c.Param("paymentID")
+	if paymentID == "" {
+		paymentID = c.Param("paymentId")
+	}
+
+	payment, err := h.uc.SyncXenditPayment(c.Request.Context(), orderID, paymentID, uc.companyID)
+	if err != nil {
+		handlePOSPaymentError(c, err)
+		return
+	}
+	response.SuccessResponse(c, payment, nil)
+}
+
 // CancelPendingPayment cancels a pending digital payment and reopens cashier fallback flow.
 func (h *POSPaymentHandler) CancelPendingPayment(c *gin.Context) {
 	uc, ok := extractUserContext(c)
@@ -152,12 +174,17 @@ func handlePOSPaymentError(c *gin.Context, err error) {
 		coreErrors.NotFoundResponse(c, "pos_order", "")
 	case errors.Is(err, usecase.ErrPOSOrderAlreadyPaid):
 		coreErrors.ErrorResponse(c, "POS_ORDER_ALREADY_PAID", nil, nil)
+	case errors.Is(err, usecase.ErrPOSOrderCannotModify):
+		coreErrors.ErrorResponse(c, "POS_ORDER_CANNOT_MODIFY", nil, nil)
 	case errors.Is(err, usecase.ErrPOSPaymentNotFound):
 		coreErrors.NotFoundResponse(c, "pos_payment", "")
 	case errors.Is(err, usecase.ErrPOSInvalidPayment):
 		coreErrors.ErrorResponse(c, "POS_INSUFFICIENT_PAYMENT", nil, nil)
 	case strings.HasPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"):
-		reason := "Payment gateway is not available"
+		reason := strings.TrimSpace(strings.TrimPrefix(err.Error(), "XENDIT_NOT_CONNECTED:"))
+		if reason == "" {
+			reason = "Payment gateway is not available"
+		}
 		coreErrors.ErrorResponse(c, "XENDIT_NOT_CONNECTED", map[string]interface{}{"reason": reason}, nil)
 	case strings.HasPrefix(err.Error(), "XENDIT_INVOICE_FAILED:"):
 		reason := "Failed to create digital payment invoice"

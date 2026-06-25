@@ -271,17 +271,29 @@ export const settingsEn = {
       connectButton: "Connect Xendit Account",
       cancelButton: "Cancel",
       notConnectedMessage:
-        "No payment gateway is connected. Connect your Xendit account to enable digital payments (QRIS, Virtual Account, E-Wallet) at the POS terminal.",
+        "Digital payment is unavailable because the platform Xendit billing key is not configured. Once the platform key is active, POS and self-order checkout can use Xendit without merchant API key input.",
       platformManagedTitle: "GIMS Managed Xendit is Active",
       platformManagedDescription:
-        "POS and self-order digital payments use the platform Xendit gateway. Merchants do not need to enter their own Xendit API key.",
+        "POS and self-order digital payments use the platform Xendit gateway. Customers pay through Xendit, then merchant payout is handled from GIMS.",
+      merchantManagedDescription:
+        "This tenant uses a merchant-owned Xendit configuration for POS and self-order payments.",
       providerModeLabel: "Gateway Mode",
       platformManagedMode: "Managed by GIMS",
+      merchantManagedMode: "Merchant account",
+      moneyInLabel: "Money In",
+      moneyInValue: "Active for POS and self-order checkout",
       settlementLabel: "Merchant Settlement",
       settlementValue: "100% to merchant, no platform fee",
       platformManagedStatus: "Active for POS and self-order",
       platformManagedNote:
-        "Funds are collected through the platform Xendit account first. Merchant payout uses a separate settlement key so money-out access is isolated from billing/recurring access.",
+        "Funds are collected through the platform Xendit account first. Merchant payout uses a separate settlement key, so money-out access stays isolated from billing and recurring access.",
+      flowPosLabel: "POS and self-order",
+      flowPosDescription: "Cashiers and customers choose digital payment from the order screen.",
+      flowXenditLabel: "Xendit checkout",
+      flowXenditDescription: "Xendit shows the available payment methods and confirms the payment.",
+      flowPayoutLabel: "Merchant payout",
+      flowPayoutDescription: "Settlement sends 100% of the collected funds to the merchant account.",
+      notConnectedTitle: "Platform gateway is not active",
       accountDetailsHeader: "Account Details",
       updateSettingsHeader: "Update Settings",
       businessNameLabel: "Business Name",
@@ -304,6 +316,10 @@ export const settingsEn = {
       environmentHelp: "Sandbox is for testing transactions. Production is for real payments. Environment must match your secret key type.",
       environmentSandbox: "Sandbox (Testing)",
       environmentProduction: "Production",
+      environment: {
+        sandbox: "Sandbox",
+        production: "Production",
+      },
       webhook: {
         label: "Webhook Verification Token",
         placeholder: "Optional — used to verify Xendit webhook signatures",

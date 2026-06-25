@@ -159,6 +159,21 @@ Webhook yang relevan untuk alur recurring kita:
 - `payment.refunded`
 - `payment.chargeback`
 
+### POS / self-order payment webhook
+
+Set webhook POS invoice di Xendit ke:
+
+- `POST https://<your-domain>/api/v1/pos/payments/xendit/webhook`
+
+Endpoint ini public untuk server-to-server callback Xendit, tetapi tetap diverifikasi dengan header `x-callback-token` yang nilainya sama dengan `XENDIT_BILLING_WEBHOOK_TOKEN`.
+
+Ketika webhook Xendit mengonfirmasi invoice `PAID`, backend akan:
+
+- update status payment POS menjadi `PAID`,
+- finalize order POS,
+- publish WebSocket event `pos.payment_confirmed`,
+- update staff terminal/live-table tanpa polling fetch.
+
 ### Settlement webhook
 
 Belum aktif di code saat ini.

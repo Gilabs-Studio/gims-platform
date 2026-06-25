@@ -4,8 +4,11 @@ import { useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { posKeys } from "@/features/pos/terminal/hooks/use-pos";
-import type { POSOrder } from "@/features/pos/terminal/types";
-import { buildRealtimeNotificationId, useNotificationStore } from "@/features/notifications/stores/use-notification-store";
+import type { POSOrder, POSPayment } from "@/features/pos/terminal/types";
+import {
+  buildRealtimeNotificationId,
+  useNotificationStore,
+} from "@/features/notifications/stores/use-notification-store";
 import type { Notification } from "@/features/notifications/types";
 
 export type PosWsEvent = {
@@ -16,11 +19,12 @@ export type PosWsEvent = {
 };
 
 export type PosWsPayload = {
-    order_id?: string;
-    order_number?: string;
-    table_label?: string;
-    status?: string;
-    order?: POSOrder;
+  order_id?: string;
+  order_number?: string;
+  table_label?: string;
+  status?: string;
+  order?: POSOrder;
+  payment?: POSPayment;
 };
 
 interface UsePosWsOptions {
@@ -39,7 +43,9 @@ function buildPosRealtimeNotification(
 
   if (eventType === "pos.new_customer_order") {
     return {
-      id: buildRealtimeNotificationId(`${eventType}:${orderId || tableLabel}:${Date.now()}`),
+      id: buildRealtimeNotificationId(
+        `${eventType}:${orderId || tableLabel}:${Date.now()}`,
+      ),
       user_id: "realtime",
       title: "Pesanan self-order baru",
       message: `${tableLabel} membuat pesanan baru${payload?.order_number ? ` (#${payload.order_number})` : ""}.`,
@@ -58,6 +64,7 @@ function buildPosRealtimeNotification(
 
 type POSOrderListCache = { data?: POSOrder[] };
 type POSOrderDetailCache = { data?: POSOrder };
+type POSPaymentListCache = { data?: POSPayment[] };
 
 function orderFromPayload(payload: PosWsPayload | undefined): POSOrder | null {
   if (!payload?.order) return null;
@@ -68,30 +75,93 @@ function isClearedOrderStatus(status: POSOrder["status"]): boolean {
   return status === "COMPLETED" || status === "VOIDED";
 }
 
-function applyRealtimeOrder(queryClient: ReturnType<typeof useQueryClient>, payload: PosWsPayload | undefined) {
+function isTerminalPayloadStatus(status: string | undefined): boolean {
+  const normalized = status?.trim().toUpperCase();
+  return (
+    normalized === "COMPLETED" ||
+    normalized === "VOIDED" ||
+    normalized === "PAID"
+  );
+}
+
+function removeOrderFromCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  orderId: string,
+) {
+  queryClient.setQueriesData<POSOrderListCache>(
+    { queryKey: [...posKeys.orders(), "list"] },
+    (current) => {
+      if (!current?.data) return current;
+      return {
+        ...current,
+        data: current.data.filter((item) => item.id !== orderId),
+      };
+    },
+  );
+  queryClient.removeQueries({ queryKey: posKeys.order(orderId) });
+}
+
+function applyRealtimeOrder(
+  queryClient: ReturnType<typeof useQueryClient>,
+  eventType: string,
+  payload: PosWsPayload | undefined,
+) {
   const order = orderFromPayload(payload);
+  const payment = payload?.payment;
+  const orderId = order?.id ?? payment?.order_id ?? payload?.order_id;
+  if (!order && !payment) {
+    if (
+      orderId &&
+      (eventType === "pos.order_deleted" ||
+        (eventType === "pos.order_status_changed" &&
+          isTerminalPayloadStatus(payload?.status)))
+    ) {
+      removeOrderFromCaches(queryClient, orderId);
+    }
+    return;
+  }
+
+  if (payment && orderId) {
+    queryClient.setQueryData<POSPaymentListCache>(
+      posKeys.payments(orderId),
+      (current) => {
+        const existing = current?.data ?? [];
+        const exists = existing.some((item) => item.id === payment.id);
+        const data = exists
+          ? existing.map((item) => (item.id === payment.id ? payment : item))
+          : [payment, ...existing];
+        return { ...(current ?? {}), data };
+      },
+    );
+  }
+
   if (!order) return;
 
-  queryClient.setQueriesData<POSOrderListCache>({ queryKey: [...posKeys.orders(), "list"] }, (current) => {
-    if (!current?.data) return current;
-    const exists = current.data.some((item) => item.id === order.id);
-    const data = isClearedOrderStatus(order.status)
-      ? current.data.filter((item) => item.id !== order.id)
-      : exists
-        ? current.data.map((item) => (item.id === order.id ? order : item))
-        : [order, ...current.data];
-    return { ...current, data };
-  });
+  queryClient.setQueriesData<POSOrderListCache>(
+    { queryKey: [...posKeys.orders(), "list"] },
+    (current) => {
+      if (!current?.data) return current;
+      const exists = current.data.some((item) => item.id === order.id);
+      const data = isClearedOrderStatus(order.status)
+        ? current.data.filter((item) => item.id !== order.id)
+        : exists
+          ? current.data.map((item) => (item.id === order.id ? order : item))
+          : [order, ...current.data];
+      return { ...current, data };
+    },
+  );
 
-  queryClient.setQueryData<POSOrderDetailCache>(posKeys.order(order.id), (current) => {
-    if (isClearedOrderStatus(order.status)) return current;
-    return { ...(current ?? {}), data: order };
-  });
+  queryClient.setQueryData<POSOrderDetailCache>(
+    posKeys.order(order.id),
+    (current) => {
+      if (isClearedOrderStatus(order.status)) return current;
+      return { ...(current ?? {}), data: order };
+    },
+  );
 }
 
 function getWsUrl(outletId?: string): string {
-  const apiOrigin =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087";
+  const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8087";
   // Convert http(s) -> ws(s)
   const wsOrigin = apiOrigin.replace(/^http/, "ws");
   const id = outletId ?? "";
@@ -107,11 +177,19 @@ function nextDelay(attempt: number): number {
  * Connects to the POS staff WebSocket for an outlet.
  * Realtime events update POS order cache directly and show operator notifications.
  */
-export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions) {
+export function usePosWs(
+  outletId: string | undefined,
+  options?: UsePosWsOptions,
+) {
   const queryClient = useQueryClient();
   const onEvent = options?.onEvent;
-  const suppressToastEvents = useMemo(() => options?.suppressToastEvents ?? [], [options?.suppressToastEvents]);
-  const addRealtimeNotification = useNotificationStore((state) => state.addRealtimeNotification);
+  const suppressToastEvents = useMemo(
+    () => options?.suppressToastEvents ?? [],
+    [options?.suppressToastEvents],
+  );
+  const addRealtimeNotification = useNotificationStore(
+    (state) => state.addRealtimeNotification,
+  );
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,17 +235,24 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
         const payload = msg.data ?? msg.payload;
         onEvent?.(eventType, payload);
 
-        const realtimeNotification = buildPosRealtimeNotification(eventType, payload, id);
+        const realtimeNotification = buildPosRealtimeNotification(
+          eventType,
+          payload,
+          id,
+        );
         if (realtimeNotification) {
           addRealtimeNotification(realtimeNotification);
         }
 
-        applyRealtimeOrder(queryClient, payload);
+        applyRealtimeOrder(queryClient, eventType, payload);
 
         if (eventType === "pos.new_customer_order") {
           const tableLabel = payload?.table_label ?? "Meja";
           const toastKey = `${eventType}:${payload?.order_id ?? tableLabel}`;
-          if (!suppressToastEvents.includes(eventType) && shouldShowToast(toastKey)) {
+          if (
+            !suppressToastEvents.includes(eventType) &&
+            shouldShowToast(toastKey)
+          ) {
             toast.info(`Pesanan baru dari ${tableLabel}!`, {
               duration: 5000,
             });
@@ -196,5 +281,11 @@ export function usePosWs(outletId: string | undefined, options?: UsePosWsOptions
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [addRealtimeNotification, onEvent, outletId, queryClient, suppressToastEvents]);
+  }, [
+    addRealtimeNotification,
+    onEvent,
+    outletId,
+    queryClient,
+    suppressToastEvents,
+  ]);
 }

@@ -1,10 +1,11 @@
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { posOrderService, posPaymentService, posConfigService, xenditConfigService } from "../services/pos-service";
+import {
+  posOrderService,
+  posPaymentService,
+  posConfigService,
+  xenditConfigService,
+} from "../services/pos-service";
 import type {
   CreateOrderRequest,
   ConfirmOrderRequest,
@@ -15,6 +16,7 @@ import type {
   POSOrderListParams,
   ProcessPaymentRequest,
   POSOrder,
+  POSPayment,
   UpdatePOSReceiptWhatsAppTemplateRequest,
   ConnectXenditRequest,
   UpdateXenditConfigRequest,
@@ -29,18 +31,27 @@ function updateOrderInListCaches(
   orderId: string,
   updater: (order: POSOrder) => POSOrder,
 ) {
-  qc.setQueriesData<POSOrderListCache>({ queryKey: [...posKeys.orders(), "list"] }, (current) => {
-    if (!current?.data?.length) return current;
-    return {
-      ...current,
-      data: current.data.map((order) => (order.id === orderId ? updater(order) : order)),
-    };
-  });
+  qc.setQueriesData<POSOrderListCache>(
+    { queryKey: [...posKeys.orders(), "list"] },
+    (current) => {
+      if (!current?.data?.length) return current;
+      return {
+        ...current,
+        data: current.data.map((order) =>
+          order.id === orderId ? updater(order) : order,
+        ),
+      };
+    },
+  );
 }
 
-function deriveOrderStatusFromItems(items: POSOrder["items"]): POSOrder["status"] {
+function deriveOrderStatusFromItems(
+  items: POSOrder["items"],
+): POSOrder["status"] {
   if (!items.length) return "PAID";
-  const pendingExists = items.some((item) => item.status !== "SERVED" && item.status !== "CANCELLED");
+  const pendingExists = items.some(
+    (item) => item.status !== "SERVED" && item.status !== "CANCELLED",
+  );
   if (!pendingExists) return "SERVED";
   const servedExists = items.some((item) => item.status === "SERVED");
   return servedExists ? "PARTIAL_SERVED" : "PAID";
@@ -52,7 +63,8 @@ export const posKeys = {
   all: ["pos"] as const,
   orders: () => [...posKeys.all, "orders"] as const,
   order: (id: string) => [...posKeys.orders(), id] as const,
-  orderList: (params?: POSOrderListParams) => [...posKeys.orders(), "list", params] as const,
+  orderList: (params?: POSOrderListParams) =>
+    [...posKeys.orders(), "list", params] as const,
   catalog: (outletId: string) => [...posKeys.all, "catalog", outletId] as const,
   payments: (orderId: string) => [...posKeys.all, "payments", orderId] as const,
   config: (outletId: string) => [...posKeys.all, "config", outletId] as const,
@@ -62,7 +74,10 @@ export const posKeys = {
 
 // ─── Catalog hook ─────────────────────────────────────────────────────────────
 
-export function usePOSCatalog(outletId: string, options?: { enabled?: boolean }) {
+export function usePOSCatalog(
+  outletId: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: posKeys.catalog(outletId),
     queryFn: () => posOrderService.getCatalog(outletId),
@@ -90,23 +105,7 @@ export function usePOSOrder(
     queryKey: posKeys.order(id),
     queryFn: () => posOrderService.getById(id),
     enabled: !!id && options?.enabled !== false,
-    // Stop polling automatically once the order reaches a terminal state so we
-    // don't spam the server after checkout. Callers may override via options.
-    refetchInterval:
-      options?.refetchInterval !== undefined
-        ? options.refetchInterval
-        : (query) => {
-            const status = (
-              query.state.data as { data?: { status: string } } | undefined
-            )?.data?.status;
-            if (
-              status === "PAID" ||
-              status === "COMPLETED" ||
-              status === "VOIDED"
-            )
-              return false;
-            return 5_000;
-          },
+    refetchInterval: options?.refetchInterval,
   });
 }
 
@@ -124,8 +123,8 @@ export function usePOSOrderList(
     queryFn: () => posOrderService.list(params),
     enabled: !!params?.outlet_id && options?.enabled !== false,
     refetchInterval: options?.refetchInterval,
-    refetchOnWindowFocus: options?.refetchOnWindowFocus,
-    staleTime: options?.staleTime,
+    refetchOnWindowFocus: options?.refetchOnWindowFocus ?? false,
+    staleTime: options?.staleTime ?? Infinity,
   });
 }
 
@@ -175,13 +174,16 @@ export function useDeleteOrder(options?: POSMutationOptions) {
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: posKeys.orders() });
 
-      qc.setQueriesData<POSOrderListCache>({ queryKey: posKeys.orders() }, (current) => {
-        if (!current?.data?.length) return current;
-        return {
-          ...current,
-          data: current.data.filter((order) => order.id !== id),
-        };
-      });
+      qc.setQueriesData<POSOrderListCache>(
+        { queryKey: posKeys.orders() },
+        (current) => {
+          if (!current?.data?.length) return current;
+          return {
+            ...current,
+            data: current.data.filter((order) => order.id !== id),
+          };
+        },
+      );
 
       qc.removeQueries({ queryKey: posKeys.order(id) });
     },
@@ -196,8 +198,13 @@ export function useDeleteOrder(options?: POSMutationOptions) {
 export function useAddOrderItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ orderId, data }: { orderId: string; data: AddOrderItemRequest }) =>
-      posOrderService.addItem(orderId, data),
+    mutationFn: ({
+      orderId,
+      data,
+    }: {
+      orderId: string;
+      data: AddOrderItemRequest;
+    }) => posOrderService.addItem(orderId, data),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: posKeys.order(result.data.id) });
     },
@@ -238,18 +245,26 @@ export function useAssignTable(options?: POSMutationOptions) {
   const invalidateOnSuccess = options?.invalidateOnSuccess !== false;
 
   return useMutation({
-    mutationFn: ({ orderId, data }: { orderId: string; data: AssignTableRequest }) =>
-      posOrderService.assignTable(orderId, data),
+    mutationFn: ({
+      orderId,
+      data,
+    }: {
+      orderId: string;
+      data: AssignTableRequest;
+    }) => posOrderService.assignTable(orderId, data),
     onMutate: async ({ orderId }) => {
       await qc.cancelQueries({ queryKey: posKeys.orders() });
 
-      qc.setQueriesData<POSOrderListCache>({ queryKey: posKeys.orders() }, (current) => {
-        if (!current?.data?.length) return current;
-        return {
-          ...current,
-          data: current.data.filter((order) => order.id !== orderId),
-        };
-      });
+      qc.setQueriesData<POSOrderListCache>(
+        { queryKey: posKeys.orders() },
+        (current) => {
+          if (!current?.data?.length) return current;
+          return {
+            ...current,
+            data: current.data.filter((order) => order.id !== orderId),
+          };
+        },
+      );
     },
     onSuccess: (result) => {
       if (invalidateOnSuccess) {
@@ -284,72 +299,109 @@ export function useProcessCashPayment(options?: POSMutationOptions) {
   const invalidateOnSuccess = options?.invalidateOnSuccess !== false;
 
   return useMutation({
-    mutationFn: ({ orderId, data }: { orderId: string; data: ProcessPaymentRequest }) =>
-      posPaymentService.processCash(orderId, data),
+    mutationFn: ({
+      orderId,
+      data,
+    }: {
+      orderId: string;
+      data: ProcessPaymentRequest;
+    }) => posPaymentService.processCash(orderId, data),
     onMutate: async ({ orderId }) => {
       await qc.cancelQueries({ queryKey: posKeys.order(orderId) });
       await qc.cancelQueries({ queryKey: posKeys.orders() });
 
-      const previousOrder = qc.getQueryData<POSOrderDetailCache>(posKeys.order(orderId));
-
-      const orderResponse = qc.getQueryData<{ data?: { outlet_id?: string; items?: Array<{ product_id: string; quantity: number }> } }>(
-        posKeys.order(orderId)
+      const previousOrder = qc.getQueryData<POSOrderDetailCache>(
+        posKeys.order(orderId),
       );
+
+      const orderResponse = qc.getQueryData<{
+        data?: {
+          outlet_id?: string;
+          items?: Array<{ product_id: string; quantity: number }>;
+        };
+      }>(posKeys.order(orderId));
       const outletId = orderResponse?.data?.outlet_id;
 
       if (!outletId) {
-        return { outletId: undefined, previousCatalog: undefined as { data?: Array<{ product_id: string; product_kind: string; stock: number; is_available: boolean }> } | undefined };
+        return {
+          outletId: undefined,
+          previousCatalog: undefined as
+            | {
+                data?: Array<{
+                  product_id: string;
+                  product_kind: string;
+                  stock: number;
+                  is_available: boolean;
+                }>;
+              }
+            | undefined,
+        };
       }
 
       await qc.cancelQueries({ queryKey: posKeys.catalog(outletId) });
-      const previousCatalog = qc.getQueryData<{ data?: Array<{ product_id: string; product_kind: string; stock: number; is_available: boolean }> }>(
-        posKeys.catalog(outletId)
-      );
+      const previousCatalog = qc.getQueryData<{
+        data?: Array<{
+          product_id: string;
+          product_kind: string;
+          stock: number;
+          is_available: boolean;
+        }>;
+      }>(posKeys.catalog(outletId));
 
       const qtyMap = new Map<string, number>();
       for (const item of orderResponse?.data?.items ?? []) {
-        qtyMap.set(item.product_id, (qtyMap.get(item.product_id) ?? 0) + item.quantity);
+        qtyMap.set(
+          item.product_id,
+          (qtyMap.get(item.product_id) ?? 0) + item.quantity,
+        );
       }
 
-      qc.setQueryData<{ data?: Array<{ product_id: string; product_kind: string; stock: number; is_available: boolean }> }>(
-        posKeys.catalog(outletId),
-        (current) => {
-          if (!current?.data) {
-            return current;
-          }
-          return {
-            ...current,
-            data: current.data.map((p) => {
-              const soldQty = qtyMap.get(p.product_id) ?? 0;
-              if (soldQty <= 0) {
-                return p;
-              }
-
-              const nextStock = Math.max(0, p.stock - soldQty);
-              if (p.product_kind !== "STOCK") {
-                return p;
-              }
-
-              return {
-                ...p,
-                stock: nextStock,
-                is_available: nextStock > 0,
-              };
-            }),
-          };
+      qc.setQueryData<{
+        data?: Array<{
+          product_id: string;
+          product_kind: string;
+          stock: number;
+          is_available: boolean;
+        }>;
+      }>(posKeys.catalog(outletId), (current) => {
+        if (!current?.data) {
+          return current;
         }
-      );
-
-      qc.setQueryData<POSOrderDetailCache>(posKeys.order(orderId), (current) => {
-        if (!current?.data) return current;
         return {
           ...current,
-          data: {
-            ...current.data,
-            status: "PAID",
-          },
+          data: current.data.map((p) => {
+            const soldQty = qtyMap.get(p.product_id) ?? 0;
+            if (soldQty <= 0) {
+              return p;
+            }
+
+            const nextStock = Math.max(0, p.stock - soldQty);
+            if (p.product_kind !== "STOCK") {
+              return p;
+            }
+
+            return {
+              ...p,
+              stock: nextStock,
+              is_available: nextStock > 0,
+            };
+          }),
         };
       });
+
+      qc.setQueryData<POSOrderDetailCache>(
+        posKeys.order(orderId),
+        (current) => {
+          if (!current?.data) return current;
+          return {
+            ...current,
+            data: {
+              ...current.data,
+              status: "PAID",
+            },
+          };
+        },
+      );
 
       updateOrderInListCaches(qc, orderId, (order) => ({
         ...order,
@@ -370,10 +422,16 @@ export function useProcessCashPayment(options?: POSMutationOptions) {
     },
     onError: (_, variables, context) => {
       if (context?.outletId && context.previousCatalog) {
-        qc.setQueryData(posKeys.catalog(context.outletId), context.previousCatalog);
+        qc.setQueryData(
+          posKeys.catalog(context.outletId),
+          context.previousCatalog,
+        );
       }
       if (context?.previousOrder) {
-        qc.setQueryData(posKeys.order(variables.orderId), context.previousOrder);
+        qc.setQueryData(
+          posKeys.order(variables.orderId),
+          context.previousOrder,
+        );
       }
       qc.invalidateQueries({ queryKey: posKeys.orders() });
       toast.error("Payment failed. Please try again.");
@@ -382,16 +440,26 @@ export function useProcessCashPayment(options?: POSMutationOptions) {
 }
 
 export function useInitiateDigitalPayment(options?: POSMutationOptions) {
+  void options;
   const qc = useQueryClient();
-  const invalidateOnSuccess = options?.invalidateOnSuccess !== false;
 
   return useMutation({
-    mutationFn: ({ orderId, data }: { orderId: string; data: ProcessPaymentRequest }) =>
-      posPaymentService.initiateDigital(orderId, data),
-    onSuccess: (_, { orderId }) => {
-      qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
-      if (invalidateOnSuccess) {
-        qc.invalidateQueries({ queryKey: posKeys.orders() });
+    mutationFn: ({
+      orderId,
+      data,
+    }: {
+      orderId: string;
+      data: ProcessPaymentRequest;
+    }) => posPaymentService.initiateDigital(orderId, data),
+    onSuccess: (result, { orderId }) => {
+      if (result.data) {
+        qc.setQueryData<{ data?: POSPayment[] }>(
+          posKeys.payments(orderId),
+          (current) => ({
+            ...(current ?? {}),
+            data: [result.data],
+          }),
+        );
       }
     },
     onError: () => {
@@ -401,23 +469,59 @@ export function useInitiateDigitalPayment(options?: POSMutationOptions) {
 }
 
 export function useCancelPendingPOSPayment(options?: POSMutationOptions) {
-  const qc = useQueryClient();
-  const invalidateOnSuccess = options?.invalidateOnSuccess !== false;
-
+  void options;
   return useMutation({
-    mutationFn: ({ orderId, paymentId, reason }: { orderId: string; paymentId: string; reason?: string }) =>
-      posPaymentService.cancelPending(orderId, paymentId, reason),
-    onSuccess: (_, { orderId }) => {
-      if (invalidateOnSuccess) {
-        qc.invalidateQueries({ queryKey: posKeys.order(orderId) });
-        qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
-        qc.invalidateQueries({ queryKey: posKeys.orders() });
-        return;
-      }
-      qc.invalidateQueries({ queryKey: posKeys.payments(orderId) });
-    },
+    mutationFn: ({
+      orderId,
+      paymentId,
+      reason,
+    }: {
+      orderId: string;
+      paymentId: string;
+      reason?: string;
+    }) => posPaymentService.cancelPending(orderId, paymentId, reason),
     onError: () => {
       toast.error("Failed to cancel digital payment.");
+    },
+  });
+}
+
+export function useSyncPOSDigitalPayment(options?: POSMutationOptions) {
+  void options;
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      paymentId,
+    }: {
+      orderId: string;
+      paymentId: string;
+    }) => posPaymentService.syncDigital(orderId, paymentId),
+    onSuccess: (result, { orderId }) => {
+      if (result.data) {
+        qc.setQueryData<{ data?: POSPayment[] }>(
+          posKeys.payments(orderId),
+          (current) => {
+            const existing = current?.data ?? [];
+            const exists = existing.some(
+              (payment) => payment.id === result.data.id,
+            );
+            const data = exists
+              ? existing.map((payment) =>
+                  payment.id === result.data.id ? result.data : payment,
+                )
+              : [result.data, ...existing];
+            return {
+              ...(current ?? {}),
+              data,
+            };
+          },
+        );
+      }
+    },
+    onError: () => {
+      toast.error("Failed to refresh payment status.");
     },
   });
 }
@@ -443,7 +547,8 @@ export function useXenditConfig() {
 export function useConnectXendit() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: ConnectXenditRequest) => xenditConfigService.connect(data),
+    mutationFn: (data: ConnectXenditRequest) =>
+      xenditConfigService.connect(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: posKeys.xenditStatus() });
       qc.invalidateQueries({ queryKey: posKeys.xenditConfig() });
@@ -458,7 +563,8 @@ export function useConnectXendit() {
 export function useUpdateXenditConfig() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: UpdateXenditConfigRequest) => xenditConfigService.update(data),
+    mutationFn: (data: UpdateXenditConfigRequest) =>
+      xenditConfigService.update(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: posKeys.xenditConfig() });
       toast.success("Payment settings updated.");
@@ -486,7 +592,10 @@ export function useDisconnectXendit() {
 
 // ─── Config hook ──────────────────────────────────────────────────────────────
 
-export function usePOSConfig(outletId: string, options?: { enabled?: boolean }) {
+export function usePOSConfig(
+  outletId: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: posKeys.config(outletId),
     queryFn: () => posConfigService.getByOutlet(outletId),
@@ -523,23 +632,34 @@ export function useServeOrder(options?: POSMutationOptions) {
       await qc.cancelQueries({ queryKey: posKeys.order(orderId) });
       await qc.cancelQueries({ queryKey: posKeys.orders() });
 
-      const previousOrder = qc.getQueryData<POSOrderDetailCache>(posKeys.order(orderId));
+      const previousOrder = qc.getQueryData<POSOrderDetailCache>(
+        posKeys.order(orderId),
+      );
 
-      qc.setQueryData<POSOrderDetailCache>(posKeys.order(orderId), (current) => {
-        if (!current?.data) return current;
-        const nextItems = current.data.items.map((item) => ({ ...item, status: "SERVED" as const }));
-        return {
-          ...current,
-          data: {
-            ...current.data,
-            items: nextItems,
-            status: "SERVED",
-          },
-        };
-      });
+      qc.setQueryData<POSOrderDetailCache>(
+        posKeys.order(orderId),
+        (current) => {
+          if (!current?.data) return current;
+          const nextItems = current.data.items.map((item) => ({
+            ...item,
+            status: "SERVED" as const,
+          }));
+          return {
+            ...current,
+            data: {
+              ...current.data,
+              items: nextItems,
+              status: "SERVED",
+            },
+          };
+        },
+      );
 
       updateOrderInListCaches(qc, orderId, (order) => {
-        const nextItems = order.items.map((item) => ({ ...item, status: "SERVED" as const }));
+        const nextItems = order.items.map((item) => ({
+          ...item,
+          status: "SERVED" as const,
+        }));
         return {
           ...order,
           items: nextItems,
@@ -573,18 +693,23 @@ export function useCompleteOrder(options?: POSMutationOptions) {
       await qc.cancelQueries({ queryKey: posKeys.order(orderId) });
       await qc.cancelQueries({ queryKey: posKeys.orders() });
 
-      const previousOrder = qc.getQueryData<POSOrderDetailCache>(posKeys.order(orderId));
+      const previousOrder = qc.getQueryData<POSOrderDetailCache>(
+        posKeys.order(orderId),
+      );
 
-      qc.setQueryData<POSOrderDetailCache>(posKeys.order(orderId), (current) => {
-        if (!current?.data) return current;
-        return {
-          ...current,
-          data: {
-            ...current.data,
-            status: "COMPLETED",
-          },
-        };
-      });
+      qc.setQueryData<POSOrderDetailCache>(
+        posKeys.order(orderId),
+        (current) => {
+          if (!current?.data) return current;
+          return {
+            ...current,
+            data: {
+              ...current.data,
+              status: "COMPLETED",
+            },
+          };
+        },
+      );
 
       updateOrderInListCaches(qc, orderId, (order) => ({
         ...order,
@@ -618,22 +743,27 @@ export function useServeOrderItem(options?: POSMutationOptions) {
       await qc.cancelQueries({ queryKey: posKeys.order(orderId) });
       await qc.cancelQueries({ queryKey: posKeys.orders() });
 
-      const previousOrder = qc.getQueryData<POSOrderDetailCache>(posKeys.order(orderId));
+      const previousOrder = qc.getQueryData<POSOrderDetailCache>(
+        posKeys.order(orderId),
+      );
 
-      qc.setQueryData<POSOrderDetailCache>(posKeys.order(orderId), (current) => {
-        if (!current?.data) return current;
-        const nextItems = current.data.items.map((item) =>
-          item.id === itemId ? { ...item, status: "SERVED" as const } : item,
-        );
-        return {
-          ...current,
-          data: {
-            ...current.data,
-            items: nextItems,
-            status: deriveOrderStatusFromItems(nextItems),
-          },
-        };
-      });
+      qc.setQueryData<POSOrderDetailCache>(
+        posKeys.order(orderId),
+        (current) => {
+          if (!current?.data) return current;
+          const nextItems = current.data.items.map((item) =>
+            item.id === itemId ? { ...item, status: "SERVED" as const } : item,
+          );
+          return {
+            ...current,
+            data: {
+              ...current.data,
+              items: nextItems,
+              status: deriveOrderStatusFromItems(nextItems),
+            },
+          };
+        },
+      );
 
       updateOrderInListCaches(qc, orderId, (order) => {
         const nextItems = order.items.map((item) =>
@@ -655,7 +785,10 @@ export function useServeOrderItem(options?: POSMutationOptions) {
     },
     onError: (_, variables, context) => {
       if (context?.previousOrder) {
-        qc.setQueryData(posKeys.order(variables.orderId), context.previousOrder);
+        qc.setQueryData(
+          posKeys.order(variables.orderId),
+          context.previousOrder,
+        );
       }
       qc.invalidateQueries({ queryKey: posKeys.orders() });
     },

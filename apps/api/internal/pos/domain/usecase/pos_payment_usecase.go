@@ -47,7 +47,7 @@ type POSPaymentUsecase interface {
 	SyncXenditPayment(ctx context.Context, orderID, paymentID, companyID string) (*dto.POSPaymentResponse, error)
 	// GetByOrderID returns all payments for an order
 	GetByOrderID(ctx context.Context, orderID string) ([]dto.POSPaymentResponse, error)
-	// CancelPendingPayment cancels a pending digital payment and keeps order open for cashier payment.
+	// CancelPendingPayment cancels a pending digital payment and resolves the order state.
 	CancelPendingPayment(ctx context.Context, orderID, paymentID, actorID string, reason *string) error
 }
 
@@ -130,8 +130,20 @@ func NewPOSPaymentUsecase(
 }
 
 func (u *posPaymentUsecase) resolveXenditCredentials(ctx context.Context, companyID string) (*resolvedXenditCredentials, error) {
+	platformSecretKey := platformXenditMoneyInSecretKey()
+	resolvePlatformCredentials := func() (*resolvedXenditCredentials, error) {
+		if strings.TrimSpace(platformSecretKey) == "" {
+			return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway not configured")
+		}
+		return &resolvedXenditCredentials{
+			secretKey:    strings.TrimSpace(platformSecretKey),
+			webhookToken: platformXenditWebhookToken(),
+			providerMode: xenditProviderModePlatformManaged,
+		}, nil
+	}
+
 	if strings.TrimSpace(companyID) == "" {
-		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: missing company context")
+		return resolvePlatformCredentials()
 	}
 
 	if u.xenditRepo != nil {
@@ -165,16 +177,7 @@ func (u *posPaymentUsecase) resolveXenditCredentials(ctx context.Context, compan
 		}
 	}
 
-	secretKey := platformXenditMoneyInSecretKey()
-	if strings.TrimSpace(secretKey) == "" {
-		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: payment gateway not configured")
-	}
-
-	return &resolvedXenditCredentials{
-		secretKey:    strings.TrimSpace(secretKey),
-		webhookToken: platformXenditWebhookToken(),
-		providerMode: xenditProviderModePlatformManaged,
-	}, nil
+	return resolvePlatformCredentials()
 }
 
 func platformXenditMoneyInSecretKey() string {
@@ -189,6 +192,30 @@ func platformXenditWebhookToken() string {
 		return ""
 	}
 	return strings.TrimSpace(coreConfig.AppConfig.Xendit.BillingWebhookToken)
+}
+
+func (u *posPaymentUsecase) resolveCompanyID(ctx context.Context, providedCompanyID, outletID string) string {
+	if trimmed := strings.TrimSpace(providedCompanyID); trimmed != "" {
+		return trimmed
+	}
+	if u == nil || u.db == nil || strings.TrimSpace(outletID) == "" {
+		return ""
+	}
+
+	var outlet struct {
+		CompanyID *string
+	}
+	if err := coreDatabase.GetDB(ctx, u.db).
+		Table("outlets").
+		Select("company_id").
+		Where("id = ? AND deleted_at IS NULL", outletID).
+		Take(&outlet).Error; err != nil {
+		return ""
+	}
+	if outlet.CompanyID == nil {
+		return ""
+	}
+	return strings.TrimSpace(*outlet.CompanyID)
 }
 
 func (u *posPaymentUsecase) resolveAutoPaymentBankAccount(ctx context.Context, method salesModels.SalesPaymentMethod) (*coreModels.BankAccount, error) {
@@ -336,6 +363,9 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 	if order.Status == models.PosOrderStatusPaid || order.Status == models.PosOrderStatusCompleted {
 		return nil, ErrPOSOrderAlreadyPaid
 	}
+	if order.Status == models.PosOrderStatusVoided {
+		return nil, ErrPOSOrderCannotModify
+	}
 	if req == nil || req.Amount <= 0 {
 		return nil, fmt.Errorf("%w: amount must be greater than zero", ErrPOSInvalidPayment)
 	}
@@ -347,10 +377,8 @@ func (u *posPaymentUsecase) InitiateDigitalPayment(ctx context.Context, orderID 
 
 	// Resolve payment credentials. Merchant-specific credentials still work, but the
 	// platform-managed billing key is now the secure default for self-order/POS.
-	if strings.TrimSpace(companyID) == "" {
-		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: missing company context")
-	}
-	xenditCreds, err := u.resolveXenditCredentials(ctx, companyID)
+	resolvedCompanyID := u.resolveCompanyID(ctx, companyID, order.OutletID)
+	xenditCreds, err := u.resolveXenditCredentials(ctx, resolvedCompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -846,20 +874,8 @@ func (u *posPaymentUsecase) ConfirmXenditWebhook(ctx context.Context, payload *d
 			return err
 		}
 
-		var companyID string
-		err = tx.WithContext(ctx).
-			Table("outlets").
-			Select("company_id").
-			Where("id = ? AND deleted_at IS NULL", order.OutletID).
-			Scan(&companyID).Error
-		if err != nil {
-			return err
-		}
-		if strings.TrimSpace(companyID) == "" {
-			return fmt.Errorf("XENDIT_WEBHOOK_INVALID: outlet company is missing")
-		}
-
-		creds, err := u.resolveXenditCredentials(txCtx, companyID)
+		resolvedCompanyID := u.resolveCompanyID(txCtx, "", order.OutletID)
+		creds, err := u.resolveXenditCredentials(txCtx, resolvedCompanyID)
 		if err != nil {
 			return err
 		}
@@ -957,10 +973,15 @@ func parseXenditPaidAt(value string) time.Time {
 }
 
 func (u *posPaymentUsecase) SyncXenditPayment(ctx context.Context, orderID, paymentID, companyID string) (*dto.POSPaymentResponse, error) {
-	if strings.TrimSpace(companyID) == "" {
-		return nil, fmt.Errorf("XENDIT_NOT_CONNECTED: missing company context")
+	order, err := u.orderRepo.GetByID(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPOSOrderNotFound
+		}
+		return nil, err
 	}
 
+	resolvedCompanyID := u.resolveCompanyID(ctx, companyID, order.OutletID)
 	payment, err := u.paymentRepo.FindByID(ctx, paymentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -978,7 +999,7 @@ func (u *posPaymentUsecase) SyncXenditPayment(ctx context.Context, orderID, paym
 		return nil, fmt.Errorf("%w: payment has no Xendit external id", ErrPOSInvalidPayment)
 	}
 
-	creds, err := u.resolveXenditCredentials(ctx, companyID)
+	creds, err := u.resolveXenditCredentials(ctx, resolvedCompanyID)
 	if err != nil {
 		return nil, err
 	}
@@ -1019,73 +1040,89 @@ func (u *posPaymentUsecase) GetByOrderID(ctx context.Context, orderID string) ([
 }
 
 func (u *posPaymentUsecase) CancelPendingPayment(ctx context.Context, orderID, paymentID, actorID string, reason *string) error {
-	order, err := u.orderRepo.GetByID(ctx, orderID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrPOSOrderNotFound
-		}
-		return err
-	}
-
-	if order.Status == models.PosOrderStatusPaid || order.Status == models.PosOrderStatusCompleted {
-		return ErrPOSOrderAlreadyPaid
-	}
-
-	payment, err := u.paymentRepo.FindByID(ctx, paymentID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrPOSPaymentNotFound
-		}
-		return err
-	}
-
-	if payment.OrderID != orderID {
-		return ErrPOSPaymentNotFound
-	}
-
-	if payment.Status != models.POSPaymentStatusPending {
-		return fmt.Errorf("%w: payment is not pending", ErrPOSInvalidPayment)
-	}
-
-	payment.Status = models.POSPaymentStatusCancelled
 	cancelReason := strings.TrimSpace(defaultString(reason))
 	if cancelReason == "" {
 		cancelReason = "Cancelled from POS live table"
 	}
-	note := strings.TrimSpace(defaultString(payment.Notes))
-	if note == "" {
-		note = cancelReason
-	} else {
-		note = note + " | " + cancelReason
-	}
-	payment.Notes = &note
 
-	if err := u.paymentRepo.Update(ctx, payment); err != nil {
+	var publishOrder *models.PosOrder
+	var publishPayment *models.POSPayment
+
+	err := u.db.Transaction(func(tx *gorm.DB) error {
+		txCtx := coreDatabase.WithTx(ctx, tx)
+		order, err := u.orderRepo.GetByID(txCtx, orderID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPOSOrderNotFound
+			}
+			return err
+		}
+
+		if order.Status == models.PosOrderStatusPaid || order.Status == models.PosOrderStatusCompleted {
+			return ErrPOSOrderAlreadyPaid
+		}
+
+		payment, err := u.paymentRepo.FindByID(txCtx, paymentID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrPOSPaymentNotFound
+			}
+			return err
+		}
+
+		if payment.OrderID != orderID {
+			return ErrPOSPaymentNotFound
+		}
+
+		if payment.Status != models.POSPaymentStatusPending {
+			return fmt.Errorf("%w: payment is not pending", ErrPOSInvalidPayment)
+		}
+
+		payment.Status = models.POSPaymentStatusCancelled
+		note := strings.TrimSpace(defaultString(payment.Notes))
+		if note == "" {
+			note = cancelReason
+		} else {
+			note = note + " | " + cancelReason
+		}
+		payment.Notes = &note
+
+		if err := u.paymentRepo.Update(txCtx, payment); err != nil {
+			return err
+		}
+
+		isOutletLevelOrder := order.TableID == nil || strings.TrimSpace(*order.TableID) == ""
+		if order.OrderSource == "CUSTOMER" || isOutletLevelOrder {
+			order.Status = models.PosOrderStatusVoided
+			order.VoidReason = &cancelReason
+			if err := u.orderRepo.Update(txCtx, order); err != nil {
+				return err
+			}
+		} else if order.Status == models.PosOrderStatusDraft || order.Status == models.PosOrderStatusWaitingPayment {
+			order.Status = models.PosOrderStatusInProgress
+			if err := u.orderRepo.Update(txCtx, order); err != nil {
+				return err
+			}
+		}
+
+		publishOrder = order
+		publishPayment = payment
+		return nil
+	})
+	if err != nil {
 		return err
 	}
 
-	if order.OrderSource == "CUSTOMER" {
-		order.Status = models.PosOrderStatusVoided
-		order.VoidReason = &cancelReason
-		if err := u.orderRepo.Update(ctx, order); err != nil {
-			return err
-		}
-	} else if order.Status == models.PosOrderStatusDraft {
-		order.Status = models.PosOrderStatusInProgress
-		if err := u.orderRepo.Update(ctx, order); err != nil {
-			return err
-		}
-	}
-
-	if u.hub != nil {
+	if u.hub != nil && publishOrder != nil && publishPayment != nil {
 		tableLabel := ""
-		if order.TableLabel != nil {
-			tableLabel = *order.TableLabel
+		if publishOrder.TableLabel != nil {
+			tableLabel = *publishOrder.TableLabel
 		}
-		payload := posOrderRealtimePayload(mapper.ToPOSOrderResponse(order), "CANCELLED", cancelReason)
+		payload := posOrderRealtimePayload(mapper.ToPOSOrderResponse(publishOrder), "CANCELLED", cancelReason)
+		payload["payment"] = mapper.ToPOSPaymentResponse(publishPayment)
 		payload["table_label"] = tableLabel
 		payload["cancelled_by"] = normalizedActorID(actorID)
-		u.hub.Publish(tenantIDForPOSOrder(ctx, order), order.OutletID, "pos.order_status_changed", payload)
+		u.hub.Publish(tenantIDForPOSOrder(ctx, publishOrder), publishOrder.OutletID, "pos.order_status_changed", payload)
 	}
 
 	return nil
@@ -1128,6 +1165,7 @@ func (u *posPaymentUsecase) finalizeOrder(ctx context.Context, order *models.Pos
 
 	if u.hub != nil {
 		payload := posOrderRealtimePayload(mapper.ToPOSOrderResponse(order), "PAID", "")
+		payload["payment"] = mapper.ToPOSPaymentResponse(payment)
 		u.hub.Publish(tenantIDForPOSOrder(ctx, order), order.OutletID, "pos.order_status_changed", payload)
 		u.hub.Publish(tenantIDForPOSOrder(ctx, order), order.OutletID, "pos.payment_confirmed", payload)
 	}
