@@ -9,15 +9,28 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return buildLandingMetadata({
     locale,
     path: "/accounting",
-    title: locale === "id" ? "Software Accounting Jurnal & Buku Besar | SalesView" : "Accounting Software for Ledger & Journals | SalesView",
+    title: locale === "id" ? "Software Accounting Closing, Jurnal & Buku Besar | SalesView" : "Accounting Software for Closing, Journals & Ledger | SalesView",
     description:
       locale === "id"
-        ? "Kelola jurnal otomatis, chart of accounts, dan buku besar terintegrasi sebagai fondasi proses closing finance yang lebih cepat, akurat, dan siap audit."
-        : "Manage automated journals, chart of accounts, and integrated ledgers as the foundation of a faster, more accurate, and audit-ready finance closing process.",
+        ? "Kelola jurnal otomatis, chart of accounts, buku besar, dan closing finance terintegrasi agar tim accounting lebih cepat tutup buku, telusur transaksi, dan siap audit."
+        : "Manage automated journals, chart of accounts, ledgers, and finance closing in one flow so accounting teams can close faster, trace transactions, and stay audit-ready.",
     keywords:
       locale === "id"
-        ? ["software accounting", "jurnal otomatis", "buku besar", "chart of accounts", "salesview accounting"]
-        : ["accounting software", "automated journal", "general ledger", "chart of accounts", "salesview accounting"],
+        ? [
+            "software closing buku bulanan perusahaan",
+            "aplikasi jurnal otomatis dari transaksi erp",
+            "sistem buku besar dan coa audit ready",
+            "software akuntansi distributor retail",
+            "finance closing terintegrasi inventory sales purchase",
+            "salesview accounting",
+          ]
+        : [
+            "accounting software for monthly closing",
+            "automated journal entry from erp transactions",
+            "general ledger and chart of accounts software",
+            "audit ready accounting system for operations teams",
+            "salesview accounting",
+          ],
     imageAlt: "SalesView accounting overview",
   });
 }

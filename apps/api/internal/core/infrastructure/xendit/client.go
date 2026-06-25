@@ -13,6 +13,7 @@ import (
 const (
 	defaultBaseURL      = "https://api.xendit.co"
 	invoicePath         = "/v2/invoices"
+	paymentSessionPath  = "/sessions"
 	subscriptionPath    = "/recurring/plans"
 	subscriptionAPIPath = "/recurring/subscriptions"
 )
@@ -89,6 +90,87 @@ type WebhookPayload struct {
 	PaidAt        *time.Time `json:"paid_at,omitempty"`
 }
 
+// PaymentSessionCustomerDetails is the customer object accepted by Xendit
+// Payment Sessions. Keep this minimal so GIMS never handles raw payment data.
+type PaymentSessionCustomerDetails struct {
+	ReferenceID      string                         `json:"reference_id"`
+	Type             string                         `json:"type"` // "INDIVIDUAL"
+	Email            string                         `json:"email,omitempty"`
+	MobileNumber     string                         `json:"mobile_number,omitempty"`
+	IndividualDetail PaymentSessionIndividualDetail `json:"individual_detail"`
+}
+
+type PaymentSessionIndividualDetail struct {
+	GivenNames string `json:"given_names"`
+	Surname    string `json:"surname,omitempty"`
+}
+
+type PaymentSessionItem struct {
+	ReferenceID   string `json:"reference_id"`
+	Type          string `json:"type"` // DIGITAL_SERVICE
+	Name          string `json:"name"`
+	Category      string `json:"category"`
+	NetUnitAmount int64  `json:"net_unit_amount"`
+	Quantity      int    `json:"quantity"`
+	Currency      string `json:"currency"`
+	Description   string `json:"description,omitempty"`
+}
+
+type PaymentSessionSubscription struct {
+	Schedule          PaymentSessionSubscriptionSchedule `json:"schedule"`
+	FailedCycleAction string                             `json:"failed_cycle_action,omitempty"` // RESUME or STOP
+	ImmediatePayment  bool                               `json:"immediate_payment,omitempty"`
+}
+
+type PaymentSessionSubscriptionSchedule struct {
+	Interval                    string `json:"interval"` // DAY, WEEK, MONTH
+	IntervalCount               int    `json:"interval_count"`
+	TotalRecurrence             int    `json:"total_recurrence,omitempty"`
+	AnchorDate                  string `json:"anchor_date"` // ISO-8601
+	RetryInterval               string `json:"retry_interval,omitempty"`
+	RetryIntervalCount          int    `json:"retry_interval_count,omitempty"`
+	TotalRetry                  int    `json:"total_retry,omitempty"`
+	PaymentLinkForFailedAttempt bool   `json:"payment_link_for_failed_attempt,omitempty"`
+}
+
+// CreatePaymentSessionRequest creates a Xendit-hosted checkout session.
+// For recurring billing use SessionType=SUBSCRIPTION and Mode=PAYMENT_LINK.
+type CreatePaymentSessionRequest struct {
+	ReferenceID          string                        `json:"reference_id"`
+	SessionType          string                        `json:"session_type"` // PAY, SAVE, SUBSCRIPTION
+	Mode                 string                        `json:"mode"`         // PAYMENT_LINK, COMPONENTS
+	Amount               int64                         `json:"amount"`
+	Currency             string                        `json:"currency"`
+	Country              string                        `json:"country"`
+	Customer             PaymentSessionCustomerDetails `json:"customer"`
+	Items                []PaymentSessionItem          `json:"items,omitempty"`
+	Locale               string                        `json:"locale,omitempty"`
+	Description          string                        `json:"description,omitempty"`
+	Subscription         *PaymentSessionSubscription   `json:"subscription,omitempty"`
+	SuccessReturnURL     string                        `json:"success_return_url,omitempty"`
+	CancelReturnURL      string                        `json:"cancel_return_url,omitempty"`
+	NotificationChannels []string                      `json:"notification_channels,omitempty"`
+	Metadata             map[string]interface{}        `json:"metadata,omitempty"`
+}
+
+type PaymentSessionResponse struct {
+	PaymentSessionID string    `json:"payment_session_id"`
+	ReferenceID      string    `json:"reference_id"`
+	Status           string    `json:"status"`
+	SessionType      string    `json:"session_type"`
+	Mode             string    `json:"mode"`
+	Amount           int64     `json:"amount"`
+	Currency         string    `json:"currency"`
+	Country          string    `json:"country"`
+	PaymentLinkURL   string    `json:"payment_link_url"`
+	PaymentTokenID   string    `json:"payment_token_id"`
+	PaymentID        string    `json:"payment_id"`
+	PaymentRequestID string    `json:"payment_request_id"`
+	CustomerID       string    `json:"customer_id"`
+	Created          time.Time `json:"created"`
+	Updated          time.Time `json:"updated"`
+}
+
 // CreateInvoice sends a create-invoice request to Xendit and returns the invoice.
 func (c *Client) CreateInvoice(ctx context.Context, req CreateInvoiceRequest) (*CreateInvoiceResponse, error) {
 	if req.Currency == "" {
@@ -133,21 +215,38 @@ func (c *Client) CreateInvoice(ctx context.Context, req CreateInvoiceRequest) (*
 	return &result, nil
 }
 
+// CreatePaymentSession creates a Xendit Payment Session.
+func (c *Client) CreatePaymentSession(ctx context.Context, req CreatePaymentSessionRequest) (*PaymentSessionResponse, error) {
+	if req.Currency == "" {
+		req.Currency = "IDR"
+	}
+	if req.Country == "" {
+		req.Country = "ID"
+	}
+	if req.Mode == "" {
+		req.Mode = "PAYMENT_LINK"
+	}
+	if req.Locale == "" {
+		req.Locale = "id"
+	}
+	return doPost[PaymentSessionResponse](ctx, c, paymentSessionPath, req)
+}
+
 // ─── Recurring Subscription API ─────────────────────────────────────────────
 
 // CreateRecurringPlanRequest holds the fields for creating a Xendit recurring plan.
 // Reference: https://docs.xendit.co/docs/subscriptions-overview
 type CreateRecurringPlanRequest struct {
-	ReferenceID    string                 `json:"reference_id"`    // Unique plan reference (e.g. "gims_{tenantID}_{planSlug}")
-	CustomerID     string                 `json:"customer_id"`     // Xendit customer ID
-	RecurringAction string               `json:"recurring_action"` // "PAYMENT"
-	Currency       string                 `json:"currency"`         // "IDR"
-	Amount         int64                  `json:"amount"`
-	PaymentMethods []RecurringPaymentMethod `json:"payment_methods"`
-	Schedule       RecurringSchedule      `json:"schedule"`
-	SuccessReturnURL string              `json:"success_return_url"`
-	FailureReturnURL string              `json:"failure_return_url"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	ReferenceID      string                   `json:"reference_id"`     // Unique plan reference (e.g. "gims_{tenantID}_{planSlug}")
+	CustomerID       string                   `json:"customer_id"`      // Xendit customer ID
+	RecurringAction  string                   `json:"recurring_action"` // "PAYMENT"
+	Currency         string                   `json:"currency"`         // "IDR"
+	Amount           int64                    `json:"amount"`
+	PaymentMethods   []RecurringPaymentMethod `json:"payment_methods"`
+	Schedule         RecurringSchedule        `json:"schedule"`
+	SuccessReturnURL string                   `json:"success_return_url"`
+	FailureReturnURL string                   `json:"failure_return_url"`
+	Metadata         map[string]interface{}   `json:"metadata,omitempty"`
 }
 
 // RecurringPaymentMethod specifies how the recurring charge is collected.
@@ -158,8 +257,8 @@ type RecurringPaymentMethod struct {
 // RecurringSchedule defines the billing frequency.
 type RecurringSchedule struct {
 	ReferenceID   string `json:"reference_id"`
-	Interval      string `json:"interval"`       // "MONTH" or "YEAR"
-	IntervalCount int    `json:"interval_count"` // 1 for monthly, 12 for yearly
+	Interval      string `json:"interval"`              // "MONTH" or "YEAR"
+	IntervalCount int    `json:"interval_count"`        // 1 for monthly, 12 for yearly
 	AnchorDate    string `json:"anchor_date,omitempty"` // ISO-8601 start date
 }
 
@@ -175,7 +274,7 @@ type RecurringPlanResponse struct {
 
 // CreateRecurringSubscriptionRequest activates a recurring plan for a customer.
 type CreateRecurringSubscriptionRequest struct {
-	PlanID   string `json:"plan_id"`
+	PlanID     string `json:"plan_id"`
 	CustomerID string `json:"customer_id"`
 }
 
@@ -189,10 +288,10 @@ type RecurringSubscriptionResponse struct {
 
 // CreateCustomerRequest creates a Xendit customer for recurring billing.
 type CreateCustomerRequest struct {
-	ReferenceID  string `json:"reference_id"`
-	GivenNames   string `json:"given_names"`
-	Email        string `json:"email"`
-	Type         string `json:"type"` // "INDIVIDUAL" or "BUSINESS"
+	ReferenceID string `json:"reference_id"`
+	GivenNames  string `json:"given_names"`
+	Email       string `json:"email"`
+	Type        string `json:"type"` // "INDIVIDUAL" or "BUSINESS"
 }
 
 // CustomerResponse is the Xendit customer object.
@@ -214,13 +313,13 @@ func (c *Client) CreateCustomer(ctx context.Context, req CreateCustomerRequest) 
 // The frontend collects card details via Xendit.js, which returns a token_id.
 // This token_id is sent to our backend and stored here — never the raw card data.
 type CardTokenData struct {
-	ID              string `json:"id"`               // Xendit token ID (xnd_...)
-	Status          string `json:"status"`           // "VALID", "INVALID"
+	ID               string `json:"id"`                 // Xendit token ID (xnd_...)
+	Status           string `json:"status"`             // "VALID", "INVALID"
 	MaskedCardNumber string `json:"masked_card_number"` // e.g. "400000XXXXXX0002"
-	CardBrand       string `json:"card_brand"`       // "VISA", "MASTERCARD", etc.
-	CardHolderName  string `json:"card_holder_name"`
-	ExpiryMonth     int    `json:"expiry_month"`
-	ExpiryYear      int    `json:"expiry_year"`
+	CardBrand        string `json:"card_brand"`         // "VISA", "MASTERCARD", etc.
+	CardHolderName   string `json:"card_holder_name"`
+	ExpiryMonth      int    `json:"expiry_month"`
+	ExpiryYear       int    `json:"expiry_year"`
 }
 
 // GetCardToken retrieves a card token by its ID to verify validity and card details.

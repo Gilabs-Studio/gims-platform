@@ -19,8 +19,19 @@ export async function generateMetadata({
       ? "Ketentuan dan syarat penggunaan platform SalesView ERP, CRM, HRIS, POS & Finance."
       : "Terms and conditions for using the SalesView ERP, CRM, HRIS, POS & Finance platform.",
     keywords: isId
-      ? ["ketentuan layanan", "syarat ketentuan", "gims legal", "salesview hukum"]
-      : ["terms of service", "terms and conditions", "gims legal", "salesview legal"],
+      ? [
+          "syarat dan ketentuan penggunaan salesview",
+          "perjanjian lisensi software erp crm",
+          "hak kewajiban pengguna gims platform",
+          "aturan langganan software cloud",
+          "salesview terms",
+        ]
+      : [
+          "salesview terms of service agreement",
+          "erp crm software license agreement",
+          "user rights and obligations gims",
+          "salesview terms",
+        ],
     imageAlt: "SalesView Terms of Service",
   });
 }

@@ -236,8 +236,8 @@ export const authService = {
   /**
    * Self-service tenant registration.
    * - Coupon flow: returns LoginResponse (user is provisioned immediately).
-   * - Paid plan flow: returns { invoice_url, invoice_id, expires_at } — caller must
-   *   redirect the browser to invoice_url to complete Xendit payment.
+   * - Paid plan flow: returns { checkout_url/invoice_url, invoice_id, expires_at } — caller must
+   *   redirect the browser to the Xendit-hosted checkout URL.
    */
   async register(
     payload: {
@@ -246,6 +246,7 @@ export const authService = {
       password: string;
       company_name?: string;
       coupon?: string;
+      registration_code?: string;
       plan?: string;
       billing_period?: string;
       user_count?: number;
@@ -317,7 +318,7 @@ export const authService = {
       target_plan_slug?: string;
     };
   }> {
-    let url = `/auth/coupons/validate?code=${encodeURIComponent(code.toUpperCase())}`;
+    let url = `/auth/registration-codes/validate?code=${encodeURIComponent(code.toUpperCase())}`;
     if (email) {
       url += `&email=${encodeURIComponent(email)}`;
     }

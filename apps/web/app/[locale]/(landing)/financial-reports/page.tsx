@@ -16,8 +16,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Monitor profit and loss, balance sheet, and cash flow reports with up-to-date data for faster, data-driven management decisions.",
     keywords:
       locale === "id"
-        ? ["laporan keuangan", "laba rugi", "neraca", "arus kas", "salesview reports"]
-        : ["financial reports", "profit and loss", "balance sheet", "cash flow", "salesview reports"],
+        ? [
+            "software pembuat laporan keuangan otomatis",
+            "aplikasi neraca saldo laba rugi bisnis",
+            "sistem pelaporan keuangan terintegrasi audit",
+            "aplikasi analisa cash flow perusahaan",
+            "salesview financial reports",
+          ]
+        : [
+            "automated balance sheet profit loss software",
+            "real time financial reporting platform business",
+            "cash flow analysis tracking software",
+            "salesview financial reports",
+          ],
     imageAlt: "SalesView financial reports overview",
   });
 }

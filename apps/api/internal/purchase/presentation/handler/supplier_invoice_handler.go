@@ -4,6 +4,7 @@ import (
 	"context"
 	stdErrors "errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -312,6 +313,9 @@ func (h *SupplierInvoiceHandler) Approve(c *gin.Context) {
 			errors.ErrorResponse(c, "BUDGET_CONTROL_FAILED", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
+		if writeSupplierInvoiceBusinessError(c, err) {
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -397,6 +401,9 @@ func (h *SupplierInvoiceHandler) Pending(c *gin.Context) {
 			errors.ErrorResponse(c, "BUDGET_CONTROL_FAILED", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
+		if writeSupplierInvoiceBusinessError(c, err) {
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -410,6 +417,99 @@ func isSupplierInvoiceBudgetError(err error) bool {
 
 	message := strings.ToLower(strings.TrimSpace(err.Error()))
 	return strings.Contains(message, "account is not budgeted") || strings.Contains(message, "budget exceeded")
+}
+
+func writeSupplierInvoiceBusinessError(c *gin.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+
+	switch {
+	case strings.Contains(message, "period") && strings.Contains(message, "closed"):
+		userMessage := "Accounting period is closed for this invoice date. Open Finance > Financial Closing and reopen the matching closed period, or change the invoice date to an open period."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodePeriodClosed,
+			userMessage,
+			map[string]interface{}{
+				"message":      userMessage,
+				"cause":        err.Error(),
+				"module":       "finance",
+				"setting_area": "Finance > Financial Closing",
+				"setting_path": "/finance/closing",
+				"related_area": "Finance > Settings > Fiscal Years",
+				"related_path": "/finance/settings/fiscal-years",
+				"action":       "Reopen the closed accounting period from Financial Closing, or set the supplier invoice date to an open period.",
+			},
+		)
+		return true
+	case strings.Contains(message, "mapping") && (strings.Contains(message, "not configured") || strings.Contains(message, "belum dikonfigurasi")):
+		userMessage := "Required finance account mapping is not configured. Open Finance > Settings > Accounting Mapping and complete the missing account mapping before approving this invoice."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodeMappingNotConfigured,
+			userMessage,
+			map[string]interface{}{
+				"message":      userMessage,
+				"cause":        err.Error(),
+				"module":       "finance",
+				"setting_area": "Finance > Settings > Accounting Mapping",
+				"setting_path": "/finance/settings/accounting-mapping",
+				"action":       "Complete the missing COA/account mapping, then try approving the supplier invoice again.",
+			},
+		)
+		return true
+	case strings.Contains(message, "not postable"):
+		userMessage := "Selected account is not postable. Open Finance > Chart of Accounts or Finance > Settings > Accounting Mapping and choose a postable account."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodeAccountNotPostable,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"module":  "finance",
+				"action":  "Replace the mapped account with an active postable account, then retry approval.",
+			},
+		)
+		return true
+	case strings.Contains(message, "inactive") && strings.Contains(message, "account"):
+		userMessage := "Selected account is inactive. Open Finance > Chart of Accounts or Finance > Settings > Accounting Mapping and activate or replace the account."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodeAccountInactive,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"module":  "finance",
+				"action":  "Activate the mapped account or replace it with an active account, then retry approval.",
+			},
+		)
+		return true
+	case strings.Contains(message, "lock") || strings.Contains(message, "deadlock") || strings.Contains(message, "concurrent") || strings.Contains(message, "serialization"):
+		userMessage := "Another process is updating this invoice. Please refresh the data and try again."
+		response.StandardErrorResponse(
+			c,
+			http.StatusConflict,
+			response.ErrCodeConcurrentLockConflict,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"action":  "Refresh the page and retry the approval.",
+			},
+		)
+		return true
+	default:
+		return false
+	}
 }
 
 // Reverse handles POST /purchase/supplier-invoices/:id/reverse

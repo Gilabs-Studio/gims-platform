@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useLocale, useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CompactBillingSuffix } from "@/components/ui/compact-billing-suffix";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useRouter } from "@/i18n/routing";
@@ -32,6 +34,22 @@ import { getSubscriptionPlanCopy } from "@/lib/subscription-plan-copy";
 
 type BillingPeriod = "monthly" | "yearly";
 type PlanTab = "bundle" | "modular";
+type QueryReader = { get(name: string): string | null };
+
+function getInitialPlanSelection(searchParams: QueryReader) {
+  const plan = searchParams.get("plan")?.trim() ?? "";
+  const isBundle = plan === "" || plan.includes("suite") || plan.startsWith("bundle_");
+  const billingParam = searchParams.get("billing");
+  const usersParam = Number.parseInt(searchParams.get("users") ?? "", 10);
+
+  return {
+    planTab: (isBundle ? "bundle" : "modular") as PlanTab,
+    selectedBundle: isBundle && plan !== "" ? plan : "ultimate_suite",
+    selectedModular: !isBundle && plan !== "" ? plan : "pos_growth",
+    billing: (billingParam === "monthly" || billingParam === "yearly" ? billingParam : "monthly") as BillingPeriod,
+    userCount: Number.isFinite(usersParam) && usersParam >= 1 && usersParam <= 999 ? usersParam : 1,
+  };
+}
 
 interface BundlePlan {
   id: string;
@@ -269,7 +287,9 @@ export default function RegisterForm() {
   const t = useTranslations("auth.register");
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setUser, setSessionVerified } = useAuthStore();
+  const initialPlanSelection = getInitialPlanSelection(searchParams);
 
   // ── Step 1: account ─────────────────────────────────────────────────────────
   const [step, setStep] = useState<1 | 2>(1);
@@ -285,11 +305,11 @@ export default function RegisterForm() {
   const [agreeMarketing, setAgreeMarketing] = useState(false);
 
   // ── Step 2: plan ─────────────────────────────────────────────────────────────
-  const [planTab, setPlanTab] = useState<PlanTab>("bundle");
-  const [billing, setBilling] = useState<BillingPeriod>("monthly");
-  const [userCount, setUserCount] = useState(1);
-  const [selectedBundle, setSelectedBundle] = useState<string>("ultimate_suite");
-  const [selectedModular, setSelectedModular] = useState<string>("pos_growth");
+  const [planTab, setPlanTab] = useState<PlanTab>(initialPlanSelection.planTab);
+  const [billing, setBilling] = useState<BillingPeriod>(initialPlanSelection.billing);
+  const [userCount, setUserCount] = useState(initialPlanSelection.userCount);
+  const [selectedBundle, setSelectedBundle] = useState<string>(initialPlanSelection.selectedBundle);
+  const [selectedModular, setSelectedModular] = useState<string>(initialPlanSelection.selectedModular);
   const [couponCode, setCouponCode] = useState("");
   const [validatedCouponCode, setValidatedCouponCode] = useState("");
   const [couponState, setCouponState] = useState<CouponState>({
@@ -507,7 +527,7 @@ export default function RegisterForm() {
         user_count: userCount,
         agree_tos: agreeToS,
         agree_marketing: agreeMarketing,
-        ...(isCouponValidatedForCurrentCode ? { coupon: validatedCouponCode } : {}),
+        ...(isCouponValidatedForCurrentCode ? { registration_code: validatedCouponCode } : {}),
       };
 
       const response = await authService.register(payload, csrf);
@@ -521,9 +541,10 @@ export default function RegisterForm() {
           router.replace("/dashboard");
           return;
         }
-        const inv = data as { invoice_url?: string };
-        if (inv.invoice_url) {
-          window.location.href = inv.invoice_url;
+        const checkout = data as { checkout_url?: string; invoice_url?: string };
+        const checkoutUrl = checkout.checkout_url ?? checkout.invoice_url;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
           return;
         }
       }
@@ -913,7 +934,14 @@ export default function RegisterForm() {
                               </div>
                             ) : hasDiscount ? (
                               <div>
-                                <p className="text-sm text-muted-foreground line-through">{formatIDR(originalMonthly)}<span className="text-xs">/mo</span></p>
+                                <p className="text-sm text-muted-foreground line-through">
+                                  {formatIDR(originalMonthly)}
+                                  <CompactBillingSuffix
+                                    text={t("perMonthShort")}
+                                    srLabel={t("perMonth")}
+                                    className="text-xs"
+                                  />
+                                </p>
                                 <p className="text-3xl font-bold text-foreground">{formatIDR(finalMonthly)}</p>
                                 <p className="text-xs text-muted-foreground">{t("perMonth")}</p>
                               </div>
@@ -1228,13 +1256,21 @@ export default function RegisterForm() {
                                           ) : (
                                             formatIDR(discountedTotal / (billing === "yearly" ? 12 : 1))
                                           )}
-                                          <span className="ml-0.5 text-[10px] font-normal text-muted-foreground leading-none">{t("perMonthShort")}</span>
+                                          <CompactBillingSuffix
+                                            text={t("perMonthShort")}
+                                            srLabel={t("perMonth")}
+                                            className="ml-0.5 text-[10px] font-normal leading-none text-muted-foreground"
+                                          />
                                         </p>
-                                        
+
                                         {billing === "yearly" && (
                                           <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-tight">
                                             Total: {formatIDR(discountedTotal)}
-                                            <span className="ml-0.5 lowercase text-[8px] font-normal">{t("perYearShort")}</span>
+                                            <CompactBillingSuffix
+                                              text={t("perYearShort")}
+                                              srLabel={t("perYear")}
+                                              className="ml-0.5 text-[8px] font-normal lowercase"
+                                            />
                                           </p>
                                         )}
                                       </div>
@@ -1406,7 +1442,11 @@ export default function RegisterForm() {
                                   ) : (
                                     formatIDR(monthly)
                                   )}
-                                  <span className="ml-1 text-xs font-normal text-muted-foreground">{t("perMonthShort")}</span>
+                                  <CompactBillingSuffix
+                                    text={t("perMonthShort")}
+                                    srLabel={t("perMonth")}
+                                    className="ml-1 text-xs font-normal text-muted-foreground"
+                                  />
                                 </p>
                               </div>
                               <ul className="mt-3 space-y-1">

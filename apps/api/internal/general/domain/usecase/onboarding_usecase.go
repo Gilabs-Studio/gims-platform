@@ -52,7 +52,6 @@ func (u *onboardingUsecase) stepsFromRepo(ctx context.Context) *dto.OnboardingSt
 		Products:    raw.Products,
 		Warehouse:   raw.Warehouse,
 		Users:       raw.Users,
-		FiscalYear:  raw.FiscalYear,
 	}
 }
 

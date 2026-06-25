@@ -217,6 +217,8 @@ export type XenditConnectionStatus = "not_connected" | "connected" | "suspended"
 export interface XenditConnectionStatusResponse {
   is_connected: boolean;
   status: XenditConnectionStatus;
+  provider_mode?: "merchant_config" | "platform_managed";
+  managed_by_platform?: boolean;
 }
 
 export interface XenditConfig {
@@ -227,6 +229,8 @@ export interface XenditConfig {
   environment: "sandbox" | "production";
   connection_status: XenditConnectionStatus;
   is_active: boolean;
+  provider_mode?: "merchant_config" | "platform_managed";
+  managed_by_platform?: boolean;
   updated_at: string;
 }
 

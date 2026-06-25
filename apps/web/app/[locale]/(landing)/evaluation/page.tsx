@@ -20,23 +20,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "sistem evaluasi kinerja",
-            "kriteria penilaian berbobot",
-            "appraisal karyawan",
-            "evaluasi SELF MANAGER",
-            "skor KPI karyawan",
-            "audit trail evaluasi",
-            "group evaluasi HR",
+            "aplikasi kpi performance appraisal karyawan",
+            "software penilaian kinerja karyawan online",
+            "sistem evaluasi performa kerja hrd indonesia",
+            "software manajemen kompetensi karyawan",
             "salesview evaluation",
           ]
         : [
-            "performance evaluation system",
-            "weighted appraisal criteria",
-            "employee appraisal",
-            "SELF MANAGER evaluation",
-            "employee KPI score",
-            "evaluation audit trail",
-            "HR evaluation group",
+            "employee performance appraisal software cloud",
+            "online kpi tracking tool hr",
+            "employee evaluation and feedback management system",
             "salesview evaluation",
           ],
     imageAlt: "SalesView evaluation employee appraisal overview",

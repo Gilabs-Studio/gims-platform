@@ -517,7 +517,7 @@ export const navigationConfig: NavItem[] = [
             name: "Depreciation Schedule",
             i18nKey: "depreciationSchedule",
             url: "/finance/fixed-assets/depreciation-schedule",
-            icon: "calendar-clock",
+            icon: "calendar-check",
             permission: FINANCE_PERMISSIONS.ASSET.DEPRECIATE,
           },
           {
@@ -596,7 +596,7 @@ export const navigationConfig: NavItem[] = [
             name: "Fiscal Years",
             i18nKey: "fiscalYears",
             url: "/finance/settings/fiscal-years",
-            icon: "calendar-range",
+            icon: "calendar",
             permission: "fiscal_year.read",
           },
           {

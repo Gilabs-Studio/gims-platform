@@ -26,6 +26,7 @@ import (
 	pos "github.com/gilabs/gims/api/internal/pos/data/models"
 	product "github.com/gilabs/gims/api/internal/product/data/models"
 	purchase "github.com/gilabs/gims/api/internal/purchase/data/models"
+	referral "github.com/gilabs/gims/api/internal/referral/data/models"
 	refreshToken "github.com/gilabs/gims/api/internal/refresh_token/data/models"
 	role "github.com/gilabs/gims/api/internal/role/data/models"
 	sales "github.com/gilabs/gims/api/internal/sales/data/models"
@@ -41,15 +42,16 @@ import (
 //
 // PRODUCTION SAFETY:
 // - This function is SAFE for production use
-// - Tables are NEVER dropped in production mode (ENV=production)
-// - Drop tables only happens in development mode when DROP_TABLES=true
-// - Multiple safety checks prevent accidental data loss
+// - Tables are NEVER dropped automatically on startup in any environment
+// - RUN_MIGRATIONS=true only applies forward-safe migrations and schema alignment
+// - Destructive resets must be triggered manually via explicit developer tooling
 // - No code changes needed for production deployment
 func AutoMigrate() error {
-	// Check if we should drop all tables (development only)
-	// This check has built-in production protection
+	// Startup migrations must remain non-destructive in all environments.
+	// Schema resets, if ever needed, must be invoked manually rather than as a side
+	// effect of RUN_MIGRATIONS=true.
 	if shouldDropTables() {
-		log.Println("Development mode: Dropping all tables...")
+		log.Println("Startup table drop request ignored: automatic destructive resets are disabled")
 		if err := DropAllTables(); err != nil {
 			return fmt.Errorf("failed to drop tables: %w", err)
 		}
@@ -76,6 +78,18 @@ func AutoMigrate() error {
 	_ = DB.Exec(`UPDATE tenant_subscriptions SET seat_limit = GREATEST(user_count, 1) WHERE seat_limit = 0`)
 	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS outlet_limit integer NOT NULL DEFAULT 1`)
 	_ = DB.Exec(`UPDATE tenant_subscriptions SET outlet_limit = 1 WHERE outlet_limit <= 0`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS xendit_recurring_plan_id varchar(255)`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS xendit_payment_session_id varchar(255)`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS xendit_payment_token_id varchar(255)`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS recurring_reference_id varchar(255)`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS renewal_amount_idr bigint NOT NULL DEFAULT 0`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS pending_renewal_amount_idr bigint`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS recurring_status varchar(50)`)
+	_ = DB.Exec(`ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS last_recurring_event_id varchar(255)`)
+	_ = DB.Exec(`UPDATE tenant_subscriptions SET renewal_amount_idr = amount_paid_idr WHERE renewal_amount_idr = 0 AND amount_paid_idr > 0`)
+	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_tenant_subscriptions_xendit_recurring_plan_id ON tenant_subscriptions (xendit_recurring_plan_id) WHERE xendit_recurring_plan_id IS NOT NULL`)
+	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_tenant_subscriptions_xendit_payment_session_id ON tenant_subscriptions (xendit_payment_session_id) WHERE xendit_payment_session_id IS NOT NULL`)
+	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_tenant_subscriptions_recurring_reference_id ON tenant_subscriptions (recurring_reference_id) WHERE recurring_reference_id IS NOT NULL`)
 	_ = DB.Exec(`ALTER TABLE subscription_plan_configs ADD COLUMN IF NOT EXISTS outlet_addon_monthly_idr bigint NOT NULL DEFAULT 500000`)
 	_ = DB.Exec(`ALTER TABLE subscription_plan_configs ADD COLUMN IF NOT EXISTS outlet_addon_yearly_idr bigint NOT NULL DEFAULT 6000000`)
 	_ = DB.Exec(`UPDATE subscription_plan_configs SET outlet_addon_monthly_idr = 500000 WHERE outlet_addon_monthly_idr <= 0`)
@@ -97,6 +111,17 @@ func AutoMigrate() error {
 	_ = DB.Exec(`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_scope varchar(20) NOT NULL DEFAULT 'none'`)
 	_ = DB.Exec(`UPDATE products SET pos_scope = CASE WHEN is_pos_available = true THEN 'global' ELSE 'none' END WHERE pos_scope = 'none' AND is_pos_available IS NOT NULL`)
 
+	// PRE-MIGRATION: keep purchase invoice snapshot/text columns aligned with current models.
+	// Older environments may still carry varchar(20) widths from legacy schemas, which breaks
+	// inserts when supplier/product codes or invoice metadata are longer.
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN code TYPE varchar(50)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN invoice_number TYPE varchar(100)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN tax_invoice_number TYPE varchar(100)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN supplier_code_snapshot TYPE varchar(50)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN supplier_name_snapshot TYPE varchar(200)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoices ALTER COLUMN payment_terms_name_snapshot TYPE varchar(150)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoice_items ALTER COLUMN product_code_snapshot TYPE varchar(50)`)
+	_ = DB.Exec(`ALTER TABLE supplier_invoice_items ALTER COLUMN product_name_snapshot TYPE varchar(200)`)
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		// SaaS: Tenant & System Admin tables (must come before domain tables)
@@ -104,6 +129,14 @@ func AutoMigrate() error {
 		&tenant.SystemAdmin{},
 		&tenant.Coupon{},
 		&tenant.CouponUsage{},
+		&referral.SalesReferralAccount{},
+		&referral.SalesReferralCode{},
+		&referral.SalesReferralLead{},
+		&referral.SalesReferralConversion{},
+		&referral.ReferralCommissionConfig{},
+		&referral.ReferralCommission{},
+		&referral.ReferralCommissionPayout{},
+		&referral.ReferralCommissionPayoutItem{},
 		&tenant.SubscriptionPlanConfig{},
 		&tenant.PlanModuleEntitlement{},
 		&tenant.PlanPermissionEntitlement{},
@@ -594,6 +627,10 @@ func AutoMigrate() error {
 		log.Printf("Warning: fixed asset list index migration failed (non-fatal): %v", err)
 	}
 
+	if err := ensureReferralIndexes(); err != nil {
+		log.Printf("Warning: referral index migration failed (non-fatal): %v", err)
+	}
+
 	if err := ensureDefaultAreasForAllTenants(); err != nil {
 		log.Printf("Warning: failed to ensure default areas for existing tenants: %v", err)
 	}
@@ -999,6 +1036,25 @@ func ensureFixedAssetListIndexes() error {
 		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_status_active ON fixed_assets (tenant_id, status) WHERE deleted_at IS NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_category_active ON fixed_assets (tenant_id, category_id) WHERE deleted_at IS NULL`,
 		`CREATE INDEX IF NOT EXISTS idx_fixed_assets_tenant_warranty_end_active ON fixed_assets (tenant_id, warranty_end) WHERE deleted_at IS NULL`,
+	}
+
+	for _, statement := range statements {
+		if err := DB.Exec(statement).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ensureReferralIndexes() error {
+	statements := []string{
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_accounts_email_active ON sales_referral_accounts (email) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_codes_code_active ON sales_referral_codes (code) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_codes_account_active ON sales_referral_codes (sales_referral_account_id) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_leads_code_email_active ON sales_referral_leads (sales_referral_code_id, email_normalized) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_conversions_code_tenant_active ON sales_referral_conversions (sales_referral_code_id, tenant_id) WHERE deleted_at IS NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_sales_referral_conversions_account_active ON sales_referral_conversions (sales_referral_account_id) WHERE deleted_at IS NULL`,
 	}
 
 	for _, statement := range statements {
@@ -1641,42 +1697,17 @@ func createSearchIndexes() error {
 	return nil
 }
 
-// shouldDropTables checks if we should drop all tables (development only)
-// This function ensures that tables are NEVER dropped in production mode
+// shouldDropTables is intentionally disabled for startup flows.
+// Automatic table drops are unsafe for both development and production-like
+// environments because RUN_MIGRATIONS may be enabled against real data.
 func shouldDropTables() bool {
-	// CRITICAL: Never drop tables in production
-	// Check both config and environment variable for safety
-	env := ""
-	if config.AppConfig != nil {
-		env = config.AppConfig.Server.Env
-	}
-
-	// Fallback to environment variable if config is not loaded yet
-	if env == "" {
-		env = os.Getenv("ENV")
-	}
-
-	// Safety check: Never allow in production
-	if env == "production" || env == "prod" {
-		log.Println("🔒 Production mode detected: Table drop is disabled (safety protection)")
-		return false
-	}
-
-	// Only allow dropping tables in development mode
-	// Check environment variable DROP_TABLES or DROP_ALL_TABLES (from package.json scripts)
 	dropTables := os.Getenv("DROP_TABLES")
 	if dropTables == "" {
 		dropTables = os.Getenv("DROP_ALL_TABLES")
 	}
 
 	if dropTables == "true" || dropTables == "1" {
-		// Double check: ensure we're not in production
-		if env == "" || env == "development" || env == "dev" {
-			log.Println("🔧 Development mode: Table drop is enabled")
-			return true
-		}
-		log.Printf("⚠️  Warning: DROP_TABLES is set but ENV=%s is not development. Skipping table drop.", env)
-		return false
+		log.Println("🔒 DROP_TABLES/DROP_ALL_TABLES ignored during startup. Use explicit manual reset tooling if a destructive schema reset is required.")
 	}
 	return false
 }

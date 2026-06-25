@@ -20,23 +20,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "travel planner bisnis",
-            "itinerary perjalanan dinas",
-            "peta perjalanan interaktif",
-            "expense perjalanan dinas",
-            "optimasi rute",
-            "visit report",
-            "rencana perjalanan multi-hari",
+            "aplikasi pengajuan dinas perjalanan hrd",
+            "software travel planner dinas kantor",
+            "sistem reimbursement biaya dinas karyawan",
+            "aplikasi manajemen perjalanan dinas",
             "salesview travel planner",
           ]
         : [
-            "business travel planner",
-            "trip itinerary",
-            "interactive travel map",
-            "travel expense tracking",
-            "route optimization",
-            "visit report",
-            "multi-day travel plan",
+            "corporate travel management software cloud",
+            "business trip request approval system",
+            "travel expense reimbursement tracker",
             "salesview travel planner",
           ],
     imageAlt: "SalesView travel planner collaborative workspace overview",

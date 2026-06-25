@@ -192,20 +192,24 @@ type UpdateXenditConfigRequest struct {
 
 // XenditConfigResponse returned to client — secret key and webhook token are never exposed
 type XenditConfigResponse struct {
-	ID               string `json:"id"`
-	CompanyID        string `json:"company_id"`
-	XenditAccountID  string `json:"xendit_account_id"`
-	BusinessName     string `json:"business_name"`
-	Environment      string `json:"environment"`
-	ConnectionStatus string `json:"connection_status"`
-	IsActive         bool   `json:"is_active"`
-	UpdatedAt        string `json:"updated_at"`
+	ID                string `json:"id"`
+	CompanyID         string `json:"company_id"`
+	XenditAccountID   string `json:"xendit_account_id"`
+	BusinessName      string `json:"business_name"`
+	Environment       string `json:"environment"`
+	ConnectionStatus  string `json:"connection_status"`
+	IsActive          bool   `json:"is_active"`
+	ProviderMode      string `json:"provider_mode"`
+	ManagedByPlatform bool   `json:"managed_by_platform"`
+	UpdatedAt         string `json:"updated_at"`
 }
 
 // XenditConnectionStatusResponse is a lightweight check payload for cashiers
 type XenditConnectionStatusResponse struct {
-	IsConnected bool   `json:"is_connected"`
-	Status      string `json:"status"`
+	IsConnected       bool   `json:"is_connected"`
+	Status            string `json:"status"`
+	ProviderMode      string `json:"provider_mode"`
+	ManagedByPlatform bool   `json:"managed_by_platform"`
 }
 
 // TestXenditConnectionRequest validates credentials before saving config.

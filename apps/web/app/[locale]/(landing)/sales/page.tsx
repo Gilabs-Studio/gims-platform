@@ -9,15 +9,28 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return buildLandingMetadata({
     locale,
     path: "/sales",
-    title: locale === "id" ? "Software Sales Order B2B | SalesView" : "B2B Sales Order Software | SalesView",
+    title: locale === "id" ? "Software Sales Order Distributor & B2B | SalesView" : "Sales Order Software for B2B Distributors | SalesView",
     description:
       locale === "id"
-        ? "Kelola sales order dari konversi quotation hingga pemenuhan order agar proses eksekusi penjualan berjalan konsisten di setiap tim."
-        : "Manage sales orders from quotation conversion to fulfillment so sales execution stays consistent across teams.",
+        ? "Kelola sales order distributor dari quotation, approval, alokasi stok, sampai pengiriman agar proses order-to-delivery tetap rapi untuk tim sales dan operasional."
+        : "Manage distributor sales orders from quotation and approval through stock allocation and delivery so order-to-delivery stays structured across sales and operations teams.",
     keywords:
       locale === "id"
-        ? ["software sales order", "eksekusi penjualan", "order fulfillment", "penjualan b2b", "salesview sales"]
-        : ["sales order software", "sales execution", "order fulfillment", "b2b sales process", "salesview sales"],
+        ? [
+            "software sales order distributor barang",
+            "aplikasi order penjualan b2b multi gudang",
+            "sistem order to delivery distributor indonesia",
+            "sales order dan fulfillment untuk tim sales",
+            "software erp distribusi penjualan",
+            "salesview sales",
+          ]
+        : [
+            "sales order software for distributors",
+            "b2b order to delivery management system",
+            "multi warehouse sales fulfillment software",
+            "quotation to delivery workflow software",
+            "salesview sales",
+          ],
     imageAlt: "SalesView sales orders overview",
   });
 }

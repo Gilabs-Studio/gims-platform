@@ -16,6 +16,10 @@ func registerSystemAccountMappingRoutesInGroup(mappings *gin.RouterGroup, h *han
 		middleware.RequirePermission("account_mappings.read"),
 		h.List,
 	)
+	mappings.PUT("",
+		middleware.RequirePermission("account_mappings.update"),
+		h.BatchUpsert,
+	)
 	mappings.GET("/:key",
 		middleware.RequirePermission("account_mappings.read"),
 		h.GetByKey,

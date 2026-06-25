@@ -16,8 +16,19 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Match bank movements and internal transactions faster to detect discrepancies, accelerate period closing, and improve financial control.",
     keywords:
       locale === "id"
-        ? ["rekonsiliasi bank", "rekonsiliasi transaksi", "selisih transaksi", "closing period", "salesview reconciliation"]
-        : ["bank reconciliation", "transaction reconciliation", "discrepancy detection", "period closing", "salesview reconciliation"],
+        ? [
+            "software rekonsiliasi bank otomatis online",
+            "aplikasi pencocokan mutasi bank kasir",
+            "sistem rekonsiliasi transaksi keuangan bisnis",
+            "aplikasi import rekening koran bank",
+            "salesview reconciliation",
+          ]
+        : [
+            "automated bank reconciliation software cloud",
+            "bank statement matching tool accounting",
+            "cash ledger bank reconciliation system",
+            "salesview reconciliation",
+          ],
     imageAlt: "SalesView reconciliation overview",
   });
 }

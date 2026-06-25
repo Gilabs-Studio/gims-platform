@@ -12,6 +12,7 @@ export const purchasePaymentId = {
   actions: {
     create: "Buat",
     openMapping: "Buka Mapping",
+    openCashBankAccounts: "Buka Akun Kas/Bank",
     change: "Ubah",
     export: "Export",
     confirm: "Konfirmasi",
@@ -43,6 +44,8 @@ export const purchasePaymentId = {
     editTitle: "Ubah Pembayaran",
     bankAmountHint: "Masukkan jumlah transfer yang dibayarkan ke supplier.",
     cashAmountHint: "Masukkan jumlah tunai yang dibayarkan ke supplier.",
+    bankAccountSetupHint: "Pembayaran bank memerlukan akun bank perusahaan yang aktif.",
+    cashAccountSetupHint: "Pembayaran tunai tetap memerlukan akun kas perusahaan yang aktif di menu Kas/Bank, misalnya petty cash atau kasir.",
     cashAmountMinimum: "Pembayaran tunai tidak boleh lebih kecil dari sisa tagihan",
     amountRequired: "Jumlah wajib diisi.",
     amountHandledBySystem: "Jumlah dihitung oleh sistem",
@@ -53,7 +56,7 @@ export const purchasePaymentId = {
     invoice: "Invoice",
     downPayment: "Down Payment",
     paymentDetails: "Detail Pembayaran",
-    bankAccount: "Rekening Bank",
+    bankAccount: "Akun Kas / Bank",
     paymentDate: "Tanggal Pembayaran",
     amount: "Jumlah",
     tenderAmount: "Dibayar",
@@ -108,5 +111,6 @@ export const purchasePaymentId = {
   printError: "Terjadi kesalahan",
   errors: {
     mappingRequired: "Mapping akun belum lengkap. Lengkapi di Finance Settings sebelum melanjutkan.",
+    cashBankAccountRequired: "Belum ada akun kas/bank aktif yang dikonfigurasi. Buat akun kas perusahaan aktif untuk pembayaran tunai, atau akun bank perusahaan aktif untuk pembayaran bank.",
   },
 };

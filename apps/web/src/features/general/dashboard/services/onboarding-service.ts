@@ -7,7 +7,6 @@ export interface OnboardingSteps {
   products: boolean;
   warehouse: boolean;
   users: boolean;
-  fiscal_year: boolean;
 }
 
 export interface OnboardingState {

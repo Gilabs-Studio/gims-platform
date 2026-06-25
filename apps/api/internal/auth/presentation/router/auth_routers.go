@@ -21,6 +21,8 @@ func RegisterAuthRoutes(rg *gin.RouterGroup, h *handler.AuthHandler, jwtManager 
 		g.POST("/register/confirm", middleware.RateLimitMiddleware("public"), h.ConfirmPendingRegistration)
 		// Public coupon validation — accepts optional ?email= to check the one-time-per-email rule.
 		g.GET("/coupons/validate", middleware.RateLimitMiddleware("public"), h.ValidateCoupon)
+		// Public registration-code validation — preferred endpoint for referral/coupon lookup.
+		g.GET("/registration-codes/validate", middleware.RateLimitMiddleware("public"), h.ValidateRegistrationCode)
 		// Availability check for email and company name during registration.
 		g.GET("/check-availability", middleware.RateLimitMiddleware("public"), h.CheckAvailability)
 		// Public plan catalogue and price computation (used by registration form).
@@ -43,4 +45,3 @@ func RegisterWebhookRoutes(rg *gin.RouterGroup, h *handler.XenditHandler) {
 		g.POST("/invoice", h.InvoicePaid)
 	}
 }
-

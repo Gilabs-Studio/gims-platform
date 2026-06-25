@@ -323,6 +323,11 @@ export function PaymentSettings() {
   const isConnected = statusData?.data?.is_connected === true;
   const connectionStatus = statusData?.data?.status ?? "not_connected";
   const config = configData?.data;
+  const managedByPlatform =
+    statusData?.data?.managed_by_platform === true ||
+    statusData?.data?.provider_mode === "platform_managed" ||
+    config?.managed_by_platform === true ||
+    config?.provider_mode === "platform_managed";
 
   if (statusLoading || configLoading) {
     return (
@@ -348,100 +353,154 @@ export function PaymentSettings() {
 
       {isConnected && config ? (
         <div className="space-y-6">
-          {/* Current config overview */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">{t("payment.accountDetailsHeader")}</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  {t("payment.businessNameLabel")}
-                </span>
-                <span>{config.business_name || "-"}</span>
+          {managedByPlatform ? (
+            <div className="space-y-5">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                      {t("payment.platformManagedTitle")}
+                    </h4>
+                    <p className="text-sm text-emerald-800 dark:text-emerald-200">
+                      {t("payment.platformManagedDescription")}
+                    </p>
+                  </div>
+                  <Badge variant="success" className="gap-1.5 px-2.5 py-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    {t("payment.connected")}
+                  </Badge>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  {t("payment.environmentLabel")}
-                </span>
-                <span className="capitalize">{config.environment ?? "-"}</span>
+
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                    {t("payment.providerModeLabel")}
+                  </span>
+                  <span>{t("payment.platformManagedMode")}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                    {t("payment.environmentLabel")}
+                  </span>
+                  <span className="capitalize">{config.environment ?? "-"}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                    {t("payment.settlementLabel")}
+                  </span>
+                  <span>{t("payment.settlementValue")}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                    {t("payment.statusLabel")}
+                  </span>
+                  <span>{t("payment.platformManagedStatus")}</span>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  {t("payment.xenditAccountIdLabel")}
-                </span>
-                <span className="font-mono text-xs">{config.xendit_account_id || "—"}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                  {t("payment.statusLabel")}
-                </span>
-                <span>
-                  {config.connection_status === "connected" ? (
-                    <Badge variant="success" className="capitalize gap-1.5 px-2.5 py-1">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {t("payment.connected")}
-                    </Badge>
-                  ) : config.connection_status === "suspended" ? (
-                    <Badge variant="destructive" className="capitalize gap-1.5 px-2.5 py-1">
-                      <WifiOff className="h-3.5 w-3.5" />
-                      {t("payment.suspended")}
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="capitalize gap-1.5 px-2.5 py-1 text-muted-foreground">
-                      {t("payment.notConnectedBadge")}
-                    </Badge>
-                  )}
-                </span>
+
+              <div className="rounded-lg border bg-muted/35 p-4 text-sm text-muted-foreground">
+                {t("payment.platformManagedNote")}
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Current config overview */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">{t("payment.accountDetailsHeader")}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                      {t("payment.businessNameLabel")}
+                    </span>
+                    <span>{config.business_name || "-"}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                      {t("payment.environmentLabel")}
+                    </span>
+                    <span className="capitalize">{config.environment ?? "-"}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                      {t("payment.xenditAccountIdLabel")}
+                    </span>
+                    <span className="font-mono text-xs">{config.xendit_account_id || "—"}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                      {t("payment.statusLabel")}
+                    </span>
+                    <span>
+                      {config.connection_status === "connected" ? (
+                        <Badge variant="success" className="capitalize gap-1.5 px-2.5 py-1">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {t("payment.connected")}
+                        </Badge>
+                      ) : config.connection_status === "suspended" ? (
+                        <Badge variant="destructive" className="capitalize gap-1.5 px-2.5 py-1">
+                          <WifiOff className="h-3.5 w-3.5" />
+                          {t("payment.suspended")}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="capitalize gap-1.5 px-2.5 py-1 text-muted-foreground">
+                          {t("payment.notConnectedBadge")}
+                        </Badge>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-          <Separator />
+              <Separator />
 
-          {/* Update form */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium">{t("payment.updateSettingsHeader")}</h4>
-            <UpdateXenditConfigForm
-              currentEnvironment={config.environment}
-              currentBusinessName={config.business_name}
-            />
-          </div>
+              {/* Update form */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium">{t("payment.updateSettingsHeader")}</h4>
+                <UpdateXenditConfigForm
+                  currentEnvironment={config.environment}
+                  currentBusinessName={config.business_name}
+                />
+              </div>
 
-          <Separator />
+              <Separator />
 
-          {/* Danger zone */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-destructive">{t("payment.dangerZoneTitle")}</h4>
-            <p className="text-sm text-muted-foreground">{t("payment.dangerZoneDescription")}</p>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="cursor-pointer gap-2">
-                  <Unplug className="h-4 w-4" />
-                  {t("payment.disconnectButton")}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t("payment.disconnectDialogTitle")}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("payment.disconnectDialogDescription")}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="cursor-pointer">{t("payment.cancelButton")}</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="cursor-pointer"
-                    onClick={() => disconnectMutation.mutate()}
-                    disabled={disconnectMutation.isPending}
-                  >
-                    {disconnectMutation.isPending && (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    )}
-                    {t("payment.disconnectAction")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+              {/* Danger zone */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-destructive">{t("payment.dangerZoneTitle")}</h4>
+                <p className="text-sm text-muted-foreground">{t("payment.dangerZoneDescription")}</p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="cursor-pointer gap-2">
+                      <Unplug className="h-4 w-4" />
+                      {t("payment.disconnectButton")}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t("payment.disconnectDialogTitle")}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t("payment.disconnectDialogDescription")}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="cursor-pointer">{t("payment.cancelButton")}</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="cursor-pointer"
+                        onClick={() => disconnectMutation.mutate()}
+                        disabled={disconnectMutation.isPending}
+                      >
+                        {disconnectMutation.isPending && (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        )}
+                        {t("payment.disconnectAction")}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-6">

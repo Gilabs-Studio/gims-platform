@@ -20,23 +20,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "data karyawan",
-            "master data karyawan",
-            "kontrak PKWTT PKWT",
-            "riwayat pendidikan karyawan",
-            "sertifikasi karyawan",
-            "aset karyawan",
-            "profil karyawan terpusat",
+            "software database karyawan perusahaan cloud",
+            "aplikasi administrasi data personalia hrd",
+            "sistem pengelolaan biodata karyawan online",
+            "aplikasi manajemen payroll dan hrd terintegrasi",
             "salesview employees",
           ]
         : [
-            "employee data",
-            "employee master data",
-            "PKWTT PKWT contract",
-            "employee education history",
-            "employee certifications",
-            "employee assets",
-            "employee profile management",
+            "cloud based employee database software",
+            "integrated hr administration tool business",
+            "online employee records management system",
             "salesview employees",
           ],
     imageAlt: "SalesView employee management overview",

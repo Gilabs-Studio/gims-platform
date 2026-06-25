@@ -20,8 +20,19 @@ export async function generateMetadata({
       ? "Kenali SalesView, platform all-in-one untuk ERP, CRM, HRIS, POS, dan Finance yang membantu bisnis bertumbuh lebih cepat."
       : "Learn about SalesView, an all-in-one platform for ERP, CRM, HRIS, POS, and Finance that helps businesses scale faster.",
     keywords: isId
-      ? ["tentang salesview", "profil salesview", "platform bisnis indonesia", "software bisnis terintegrasi"]
-      : ["about salesview", "salesview company", "integrated business software", "erp crm hris pos"],
+      ? [
+          "profil company software salesview indonesia",
+          "pengembang aplikasi erp crm lokal",
+          "sistem operasional bisnis terintegrasi gilabs",
+          "siapa pendiri salesview id",
+          "salesview company",
+        ]
+      : [
+          "salesview company profile history",
+          "integrated business platform creators",
+          "cloud software solutions for enterprise",
+          "salesview company",
+        ],
     imageAlt: "About SalesView",
   });
 }

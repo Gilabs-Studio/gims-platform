@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 import {
   ApiResponse,
+  BatchUpsertFinanceSettingsRequest,
   CreateFiscalYearInput,
   CreateTaxConfigurationInput,
   FiscalYear,
@@ -41,6 +42,20 @@ export const financeSettingsService = {
     const response = await apiClient.put<ApiResponse<SystemAccountMapping>>(
       `/finance/settings/account-mappings/${key}`,
       data,
+      {
+        params: companyId ? { company_id: companyId } : undefined,
+      },
+    );
+    return response.data;
+  },
+
+  batchUpsertAccountMappings: async (
+    payload: BatchUpsertFinanceSettingsRequest,
+    companyId?: string,
+  ): Promise<ApiResponse<SystemAccountMapping[]>> => {
+    const response = await apiClient.put<ApiResponse<SystemAccountMapping[]>>(
+      "/finance/settings/account-mappings",
+      payload,
       {
         params: companyId ? { company_id: companyId } : undefined,
       },

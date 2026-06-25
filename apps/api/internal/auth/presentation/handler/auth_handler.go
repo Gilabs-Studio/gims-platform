@@ -12,6 +12,8 @@ import (
 	"github.com/gilabs/gims/api/internal/core/errors"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/response"
+	referralDTO "github.com/gilabs/gims/api/internal/referral/domain/dto"
+	referralUC "github.com/gilabs/gims/api/internal/referral/domain/usecase"
 	tenantDTO "github.com/gilabs/gims/api/internal/tenant/domain/dto"
 	couponUC "github.com/gilabs/gims/api/internal/tenant/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -20,22 +22,48 @@ import (
 
 // AuthHandler handles all auth-related HTTP requests.
 type AuthHandler struct {
-	authUC   usecase.AuthUsecase
-	couponUC couponUC.CouponUsecase
-	planUC   couponUC.SubscriptionPlanUsecase
+	authUC     usecase.AuthUsecase
+	couponUC   couponUC.CouponUsecase
+	planUC     couponUC.SubscriptionPlanUsecase
+	referralUC referralUC.ReferralUsecase
 }
 
-func NewAuthHandler(authUC usecase.AuthUsecase, couponUC couponUC.CouponUsecase, planUC couponUC.SubscriptionPlanUsecase) *AuthHandler {
+func NewAuthHandler(authUC usecase.AuthUsecase, couponUC couponUC.CouponUsecase, planUC couponUC.SubscriptionPlanUsecase, refUC referralUC.ReferralUsecase) *AuthHandler {
 	return &AuthHandler{
-		authUC:   authUC,
-		couponUC: couponUC,
-		planUC:   planUC,
+		authUC:     authUC,
+		couponUC:   couponUC,
+		planUC:     planUC,
+		referralUC: refUC,
 	}
+}
+
+// ValidateRegistrationCode validates the public Referral / Discount Code field.
+// It resolves referral codes first and falls back to legacy coupons.
+func (h *AuthHandler) ValidateRegistrationCode(c *gin.Context) {
+	code := strings.TrimSpace(c.Query("code"))
+	if code == "" || len(code) > 64 {
+		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"code": "required, max 64 chars"}, nil)
+		return
+	}
+	if h.referralUC == nil {
+		h.ValidateCoupon(c)
+		return
+	}
+	result, err := h.referralUC.ResolveRegistrationCode(c.Request.Context(), code, strings.TrimSpace(c.Query("email")))
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return
+	}
+	response.SuccessResponse(c, result, nil)
 }
 
 // ValidateCoupon is a public endpoint that lets the registration form check a coupon
 // before submission. When email is provided it also checks the one-time-per-email rule.
 func (h *AuthHandler) ValidateCoupon(c *gin.Context) {
+	if h.referralUC != nil {
+		h.ValidateRegistrationCode(c)
+		return
+	}
 	code := strings.TrimSpace(c.Query("code"))
 	if code == "" || len(code) > 64 {
 		errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"code": "required, max 64 chars"}, nil)
@@ -132,7 +160,7 @@ func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
 		env = strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
 	}
 
-	// Always use SameSite=None in production, or if the connection is secure 
+	// Always use SameSite=None in production, or if the connection is secure
 	// (which is required for cross-domain auth in dev/staging).
 	if env == "production" {
 		isSec = true
@@ -142,7 +170,7 @@ func getCookieSecureAndSameSite(c *gin.Context) (bool, http.SameSite) {
 		isSec = true
 		sameSite = http.SameSiteNoneMode
 	}
-	
+
 	return isSec, sameSite
 }
 
@@ -170,7 +198,7 @@ func clearAuthCookies(c *gin.Context) {
 	// In development, we use SameSite=None if HTTPS is detected or Origin is HTTPS.
 	var sameSite http.SameSite
 	var secure bool
-	
+
 	env := "development"
 	if config.AppConfig != nil {
 		env = strings.ToLower(strings.TrimSpace(config.AppConfig.Server.Env))
@@ -556,6 +584,16 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 	ctx = context.WithValue(ctx, "client_ip", c.ClientIP())
 	ctx = context.WithValue(ctx, "user_agent", c.Request.UserAgent())
 
+	if !h.resolveRegistrationCodeForRegister(c, ctx, &req) {
+		return
+	}
+	if req.ReferralCode != "" && h.referralUC != nil {
+		if err := h.referralUC.CreateLead(ctx, req.ReferralCode, req.Email); err != nil {
+			errors.InternalServerErrorResponse(c, err.Error())
+			return
+		}
+	}
+
 	result, err := h.authUC.RegisterTenant(ctx, &req)
 	if err != nil {
 		switch err {
@@ -614,7 +652,6 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 	}
 
 	loginResponse := result.LoginResponse
-
 	// Set HttpOnly auth cookies so the browser-based frontend is immediately logged in.
 	setAuthCookies(c, loginResponse.Token, loginResponse.RefreshToken)
 
@@ -643,6 +680,42 @@ func (h *AuthHandler) RegisterTenant(c *gin.Context) {
 	response.SuccessResponse(c, resp, nil)
 }
 
+func (h *AuthHandler) resolveRegistrationCodeForRegister(c *gin.Context, ctx context.Context, req *dto.RegisterTenantRequest) bool {
+	registrationCode := strings.TrimSpace(req.RegistrationCode)
+	if registrationCode == "" {
+		registrationCode = strings.TrimSpace(req.Coupon)
+	}
+	if registrationCode == "" {
+		return true
+	}
+	if h.referralUC == nil {
+		if strings.TrimSpace(req.Coupon) == "" {
+			req.Coupon = registrationCode
+		}
+		return true
+	}
+
+	resolved, err := h.referralUC.ResolveRegistrationCode(ctx, registrationCode, req.Email)
+	if err != nil {
+		errors.InternalServerErrorResponse(c, err.Error())
+		return false
+	}
+	if !resolved.Valid {
+		errors.ErrorResponse(c, "REGISTRATION_CODE_INVALID", map[string]interface{}{
+			"field":  "registration_code",
+			"reason": resolved.Reason,
+		}, nil)
+		return false
+	}
+	if resolved.Type == referralDTO.RegistrationCodeTypeReferral {
+		req.Coupon = resolved.CouponCode
+		req.ReferralCode = resolved.Code
+		return true
+	}
+	req.Coupon = resolved.Code
+	return true
+}
+
 // ConfirmPendingRegistration finalizes paid registration after payment callback and
 // immediately logs the user in by setting HttpOnly auth cookies.
 // POST /api/v1/auth/register/confirm
@@ -662,6 +735,8 @@ func (h *AuthHandler) ConfirmPendingRegistration(c *gin.Context) {
 		switch {
 		case goerrors.Is(err, usecase.ErrPendingRegistrationNotFound):
 			errors.ErrorResponse(c, "PENDING_REGISTRATION_NOT_FOUND", nil, nil)
+		case goerrors.Is(err, usecase.ErrPendingRegistrationPaymentPending):
+			errors.ErrorResponse(c, "PENDING_REGISTRATION_PAYMENT_PENDING", nil, nil)
 		case goerrors.Is(err, usecase.ErrPendingRegistrationDataInvalid):
 			errors.ErrorResponse(c, "INVALID_PAYLOAD", nil, nil)
 		case goerrors.Is(err, usecase.ErrEmailAlreadyTaken):

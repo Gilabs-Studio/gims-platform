@@ -141,7 +141,7 @@ export const landingId = {
       monthly: "Bulanan",
       yearly: "Tahunan",
       users: "Pengguna",
-      perMonthSeat: "/bulan per seat",
+      perMonthSeat: "bln per seat",
       totalInvoice: "Total invoice",
       selectBundle: "Pilih {name}",
       selectModular: "Pilih modular",
@@ -239,6 +239,13 @@ export const landingId = {
         "Bergabunglah dengan ratusan perusahaan yang telah mengotomatisasi operasional mereka. Setup dalam hitungan hari, bukan bulan.",
       seeFeatures: "Mulai Uji Coba Gratis",
       signIn: "Pelajari Lebih Lanjut",
+    },
+    contactSales: {
+      eyebrow: "Hubungi sales",
+      title: "Diskusikan kebutuhan operasional Anda dengan tim kami.",
+      subtitle:
+        "Butuh harga, detail onboarding, atau demo terpandu? Chat dengan sales SalesView melalui WhatsApp dan dapatkan respons cepat.",
+      whatsappCta: "Chat via WhatsApp",
     },
     footer: {
       tagline: "All-in-One ERP · CRM · POS · Finance · HR",

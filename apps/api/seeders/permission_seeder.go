@@ -282,6 +282,13 @@ func SeedPermissions() error {
 		{"/sales/payments", "sales_payment.print", "Print Sales Payments", "PRINT", "sales_payment"},
 		{"/sales/payments", "sales_payment.reverse", "Reverse Sales Payments", "REVERSE", "sales_payment"},
 
+		// Sales Referral (platform/admin-facing)
+		{"/master-data/sales-referrals", "sales_referral.read", "View Sales Referrals", "VIEW", "sales_referral"},
+		{"/master-data/sales-referrals", "sales_referral.create", "Create Sales Referrals", "CREATE", "sales_referral"},
+		{"/master-data/sales-referrals", "sales_referral.update", "Edit Sales Referrals", "EDIT", "sales_referral"},
+		{"/master-data/sales-referrals", "sales_referral.delete", "Delete Sales Referrals", "DELETE", "sales_referral"},
+		{"/master-data/sales-referrals", "sales_referral.manage", "Manage Sales Referral Codes", "MANAGE", "sales_referral"},
+
 		// Purchase
 		{"/purchase/purchase-requisitions", "purchase_requisition.read", "View Purchase Requisitions", "VIEW", "purchase_requisition"},
 		{"/purchase/purchase-requisitions", "purchase_requisition.create", "Create Purchase Requisitions", "CREATE", "purchase_requisition"},

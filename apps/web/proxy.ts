@@ -5,17 +5,25 @@ import {
   getLocalePreferenceFromCookieValue,
   LOCALE_PREFERENCE_COOKIE,
 } from "@/lib/locale-preference";
+import {
+  INDEXABLE_MARKETING_PATHS,
+  LEGACY_APP_SLUG_REDIRECTS,
+} from "@/lib/seo-routes";
+
+const INDEXABLE_MARKETING_PATH_SET = new Set<string>(
+  INDEXABLE_MARKETING_PATHS.filter((path) => path !== "/"),
+);
 
 /**
  * Proxy middleware for handling authentication routing.
- * 
+ *
  * IMPORTANT: Cookie presence does NOT guarantee valid session.
  * HttpOnly cookies cannot be validated by middleware - only the backend can verify them.
- * 
+ *
  * This middleware only handles:
  * 1. Root path redirect when cookies exist (for convenience)
  * 2. Login page access - always allow (let client-side verify session)
- * 
+ *
  * All protected route auth is handled by client-side AuthGuard which:
  * - Verifies session with backend on every page load
  * - Redirects to login if session is invalid
@@ -31,16 +39,25 @@ export function proxy(request: NextRequest) {
 
   // Extract locale from pathname
   const pathSegments = pathname.split("/").filter(Boolean);
-  const pathLocale = pathSegments[0] === "en" || pathSegments[0] === "id" 
-    ? pathSegments[0] 
-    : null;
+  const pathLocale =
+    pathSegments[0] === "en" || pathSegments[0] === "id"
+      ? pathSegments[0]
+      : null;
   const requestCountryCode =
     request.headers.get("x-vercel-ip-country") ??
     request.headers.get("cf-ipcountry") ??
     request.headers.get("x-country-code");
-  const detectedLocale = pathLocale ?? cookieLocale ?? getLocaleFromCountryCode(requestCountryCode);
+  const detectedLocale =
+    pathLocale ?? cookieLocale ?? getLocaleFromCountryCode(requestCountryCode);
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-gims-locale", detectedLocale);
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
   if (cookieLocale !== detectedLocale) {
     response.cookies.set({
       name: LOCALE_PREFERENCE_COOKIE,
@@ -65,9 +82,54 @@ export function proxy(request: NextRequest) {
     pathname === "/forgot-password" ||
     pathname === "/delete-account/confirm" ||
     isLegacySettingsPath;
+
+  const legacyAppSegments = hasLocalePrefix
+    ? pathSegments.slice(1)
+    : pathSegments;
+  const isLegacyAppsPath = legacyAppSegments[0] === "apps";
+  const legacyAppSlug = legacyAppSegments[1];
+  const legacyAppTarget =
+    legacyAppSlug ? LEGACY_APP_SLUG_REDIRECTS[legacyAppSlug] : null;
+
+  if (isLegacyAppsPath && legacyAppTarget) {
+    const locale = pathLocale ?? detectedLocale;
+    const targetPath =
+      legacyAppTarget === "/" ? `/${locale}` : `/${locale}${legacyAppTarget}`;
+    const targetURL = new URL(targetPath, request.url);
+    targetURL.search = request.nextUrl.search;
+
+    const redirectResponse = NextResponse.redirect(targetURL, 308);
+    redirectResponse.cookies.set({
+      name: LOCALE_PREFERENCE_COOKIE,
+      value: locale,
+      path: "/",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return redirectResponse;
+  }
+
+  if (!hasLocalePrefix && INDEXABLE_MARKETING_PATH_SET.has(pathname)) {
+    const targetURL = new URL(`/${detectedLocale}${pathname}`, request.url);
+    targetURL.search = request.nextUrl.search;
+
+    const redirectResponse = NextResponse.redirect(targetURL, 308);
+    redirectResponse.cookies.set({
+      name: LOCALE_PREFERENCE_COOKIE,
+      value: detectedLocale,
+      path: "/",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return redirectResponse;
+  }
+
   if (!hasLocalePrefix && isLocaleAgnosticAuthPath) {
     const normalizedPath = isLegacySettingsPath ? "/profile" : pathname;
-    const targetURL = new URL(`/${detectedLocale}${normalizedPath}`, request.url);
+    const targetURL = new URL(
+      `/${detectedLocale}${normalizedPath}`,
+      request.url,
+    );
     targetURL.search = request.nextUrl.search;
     if (isLegacySettingsPath && !targetURL.searchParams.has("tab")) {
       targetURL.searchParams.set("tab", "billing");
@@ -87,7 +149,9 @@ export function proxy(request: NextRequest) {
   // NOTE: Client-side AuthGuard will verify the session and redirect to login if invalid
   if (pathname === "/" && accessToken) {
     const target = `/${detectedLocale}/dashboard`;
-    const redirectResponse = NextResponse.redirect(new URL(target, request.url));
+    const redirectResponse = NextResponse.redirect(
+      new URL(target, request.url),
+    );
     redirectResponse.cookies.set({
       name: LOCALE_PREFERENCE_COOKIE,
       value: detectedLocale,

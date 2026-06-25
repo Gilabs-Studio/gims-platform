@@ -12,13 +12,13 @@ import { buildLandingMetadata } from "@/lib/seo";
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   
-  const title = locale === 'id' 
-    ? `Software POS Kasir untuk Retail & F&B | SalesView` 
-    : `POS Software for Retail & F&B | SalesView`;
+  const title = locale === "id"
+    ? "Software POS Restoran, Cafe & Retail Multi Cabang | SalesView"
+    : "POS Software for Restaurants, Cafes & Multi-Outlet Retail | SalesView";
     
-  const desc = locale === 'id'
-    ? `Jalankan kasir POS dengan sinkronisasi stok real-time, laporan penjualan, dan dukungan multi-cabang untuk bisnis retail serta F&B.`
-    : `Run POS cashier operations with real-time stock sync, sales reporting, and multi-branch support for retail and F&B businesses.`;
+  const desc = locale === "id"
+    ? "Sistem kasir POS untuk restoran, cafe, dan retail dengan sinkronisasi stok real-time, mode offline, floor plan meja, QR/self-order, serta kontrol multi-cabang."
+    : "POS software for restaurants, cafes, and retail with real-time stock sync, offline mode, table floor plans, QR or self-order, and multi-branch control.";
 
   return buildLandingMetadata({
     locale,
@@ -26,8 +26,21 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     title,
     description: desc,
     keywords: locale === "id"
-      ? ["software pos", "aplikasi kasir", "pos retail", "kasir f&b", "point of sale indonesia", "salesview pos"]
-      : ["pos software", "point of sale", "retail pos", "restaurant pos", "multi-branch pos", "salesview pos"],
+      ? [
+          "aplikasi kasir restoran cafe multi cabang",
+          "software pos retail minimarket sinkron stok",
+          "sistem kasir offline online untuk outlet",
+          "pos qr order dan layout meja restoran",
+          "software point of sale cloud indonesia",
+          "salesview pos",
+        ]
+      : [
+          "restaurant cafe pos software with table layout",
+          "multi outlet retail pos with inventory sync",
+          "offline online point of sale software",
+          "qr self order pos system for fnb",
+          "salesview pos",
+        ],
     imageAlt: "SalesView point-of-sale overview",
   });
 }

@@ -22,6 +22,7 @@ import (
 	financeDto "github.com/gilabs/gims/api/internal/finance/domain/dto"
 	"github.com/gilabs/gims/api/internal/finance/domain/financesettings"
 	"github.com/gilabs/gims/api/internal/finance/domain/reference"
+	financeService "github.com/gilabs/gims/api/internal/finance/domain/service"
 	finUsecase "github.com/gilabs/gims/api/internal/finance/domain/usecase"
 	"github.com/gilabs/gims/api/internal/purchase/data/models"
 	"github.com/gilabs/gims/api/internal/purchase/data/repositories"
@@ -259,7 +260,7 @@ func resolvePurchaseCashBankAccountForCompany(
 		Order("created_at DESC").
 		First(&bankAccount).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, err
+			return financeService.EnsureDefaultCashBankAccount(ctx, tx, strings.TrimSpace(companyID), "", settingsUC, coaUC)
 		}
 		return nil, err
 	}

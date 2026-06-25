@@ -16,9 +16,9 @@ import { useAuthStore } from "@/features/auth/stores/use-auth-store";
 /**
  * /register/success?token=<UUID>
  *
- * Xendit redirects here after a successful payment.
- * Polls verifySession() until the backend webhook fires and the session cookie
- * is set, then redirects to the dashboard.
+ * Xendit redirects here after hosted checkout finishes.
+ * Polls confirmPaidRegistration() until the paid webhook finalizes the tenant,
+ * sets the session cookie, then redirects to the dashboard.
  */
 export default function RegisterSuccessPage() {
   const t = useTranslations("auth.registerSuccess");
@@ -34,8 +34,8 @@ export default function RegisterSuccessPage() {
   const [status, setStatus] = useState<"loading" | "success" | "failed">(
     isTokenValid ? "loading" : "failed",
   );
-  const maxConfirmAttempts = 8;
-  const baseRetryDelayMs = 1200;
+  const maxConfirmAttempts = 15;
+  const baseRetryDelayMs = 1500;
 
   const triggerConfetti = useCallback(() => {
     const fire = confettiRef.current?.fire;
@@ -117,7 +117,10 @@ export default function RegisterSuccessPage() {
         // Only retry transient failures. Business conflicts/validation errors
         // (4xx, including SLUG_ALREADY_TAKEN/EMAIL_ALREADY_TAKEN) should fail fast.
         const isRetryable =
-          typeof statusCode !== "number" || statusCode >= 500 || statusCode === 429;
+          typeof statusCode !== "number" ||
+          statusCode >= 500 ||
+          statusCode === 425 ||
+          statusCode === 429;
 
         if (isCancelled) {
           return;

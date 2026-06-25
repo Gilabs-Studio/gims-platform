@@ -70,7 +70,7 @@ func TestAuthUsecase_Login(t *testing.T) {
 			},
 			mock: func(f fields) {
 				hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), 4)
-				
+
 				user := &userModels.User{
 					ID:       "user-1",
 					Email:    "test@example.com",
@@ -113,7 +113,7 @@ func TestAuthUsecase_Login(t *testing.T) {
 			},
 			mock: func(f fields) {
 				hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), 4)
-				
+
 				user := &userModels.User{
 					ID:       "user-1",
 					Email:    "test@example.com",
@@ -128,11 +128,11 @@ func TestAuthUsecase_Login(t *testing.T) {
 			err:     usecase.ErrInvalidCredentials,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// couponUC is not required for Login tests — pass nil (it is only used in RegisterTenant).
-		u := usecase.NewAuthUsecase(db, tt.fields.userRepo, tt.fields.refreshTokenRepo, jwtMgr, tt.fields.eventPublisher, nil, nil, nil, nil)
+			// couponUC/referralUC are not required for Login tests - pass nil.
+			u := usecase.NewAuthUsecase(db, tt.fields.userRepo, tt.fields.refreshTokenRepo, jwtMgr, tt.fields.eventPublisher, nil, nil, nil, nil, nil)
 
 			if tt.mock != nil {
 				tt.mock(tt.fields)

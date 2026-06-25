@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -159,6 +160,9 @@ func (h *PurchasePaymentHandler) Create(c *gin.Context) {
 			errors.UnauthorizedResponse(c, "user not authenticated")
 			return
 		}
+		if writePurchasePaymentBusinessError(c, err) {
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -189,6 +193,9 @@ func (h *PurchasePaymentHandler) CreateBatch(c *gin.Context) {
 		}
 		if err.Error() == "user not authenticated" {
 			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		if writePurchasePaymentBusinessError(c, err) {
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())
@@ -238,6 +245,9 @@ func (h *PurchasePaymentHandler) Update(c *gin.Context) {
 			errors.UnauthorizedResponse(c, "user not authenticated")
 			return
 		}
+		if writePurchasePaymentBusinessError(c, err) {
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -263,6 +273,9 @@ func (h *PurchasePaymentHandler) Delete(c *gin.Context) {
 		}
 		if err == usecase.ErrPurchasePaymentConflict {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if writePurchasePaymentBusinessError(c, err) {
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())
@@ -296,6 +309,9 @@ func (h *PurchasePaymentHandler) Confirm(c *gin.Context) {
 			errors.UnauthorizedResponse(c, "user not authenticated")
 			return
 		}
+		if writePurchasePaymentBusinessError(c, err) {
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -326,6 +342,9 @@ func (h *PurchasePaymentHandler) ConfirmBatch(c *gin.Context) {
 		}
 		if err.Error() == "user not authenticated" {
 			errors.UnauthorizedResponse(c, "user not authenticated")
+			return
+		}
+		if writePurchasePaymentBusinessError(c, err) {
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())
@@ -412,4 +431,146 @@ func (h *PurchasePaymentHandler) Export(c *gin.Context) {
 		return
 	}
 	exportjob.WriteSyncFile(c, file)
+}
+
+func writePurchasePaymentBusinessError(c *gin.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+
+	switch {
+	case strings.Contains(message, "no active cash/bank account configured for this company"):
+		userMessage := "No active cash or bank account is configured for this company. For CASH payments, create an active company cash account such as petty cash or cashier cash in Finance > Bank Accounts and link it to the cash COA. For BANK payments, create an active company bank account before continuing."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodeCashBankAccountMissing,
+			userMessage,
+			map[string]interface{}{
+				"message":      userMessage,
+				"cause":        err.Error(),
+				"module":       "finance",
+				"setting_area": "Finance > Bank Accounts",
+				"setting_path": "/finance/bank-accounts",
+				"related_area": "Finance > Settings",
+				"related_path": "/finance/settings",
+				"action":       "Create or activate a company-owned cash/bank account, make sure it is linked to the correct COA, then retry the payment.",
+			},
+		)
+		return true
+	case strings.Contains(message, "period") && strings.Contains(message, "closed"):
+		userMessage := "Accounting period is closed for this payment date. Open Finance > Financial Closing and reopen the matching closed period, or change the payment date to an open period."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodePeriodClosed,
+			userMessage,
+			map[string]interface{}{
+				"message":      userMessage,
+				"cause":        err.Error(),
+				"module":       "finance",
+				"setting_area": "Finance > Financial Closing",
+				"setting_path": "/finance/closing",
+				"related_area": "Finance > Settings > Fiscal Years",
+				"related_path": "/finance/settings/fiscal-years",
+				"action":       "Reopen the closed accounting period or use a payment date that belongs to an open period.",
+			},
+		)
+		return true
+	case strings.Contains(message, "mapping") && (strings.Contains(message, "not configured") || strings.Contains(message, "belum dikonfigurasi")):
+		userMessage := "Required finance account mapping is not configured. Open Finance > Settings > Accounting Mapping and complete the missing account mapping before continuing."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodeMappingNotConfigured,
+			userMessage,
+			map[string]interface{}{
+				"message":      userMessage,
+				"cause":        err.Error(),
+				"module":       "finance",
+				"setting_area": "Finance > Settings > Accounting Mapping",
+				"setting_path": "/finance/settings/accounting-mapping",
+				"action":       "Complete the missing COA/account mapping, then retry the payment.",
+			},
+		)
+		return true
+	case strings.Contains(message, "not postable"):
+		userMessage := "Selected account is not postable. Open Finance > Chart of Accounts or Finance > Settings > Accounting Mapping and choose a postable account."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodeAccountNotPostable,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"module":  "finance",
+				"action":  "Replace the account with an active postable account, then retry the payment.",
+			},
+		)
+		return true
+	case strings.Contains(message, "inactive") && strings.Contains(message, "account"):
+		userMessage := "Selected account is inactive. Open Finance > Chart of Accounts or Finance > Bank Accounts and activate or replace the account."
+		response.StandardErrorResponse(
+			c,
+			http.StatusUnprocessableEntity,
+			response.ErrCodeAccountInactive,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"module":  "finance",
+				"action":  "Activate the account or replace it with an active account, then retry the payment.",
+			},
+		)
+		return true
+	case strings.Contains(message, "current transaction is aborted") || strings.Contains(message, "sqlstate 25p02"):
+		userMessage := "Payment could not be completed because a database transaction failed before the final posting step. Please retry the payment. If it happens again, contact support with the request ID."
+		response.StandardErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			response.ErrCodeInternalServerError,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"module":  "purchase",
+				"action":  "Retry the payment once. If the same error repeats, share the request ID with support for investigation.",
+			},
+		)
+		return true
+	case strings.Contains(message, "value too long for type character varying") || strings.Contains(message, "sqlstate 22001"):
+		userMessage := "Payment could not be completed because the cash/bank account schema in this environment is still using an older field length. Run the latest compatibility migration for bank accounts, then retry the payment."
+		response.StandardErrorResponse(
+			c,
+			http.StatusInternalServerError,
+			response.ErrCodeInternalServerError,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"module":  "purchase",
+				"action":  "Apply the latest bank_accounts compatibility migration and retry the payment.",
+			},
+		)
+		return true
+	case strings.Contains(message, "lock") || strings.Contains(message, "deadlock") || strings.Contains(message, "concurrent") || strings.Contains(message, "serialization"):
+		userMessage := "Another process is updating this payment. Please refresh the data and try again."
+		response.StandardErrorResponse(
+			c,
+			http.StatusConflict,
+			response.ErrCodeConcurrentLockConflict,
+			userMessage,
+			map[string]interface{}{
+				"message": userMessage,
+				"cause":   err.Error(),
+				"action":  "Refresh the page and retry the payment action.",
+			},
+		)
+		return true
+	default:
+		return false
+	}
 }

@@ -109,35 +109,13 @@ export const useBatchUpsertFinanceSettings = (companyId?: string) => {
   };
 
   const batchUpsert = async (data: BatchUpsertFinanceSettingsRequest) => {
-    await Promise.all(
-      data.settings.map(async (mapping) => {
-        const key = mapping.setting_key.trim();
-        const coaCode = mapping.value.trim();
-        const label = mapping.description?.trim() || mapping.setting_key;
-
-        if (!key) {
-          return;
-        }
-
-        if (coaCode.length === 0) {
-          await financeSettingsService.deleteByKey(key, companyId);
-          return;
-        }
-
-        await financeSettingsService.upsertByKey(key, {
-          coa_code: coaCode,
-          label,
-        }, companyId);
-      }),
-    );
-
-    return financeSettingsService.getAll(companyId);
+    return financeSettingsService.batchUpsertAccountMappings(data, companyId);
   };
 
   return useMutation({
     mutationFn: batchUpsert,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["financeSettings", companyId] });
+    onSuccess: (responseData) => {
+      queryClient.setQueryData(["financeSettings", companyId], responseData);
       toast.success(t("saved"));
     },
     onError: (error: unknown) => {

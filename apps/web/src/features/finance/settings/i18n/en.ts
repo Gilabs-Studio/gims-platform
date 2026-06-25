@@ -19,6 +19,9 @@ export const financeSettingsEn = {
   dynamicDescription: "Custom finance setting",
   requiredValue: "Please select an account mapping.",
   inventory: {
+    pageTitle: "Inventory Settings",
+    pageDescription:
+      "Configure valuation method and rounding account for inventory postings.",
     title: "Inventory Valuation Settings",
     fields: {
       company: "Company",
@@ -68,6 +71,9 @@ export const financeSettingsEn = {
     },
   },
   openingBalance: {
+    pageTitle: "Opening Balance",
+    pageDescription:
+      "Set up opening journal balances before operational posting starts.",
     title: "Opening Balance",
     fields: {
       company: "Company",
@@ -115,6 +121,9 @@ export const financeSettingsEn = {
     },
   },
   tax: {
+    pageTitle: "Tax Configuration",
+    pageDescription:
+      "Configure PPN and PPh mappings for automatic journal posting.",
     title: "Tax Configuration",
     fields: {
       company: "Company",
@@ -157,7 +166,11 @@ export const financeSettingsEn = {
     },
   },
   fiscalYears: {
+    pageTitle: "Fiscal Year",
+    pageDescription:
+      "Activate and lock fiscal years to control accounting period posting.",
     company: "Company",
+    selectCompany: "Select company",
     name: "Fiscal Year Name",
     startDate: "Start Date",
     endDate: "End Date",

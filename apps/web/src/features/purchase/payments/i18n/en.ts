@@ -12,6 +12,7 @@ export const purchasePaymentEn = {
   actions: {
     create: "Create",
     openMapping: "Open Mapping",
+    openCashBankAccounts: "Open Cash/Bank Accounts",
     change: "Change",
     export: "Export",
     confirm: "Confirm",
@@ -43,6 +44,8 @@ export const purchasePaymentEn = {
     editTitle: "Edit Payment",
     bankAmountHint: "Enter the transfer amount paid to supplier.",
     cashAmountHint: "Enter the cash amount paid to supplier.",
+    bankAccountSetupHint: "Bank payments require an active company bank account.",
+    cashAccountSetupHint: "Cash payments still require an active company cash account in Cash/Bank Accounts, such as petty cash or cashier cash.",
     cashAmountMinimum: "Cash payment cannot be lower than remaining amount",
     amountRequired: "Amount is required.",
     amountHandledBySystem: "Amount is calculated by the system",
@@ -53,7 +56,7 @@ export const purchasePaymentEn = {
     code: "Payment #",
     invoice: "Invoice",
     paymentDetails: "Payment Details",
-    bankAccount: "Bank Account",
+    bankAccount: "Cash / Bank Account",
     paymentDate: "Payment Date",
     amount: "Amount",
     tenderAmount: "Paid",
@@ -112,5 +115,6 @@ export const purchasePaymentEn = {
   printError: "Something went wrong",
   errors: {
     mappingRequired: "Account mapping is incomplete. Complete it in Finance Settings before continuing.",
+    cashBankAccountRequired: "No active cash/bank account is configured. Create an active company cash account for cash payments, or an active company bank account for bank payments.",
   },
 };

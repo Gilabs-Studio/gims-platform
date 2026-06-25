@@ -253,6 +253,13 @@
   }
 }
 
+@layer components {
+  .seo-slash-prefix::before {
+    content: "/";
+    margin-right: 0.125rem;
+  }
+}
+
 /* AI Gradient Text Animation */
 .ai-gradient-text {
   background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7, #c084fc, #8b5cf6, #6366f1);

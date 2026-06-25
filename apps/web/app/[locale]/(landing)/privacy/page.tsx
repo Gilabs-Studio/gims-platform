@@ -19,8 +19,19 @@ export async function generateMetadata({
       ? "Bagaimana platform SalesView mengumpulkan, menggunakan, dan melindungi data pribadi Anda."
       : "How the SalesView platform collects, uses, and protects your personal data.",
     keywords: isId
-      ? ["kebijakan privasi", "gims privasi", "data pribadi", "salesview hukum"]
-      : ["privacy policy", "gims privacy", "personal data", "salesview legal"],
+      ? [
+          "kebijakan privasi data pengguna salesview",
+          "perlindungan informasi bisnis perusahaan",
+          "sistem keamanan database cloud gims",
+          "syarat perlindungan data pribadi",
+          "salesview privacy",
+        ]
+      : [
+          "salesview user data privacy policy",
+          "corporate business info protection",
+          "secure database cloud architecture system",
+          "salesview privacy",
+        ],
     imageAlt: "SalesView Privacy Policy",
   });
 }

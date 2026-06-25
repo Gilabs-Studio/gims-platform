@@ -42,6 +42,10 @@ import (
 	permissionHandler "github.com/gilabs/gims/api/internal/permission/presentation/handler"
 	permissionRouter "github.com/gilabs/gims/api/internal/permission/presentation/router"
 
+	referralRepo "github.com/gilabs/gims/api/internal/referral/data/repositories"
+	referralUsecase "github.com/gilabs/gims/api/internal/referral/domain/usecase"
+	referralHandler "github.com/gilabs/gims/api/internal/referral/presentation/handler"
+	referralRouter "github.com/gilabs/gims/api/internal/referral/presentation/router"
 	refreshTokenRepo "github.com/gilabs/gims/api/internal/refresh_token/data/repositories"
 	refreshTokenWorker "github.com/gilabs/gims/api/internal/refresh_token/worker"
 
@@ -276,6 +280,7 @@ func main() {
 	sysAdminRepository := tenantRepos.NewSystemAdminRepository(database.DB)
 	tenantRepository := tenantRepos.NewTenantRepository(database.DB)
 	couponRepository := tenantRepos.NewCouponRepository(database.DB)
+	referralRepository := referralRepo.NewReferralRepository(database.DB)
 	subscriptionRepository := tenantRepos.NewSubscriptionRepository(database.DB)
 	subscriptionPlanRepository := tenantRepos.NewSubscriptionPlanRepository(database.DB)
 
@@ -289,22 +294,24 @@ func main() {
 
 	// Setup Usecases
 	couponUC := tenantUsecase.NewCouponUsecase(couponRepository, subscriptionRepository, database.DB)
+	referralUC := referralUsecase.NewReferralUsecase(referralRepository, couponUC)
 	subUC := tenantUsecase.NewSubscriptionUsecase(subscriptionRepository, tenantRepository)
 	planUC := tenantUsecase.NewSubscriptionPlanUsecase(subscriptionPlanRepository)
 	resendCl := resendClient.NewClient(config.AppConfig.Resend.APIKey)
-	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, redis.GetClient(), subscriptionPlanRepository, permissionService)
+	authUC := authUsecase.NewAuthUsecase(database.DB, userRepository, refreshTokenRepository, jwtManager, eventPublisher, couponUC, referralUC, redis.GetClient(), subscriptionPlanRepository, permissionService)
 	userUC := userUsecase.NewUserUsecase(userRepository, roleRepository, tenantRepository, subscriptionRepository, auditService, eventPublisher, redis.GetClient(), resendCl)
 	roleUC := roleUsecase.NewRoleUsecase(roleRepository, eventPublisher, redis.GetClient(), permissionService, database.DB, subscriptionPlanRepository)
 	permissionUC := permissionUsecase.NewPermissionUsecase(permissionRepository, userRepository)
 	passwordResetUC := passwordResetUsecase.NewPasswordResetUsecase(passwordResetRepository, userRepository, roleRepository, resendCl, auditService, eventPublisher, redis.GetClient())
 
 	// Setup Handlers
-	authH := authHandler.NewAuthHandler(authUC, couponUC, planUC)
+	authH := authHandler.NewAuthHandler(authUC, couponUC, planUC, referralUC)
 	xenditH := authHandler.NewXenditHandler(authUC)
 	userH := userHandler.NewUserHandler(userUC)
 	roleH := roleHandler.NewRoleHandler(roleUC)
 	permissionH := permissionHandler.NewPermissionHandler(permissionUC)
 	passwordResetH := passwordResetHandler.NewPasswordResetHandler(passwordResetUC)
+	referralH := referralHandler.NewHandler(referralUC)
 
 	// SaaS: System admin usecases & handler
 	sysAdminUC := tenantUsecase.NewSystemAdminUsecase(sysAdminRepository, jwtManager, resendCl, database.DB)
@@ -322,7 +329,7 @@ func main() {
 	paymentMethodUC := tenantUsecase.NewPaymentMethodUsecase(paymentMethodRepo, xenditClient.NewClient(
 		func() string {
 			if config.AppConfig != nil {
-				return config.AppConfig.Xendit.SecretKey
+				return config.AppConfig.Xendit.BillingRecurringSecretKey
 			}
 			return ""
 		}(),
@@ -402,6 +409,7 @@ func main() {
 
 	// SaaS: Register system admin routes (completely separate from tenant API)
 	tenantRouter.RegisterSystemAdminRoutes(r, sysAdminH, jwtManager, sysAdminRepository)
+	referralRouter.RegisterSystemAdminRoutes(r, referralH, jwtManager, sysAdminRepository)
 
 	// SaaS: Register tenant auto-inject callback on Create
 	tenantScope.SetTenantCallback(database.DB)

@@ -36,10 +36,15 @@ type CompanyUsecase interface {
 }
 
 type companyUsecase struct {
-	companyRepo     repositories.CompanyRepository
-	outletRepo      outletRepository.OutletRepository
-	warehouseRepo   warehouseRepository.WarehouseRepository
-	timezoneService service.TimezoneService
+	companyRepo         repositories.CompanyRepository
+	outletRepo          outletRepository.OutletRepository
+	warehouseRepo       warehouseRepository.WarehouseRepository
+	timezoneService     service.TimezoneService
+	financeBootstrapper companyFinanceBootstrapper
+}
+
+type companyFinanceBootstrapper interface {
+	EnsureCompanyDefaults(ctx context.Context, company *models.Company) error
 }
 
 // NewCompanyUsecase creates a new CompanyUsecase
@@ -48,13 +53,18 @@ func NewCompanyUsecase(
 	outletRepo outletRepository.OutletRepository,
 	warehouseRepo warehouseRepository.WarehouseRepository,
 	timezoneService service.TimezoneService,
+	financeBootstrapper ...companyFinanceBootstrapper,
 ) CompanyUsecase {
-	return &companyUsecase{
+	uc := &companyUsecase{
 		companyRepo:     companyRepo,
 		outletRepo:      outletRepo,
 		warehouseRepo:   warehouseRepo,
 		timezoneService: timezoneService,
 	}
+	if len(financeBootstrapper) > 0 {
+		uc.financeBootstrapper = financeBootstrapper[0]
+	}
+	return uc
 }
 
 func (u *companyUsecase) List(ctx context.Context, req *dto.ListCompaniesRequest) ([]dto.CompanyResponse, *utils.PaginationResult, error) {
@@ -117,6 +127,12 @@ func (u *companyUsecase) Create(ctx context.Context, req *dto.CreateCompanyReque
 
 	if err := u.companyRepo.Create(ctx, company); err != nil {
 		return nil, err
+	}
+
+	if u.financeBootstrapper != nil {
+		if err := u.financeBootstrapper.EnsureCompanyDefaults(ctx, company); err != nil {
+			log.Printf("warning: failed to bootstrap finance defaults for company %s: %v", company.ID, err)
+		}
 	}
 
 	// Reload with village

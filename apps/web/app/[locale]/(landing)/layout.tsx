@@ -15,26 +15,25 @@ export async function generateMetadata({
     locale,
     path: "/",
     title: isId
-      ? "SalesView: ERP, CRM, HRIS, POS & Finance untuk Bisnis Indonesia"
-      : "SalesView: ERP, CRM, HRIS, POS & Finance for Modern Teams",
+      ? "SalesView: ERP, POS, CRM & Finance untuk Distributor, Retail, dan F&B"
+      : "SalesView: ERP, POS, CRM & Finance for Distribution, Retail, and F&B",
     description: isId
-      ? "Platform all-in-one untuk penjualan, pembelian, stok, SDM, dan keuangan. Jalankan operasional bisnis lebih cepat dengan SalesView."
-      : "An all-in-one platform for sales, purchasing, inventory, HR, and finance. Run your business operations faster with SalesView.",
+      ? "Platform all-in-one untuk distributor, retail, dan F&B: kelola penjualan, pembelian, stok multi-gudang, POS, CRM, SDM, dan finance dalam satu sistem."
+      : "An all-in-one platform for distribution, retail, and F&B teams to manage sales, purchasing, multi-warehouse inventory, POS, CRM, HR, and finance in one system.",
     keywords: isId
       ? [
-          "erp indonesia",
-          "software crm",
-          "hris indonesia",
-          "aplikasi kasir pos",
-          "software akuntansi",
+          "erp distributor fmcg indonesia",
+          "software pos restoran cafe multi cabang",
+          "crm sales lapangan area mapping indonesia",
+          "software inventory multi gudang pembelian penjualan",
+          "aplikasi finance accounting dan hris terintegrasi",
           "salesview",
         ]
       : [
-          "erp software",
-          "crm software",
-          "hris platform",
-          "point of sale software",
-          "accounting software",
+          "erp software for distribution retail and fnb",
+          "multi warehouse inventory pos crm finance platform",
+          "field sales crm and purchasing software",
+          "integrated accounting hris and business operations system",
           "salesview",
         ],
     imageAlt: "SalesView platform overview",

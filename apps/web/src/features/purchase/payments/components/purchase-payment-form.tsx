@@ -29,7 +29,11 @@ import { useCreatePurchasePayment, usePurchasePaymentAddData, useUpdatePurchaseP
 import { useSupplierInvoiceDP } from "@/features/purchase/supplier-invoice-down-payments/hooks/use-supplier-invoice-dp";
 import { useSupplierInvoice } from "@/features/purchase/supplier-invoices/hooks/use-supplier-invoices";
 import type { PurchasePaymentDetail } from "../types";
-import { getPurchaseErrorMessage, isAccountingMappingError } from "@/features/purchase/utils/error-utils";
+import {
+  getPurchaseErrorMessage,
+  isAccountingMappingError,
+  isCashBankAccountConfigurationError,
+} from "@/features/purchase/utils/error-utils";
 
 function todayISO(): string {
   const d = new Date();
@@ -341,6 +345,16 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                 return;
               }
 
+              if (isCashBankAccountConfigurationError(error)) {
+                toast.error(t("errors.cashBankAccountRequired"), {
+                  action: {
+                    label: t("actions.openCashBankAccounts"),
+                    onClick: () => router.push("/finance/bank-accounts"),
+                  },
+                });
+                return;
+              }
+
               const errorMessage = getPurchaseErrorMessage(error, t("toast.failed"));
               toast.error(errorMessage);
             }
@@ -543,6 +557,9 @@ export function PurchasePaymentForm({ open, onClose, defaultInvoiceId, defaultDP
                   )}
                 />
                 {errors.method?.message ? <FieldError>{String(errors.method.message)}</FieldError> : null}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {method === "CASH" ? t("form.cashAccountSetupHint") : t("form.bankAccountSetupHint")}
+                </p>
               </Field>
 
               <Field>

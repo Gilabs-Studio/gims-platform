@@ -56,11 +56,11 @@ type RedisConfig struct {
 }
 
 type ServerConfig struct {
-	Port                    string
-	Env                     string
-	Timezone                string // IANA timezone name (e.g. "Asia/Jakarta")
+	Port     string
+	Env      string
+	Timezone string // IANA timezone name (e.g. "Asia/Jakarta")
 	// FrontendBaseURL is the public web app origin used to build QR code / feedback URLs.
-	FrontendBaseURL         string
+	FrontendBaseURL string
 	// RootDomain is the root domain for setting cookies (e.g., ".salesview.id" or ".gilabs.id")
 	// Used in production to share cookies across subdomains. Must include leading dot.
 	RootDomain              string
@@ -122,9 +122,12 @@ type CerebrasConfig struct {
 
 // XenditConfig holds Xendit payment gateway credentials.
 type XenditConfig struct {
-	SecretKey    string // Server-side Xendit secret key (sk_live_... / sk_test_...)
-	WebhookToken string // Xendit callback verification token
-	BaseURL      string // Xendit API base URL (overridable for sandbox)
+	BillingRecurringSecretKey   string // Money-in only key for GIMS subscription billing
+	MerchantSettlementSecretKey string // Money-out/xenPlatform key for merchant settlement workers
+	BillingWebhookToken         string // Webhook token for billing/recurring events
+	SettlementWebhookToken      string // Webhook token for settlement events
+	BaseURL                     string // Xendit API base URL (overridable for sandbox)
+	UseRecurringSessions        bool   // Use Payment Sessions SUBSCRIPTION instead of legacy invoice checkout
 }
 
 type StorageConfig struct {
@@ -245,9 +248,12 @@ func Load() error {
 			Model:   getEnv("CEREBRAS_MODEL", "llama-3.1-8b"), // Default model
 		},
 		Xendit: XenditConfig{
-			SecretKey:    getEnv("XENDIT_SECRET_KEY", ""),
-			WebhookToken: getEnv("XENDIT_WEBHOOK_TOKEN", ""),
-			BaseURL:      getEnv("XENDIT_BASE_URL", "https://api.xendit.co"),
+			BillingRecurringSecretKey:   getEnv("XENDIT_BILLING_RECURRING_SECRET_KEY", ""),
+			MerchantSettlementSecretKey: getEnv("XENDIT_MERCHANT_SETTLEMENT_SECRET_KEY", ""),
+			BillingWebhookToken:         getEnv("XENDIT_BILLING_WEBHOOK_TOKEN", ""),
+			SettlementWebhookToken:      getEnv("XENDIT_SETTLEMENT_WEBHOOK_TOKEN", ""),
+			BaseURL:                     getEnv("XENDIT_BASE_URL", "https://api.xendit.co"),
+			UseRecurringSessions:        getEnvAsBool("XENDIT_RECURRING_SESSIONS_ENABLED", strings.TrimSpace(getEnv("XENDIT_BILLING_RECURRING_SECRET_KEY", "")) != ""),
 		},
 		Resend: ResendConfig{
 			APIKey:    getEnv("RESEND_API_KEY", getEnv("RESEND", "")),
@@ -376,6 +382,14 @@ func Load() error {
 		}
 		if strings.TrimSpace(AppConfig.Security.XenditCredentialEncryptionKey) == "" {
 			return fmt.Errorf("XENDIT_CREDENTIAL_ENCRYPTION_KEY must be set in production environment")
+		}
+		if AppConfig.Xendit.UseRecurringSessions {
+			if strings.TrimSpace(AppConfig.Xendit.BillingRecurringSecretKey) == "" {
+				return fmt.Errorf("XENDIT_BILLING_RECURRING_SECRET_KEY must be set when XENDIT_RECURRING_SESSIONS_ENABLED=true")
+			}
+			if strings.TrimSpace(AppConfig.Xendit.BillingWebhookToken) == "" {
+				return fmt.Errorf("XENDIT_BILLING_WEBHOOK_TOKEN must be set when XENDIT_RECURRING_SESSIONS_ENABLED=true")
+			}
 		}
 
 		// SAFETY: Never expose debug/observability endpoints in production.

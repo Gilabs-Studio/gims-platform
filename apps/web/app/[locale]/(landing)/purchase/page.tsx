@@ -20,23 +20,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords:
       locale === "id"
         ? [
-            "software procurement",
-            "sistem purchase order",
-            "permintaan pembelian",
-            "penerimaan barang",
-            "hutang supplier",
-            "rekapan hutang",
-            "faktur supplier",
+            "aplikasi procurement purchasing order perusahaan",
+            "software pembelian barang ke supplier",
+            "sistem persetujuan purchase request online",
+            "aplikasi manajemen vendor supplier indonesia",
             "salesview purchase",
           ]
         : [
-            "procurement software",
-            "purchase order system",
-            "purchase requisition",
-            "goods receipt tracking",
-            "supplier payables",
-            "accounts payable aging",
-            "supplier invoice management",
+            "business procurement purchasing order software",
+            "online purchase request approval system",
+            "vendor performance tracking tool",
             "salesview purchase",
           ],
     imageAlt: "SalesView procurement purchase order overview",

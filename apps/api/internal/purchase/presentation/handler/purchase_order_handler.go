@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -152,6 +153,12 @@ func (h *PurchaseOrderHandler) Create(c *gin.Context) {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
+		if stderrors.Is(err, usecase.ErrPurchaseCompanyRequired) ||
+			stderrors.Is(err, usecase.ErrPurchaseCompanyIDRequired) ||
+			stderrors.Is(err, usecase.ErrActivePurchaseFiscalYearRequired) {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
 	}
@@ -193,6 +200,12 @@ func (h *PurchaseOrderHandler) Update(c *gin.Context) {
 		}
 		if err == usecase.ErrPurchaseOrderConflict {
 			errors.ErrorResponse(c, "CONFLICT", map[string]interface{}{"message": err.Error()}, nil)
+			return
+		}
+		if stderrors.Is(err, usecase.ErrPurchaseCompanyRequired) ||
+			stderrors.Is(err, usecase.ErrPurchaseCompanyIDRequired) ||
+			stderrors.Is(err, usecase.ErrActivePurchaseFiscalYearRequired) {
+			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
 		errors.InternalServerErrorResponse(c, err.Error())

@@ -8,7 +8,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "financeSettings" });
   return {
-    title: `${t("title")} - Fiscal Year`,
+    title: `${t("title")} - ${t("fiscalYears.pageTitle")}`,
   };
 }
 
@@ -20,8 +20,8 @@ export default async function FinanceSettingsFiscalYearsPage({ params }: { param
     <PermissionGuard requiredPermission="fiscal_year.read">
       <PageMotion className="container mx-auto w-full max-w-6xl py-6">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">{t("pageTitle")}</h1>
-          <p className="text-muted-foreground">{t("pageDescription")}</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("fiscalYears.pageTitle")}</h1>
+          <p className="text-muted-foreground">{t("fiscalYears.pageDescription")}</p>
         </div>
         <div className="mt-6">
           <FiscalYearsPanel />

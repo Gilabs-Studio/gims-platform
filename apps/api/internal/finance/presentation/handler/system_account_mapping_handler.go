@@ -91,6 +91,27 @@ func (h *SystemAccountMappingHandler) Upsert(c *gin.Context) {
 	response.SuccessResponse(c, mapping, nil)
 }
 
+func (h *SystemAccountMappingHandler) BatchUpsert(c *gin.Context) {
+	companyID, ok := parseMappingCompanyID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.BatchUpsertFinanceSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "invalid request body", map[string]interface{}{"cause": err.Error()})
+		return
+	}
+
+	mappings, err := h.uc.BatchUpsert(c.Request.Context(), req.Settings, companyID)
+	if err != nil {
+		h.handleMappingError(c, err)
+		return
+	}
+
+	response.SuccessResponse(c, mappings, nil)
+}
+
 func (h *SystemAccountMappingHandler) Delete(c *gin.Context) {
 	key := mappingKeyParam(c)
 	if key == "" {
