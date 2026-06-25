@@ -391,6 +391,7 @@ func AutoMigrate() error {
 		&pos.PosOrder{},
 		&pos.PosOrderItem{},
 		&pos.POSPayment{},
+		&pos.POSSettlementPayout{},
 		&pos.POSConfig{},
 		&pos.XenditConfig{},
 		&pos.PosTableStatusRecord{},

@@ -18,6 +18,10 @@ import type {
   XenditConnectionStatusResponse,
   ConnectXenditRequest,
   UpdateXenditConfigRequest,
+  POSSettlementOverview,
+  POSSettlementPayoutChannel,
+  CreatePOSSettlementPayoutRequest,
+  POSSettlementPayout,
 } from "../types";
 import type {
   Outlet,
@@ -248,6 +252,43 @@ export const xenditConfigService = {
   disconnect() {
     return apiClient
       .delete<ApiResponse<XenditConfig>>(`${BASE}/payment/config/disconnect`)
+      .then((r) => r.data);
+  },
+};
+
+// ─── Settlement ───────────────────────────────────────────────────────────────
+
+export const posSettlementService = {
+  getOverview() {
+    return apiClient
+      .get<ApiResponse<POSSettlementOverview>>(`${BASE}/settlement/overview`)
+      .then((r) => r.data);
+  },
+
+  getPayoutChannels() {
+    return apiClient
+      .get<ApiResponse<POSSettlementPayoutChannel[]>>(
+        `${BASE}/settlement/payout-channels`,
+        {
+          params: {
+            currency: "IDR",
+          },
+        },
+      )
+      .then((r) => r.data);
+  },
+
+  createPayout(data: CreatePOSSettlementPayoutRequest) {
+    return apiClient
+      .post<ApiResponse<POSSettlementPayout>>(
+        `${BASE}/settlement/payouts`,
+        data,
+        {
+          headers: {
+            "X-Idempotency-Key": data.idempotency_key,
+          },
+        },
+      )
       .then((r) => r.data);
   },
 };

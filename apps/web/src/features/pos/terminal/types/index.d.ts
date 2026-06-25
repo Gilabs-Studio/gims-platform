@@ -248,6 +248,55 @@ export interface UpdateXenditConfigRequest {
   is_active?: boolean;
 }
 
+// ─── POS Settlement ──────────────────────────────────────────────────────────
+
+export interface POSSettlementOverview {
+  configured: boolean;
+  payout_enabled: boolean;
+  currency: string;
+  collected_amount: number;
+  reserved_payout_amount: number;
+  available_payout_amount: number;
+  platform_liquidity_status: "not_configured" | "available" | "unavailable";
+  message?: string;
+}
+
+export interface POSSettlementPayoutChannel {
+  channel_name: string;
+  channel_category: "BANK" | "EWALLET" | "OTC" | string;
+  channel_code: string;
+  currency: string;
+  amount_limits: {
+    minimum: number;
+    maximum: number;
+    minimum_increment: number;
+  };
+}
+
+export interface CreatePOSSettlementPayoutRequest {
+  amount: number;
+  channel_code: string;
+  account_number: string;
+  account_holder_name: string;
+  description?: string;
+  idempotency_key: string;
+}
+
+export interface POSSettlementPayout {
+  id: string;
+  reference_id: string;
+  xendit_payout_id?: string | null;
+  status: string;
+  amount: number;
+  currency: string;
+  channel_code: string;
+  account_number_masked: string;
+  account_holder_name: string;
+  description?: string | null;
+  estimated_arrival_time?: string | null;
+  created_at: string;
+}
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 export interface POSConfig {

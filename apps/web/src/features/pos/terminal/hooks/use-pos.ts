@@ -5,6 +5,7 @@ import {
   posPaymentService,
   posConfigService,
   xenditConfigService,
+  posSettlementService,
 } from "../services/pos-service";
 import type {
   CreateOrderRequest,
@@ -20,6 +21,7 @@ import type {
   UpdatePOSReceiptWhatsAppTemplateRequest,
   ConnectXenditRequest,
   UpdateXenditConfigRequest,
+  CreatePOSSettlementPayoutRequest,
 } from "../types";
 
 type POSOrderListCache = { data?: POSOrder[] };
@@ -70,6 +72,9 @@ export const posKeys = {
   config: (outletId: string) => [...posKeys.all, "config", outletId] as const,
   xenditStatus: () => [...posKeys.all, "xendit", "status"] as const,
   xenditConfig: () => [...posKeys.all, "xendit", "config"] as const,
+  settlementOverview: () => [...posKeys.all, "settlement", "overview"] as const,
+  settlementPayoutChannels: () =>
+    [...posKeys.all, "settlement", "payout-channels"] as const,
 };
 
 // ─── Catalog hook ─────────────────────────────────────────────────────────────
@@ -586,6 +591,41 @@ export function useDisconnectXendit() {
     },
     onError: () => {
       toast.error("Failed to disconnect Xendit account.");
+    },
+  });
+}
+
+// ─── Settlement hooks ────────────────────────────────────────────────────────
+
+export function usePOSSettlementOverview(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: posKeys.settlementOverview(),
+    queryFn: () => posSettlementService.getOverview(),
+    enabled: options?.enabled !== false,
+    staleTime: 30_000,
+  });
+}
+
+export function usePOSSettlementPayoutChannels(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: posKeys.settlementPayoutChannels(),
+    queryFn: () => posSettlementService.getPayoutChannels(),
+    enabled: options?.enabled !== false,
+    staleTime: 10 * 60_000,
+  });
+}
+
+export function useCreatePOSSettlementPayout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreatePOSSettlementPayoutRequest) =>
+      posSettlementService.createPayout(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: posKeys.settlementOverview() });
+      toast.success("Payout request sent to Xendit.");
+    },
+    onError: () => {
+      toast.error("Failed to create payout.");
     },
   });
 }

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -16,6 +18,9 @@ const (
 	paymentSessionPath  = "/sessions"
 	subscriptionPath    = "/recurring/plans"
 	subscriptionAPIPath = "/recurring/subscriptions"
+	balancePath         = "/balance"
+	payoutPath          = "/v2/payouts"
+	payoutChannelsPath  = "/payouts_channels"
 )
 
 // Client is a minimal Xendit API client scoped to the Invoice API.
@@ -24,6 +29,16 @@ type Client struct {
 	secretKey  string
 	baseURL    string
 	httpClient *http.Client
+}
+
+type APIError struct {
+	StatusCode int
+	Path       string
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	return fmt.Sprintf("xendit: API error %d on %s: %s", e.StatusCode, e.Path, e.Body)
 }
 
 // NewClient creates a Xendit client.
@@ -44,8 +59,10 @@ func NewClient(secretKey, baseURL string) *Client {
 
 // IsConfigured returns true when the secret key is set and non-placeholder.
 func (c *Client) IsConfigured() bool {
-	return c.secretKey != "" &&
-		c.secretKey != "xnd_development_your_secret_key_here"
+	key := strings.TrimSpace(c.secretKey)
+	return key != "" &&
+		key != "xnd_development_your_secret_key_here" &&
+		!strings.HasPrefix(key, "CHANGE_ME")
 }
 
 // CreateInvoiceRequest holds the fields for creating a Xendit invoice.
@@ -205,7 +222,11 @@ func (c *Client) CreateInvoice(ctx context.Context, req CreateInvoiceRequest) (*
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("xendit: API error %d: %s", resp.StatusCode, string(respBody))
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Path:       invoicePath,
+			Body:       string(respBody),
+		}
 	}
 
 	var result CreateInvoiceResponse
@@ -342,7 +363,11 @@ func (c *Client) GetCardToken(ctx context.Context, tokenID string) (*CardTokenDa
 		return nil, fmt.Errorf("xendit: read get-token response: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("xendit: API error %d on get-token: %s", resp.StatusCode, string(respBody))
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Path:       "/v2/tokens/" + tokenID,
+			Body:       string(respBody),
+		}
 	}
 
 	var result CardTokenData
@@ -350,6 +375,93 @@ func (c *Client) GetCardToken(ctx context.Context, tokenID string) (*CardTokenDa
 		return nil, fmt.Errorf("xendit: parse get-token response: %w", err)
 	}
 	return &result, nil
+}
+
+// ─── Balance & Payout API ───────────────────────────────────────────────────
+
+type BalanceResponse struct {
+	Balance float64 `json:"balance"`
+}
+
+type CreatePayoutRequest struct {
+	ReferenceID       string                  `json:"reference_id"`
+	ChannelCode       string                  `json:"channel_code"`
+	ChannelProperties PayoutChannelProperties `json:"channel_properties"`
+	Amount            int64                   `json:"amount"`
+	Description       string                  `json:"description,omitempty"`
+	Currency          string                  `json:"currency"`
+}
+
+type PayoutChannelProperties struct {
+	AccountNumber     string `json:"account_number"`
+	AccountHolderName string `json:"account_holder_name"`
+}
+
+type PayoutResponse struct {
+	ID                   string                  `json:"id"`
+	ReferenceID          string                  `json:"reference_id"`
+	Status               string                  `json:"status"`
+	Amount               float64                 `json:"amount"`
+	Currency             string                  `json:"currency"`
+	ChannelCode          string                  `json:"channel_code"`
+	Description          string                  `json:"description"`
+	Created              string                  `json:"created"`
+	Updated              string                  `json:"updated"`
+	EstimatedArrivalTime string                  `json:"estimated_arrival_time"`
+	FailureCode          string                  `json:"failure_code,omitempty"`
+	ChannelProperties    PayoutChannelProperties `json:"channel_properties"`
+}
+
+type PayoutChannel struct {
+	ChannelName     string             `json:"channel_name"`
+	ChannelCategory string             `json:"channel_category"`
+	ChannelCode     string             `json:"channel_code"`
+	Currency        string             `json:"currency"`
+	AmountLimits    PayoutAmountLimits `json:"amount_limits"`
+}
+
+type PayoutAmountLimits struct {
+	Minimum          float64 `json:"minimum"`
+	Maximum          float64 `json:"maximum"`
+	MinimumIncrement float64 `json:"minimum_increment"`
+}
+
+// GetBalance retrieves the Xendit cash balance. Do not expose this raw platform
+// balance to tenants; use it only as a liquidity/configuration health check.
+func (c *Client) GetBalance(ctx context.Context, currency string) (*BalanceResponse, error) {
+	if currency == "" {
+		currency = "IDR"
+	}
+	query := url.Values{}
+	query.Set("account_type", "CASH")
+	query.Set("currency", currency)
+	return doGet[BalanceResponse](ctx, c, balancePath+"?"+query.Encode())
+}
+
+// GetPayoutChannels retrieves currently supported payout destination channels.
+func (c *Client) GetPayoutChannels(ctx context.Context, currency, category string) (*[]PayoutChannel, error) {
+	query := url.Values{}
+	if currency != "" {
+		query.Set("currency", currency)
+	}
+	if category != "" {
+		query.Set("channel_category", category)
+	}
+	path := payoutChannelsPath
+	if encoded := query.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return doGet[[]PayoutChannel](ctx, c, path)
+}
+
+// CreatePayout initiates a Xendit payout with an idempotency key.
+func (c *Client) CreatePayout(ctx context.Context, req CreatePayoutRequest, idempotencyKey string) (*PayoutResponse, error) {
+	if req.Currency == "" {
+		req.Currency = "IDR"
+	}
+	return doPostWithHeaders[PayoutResponse](ctx, c, payoutPath, req, map[string]string{
+		"Idempotency-key": idempotencyKey,
+	})
 }
 
 // CreateRecurringPlan registers a recurring billing plan in Xendit.
@@ -364,6 +476,42 @@ func (c *Client) CancelRecurringPlan(ctx context.Context, planID string) (*Recur
 
 // doPost is a typed helper that marshals req, sends a POST to path, and unmarshals into T.
 func doPost[T any](ctx context.Context, c *Client, path string, req any) (*T, error) {
+	return doPostWithHeaders[T](ctx, c, path, req, nil)
+}
+
+func doGet[T any](ctx context.Context, c *Client, path string) (*T, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: build request %s: %w", path, err)
+	}
+	httpReq.SetBasicAuth(c.secretKey, "")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("xendit: http %s: %w", path, err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, fmt.Errorf("xendit: read response %s: %w", path, err)
+	}
+	if resp.StatusCode >= 400 {
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Path:       path,
+			Body:       string(respBody),
+		}
+	}
+
+	var result T
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("xendit: parse response %s: %w", path, err)
+	}
+	return &result, nil
+}
+
+func doPostWithHeaders[T any](ctx context.Context, c *Client, path string, req any, headers map[string]string) (*T, error) {
 	var bodyReader *bytes.Reader
 	if req != nil {
 		b, err := json.Marshal(req)
@@ -381,6 +529,9 @@ func doPost[T any](ctx context.Context, c *Client, path string, req any) (*T, er
 	}
 	httpReq.SetBasicAuth(c.secretKey, "")
 	httpReq.Header.Set("Content-Type", "application/json")
+	for key, value := range headers {
+		httpReq.Header.Set(key, value)
+	}
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -393,7 +544,11 @@ func doPost[T any](ctx context.Context, c *Client, path string, req any) (*T, er
 		return nil, fmt.Errorf("xendit: read response %s: %w", path, err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("xendit: API error %d on %s: %s", resp.StatusCode, path, string(respBody))
+		return nil, &APIError{
+			StatusCode: resp.StatusCode,
+			Path:       path,
+			Body:       string(respBody),
+		}
 	}
 
 	var result T

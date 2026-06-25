@@ -46,6 +46,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	paymentRepo := repositories.NewPOSPaymentRepository(db)
 	configRepo := repositories.NewPOSConfigRepository(db)
 	xenditRepo := repositories.NewXenditConfigRepository(db)
+	settlementRepo := repositories.NewPOSSettlementRepository(db)
 	bankAccountRepo := coreRepos.NewBankAccountRepository(db)
 	sessionRepo := repositories.NewPosSessionRepository(db)
 	qrTokenRepo := repositories.NewTableQRTokenRepository(db)
@@ -69,6 +70,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	paymentUC = paymentUC.WithPOSHub(posHub)
 	configUC := usecase.NewPOSConfigUsecase(configRepo)
 	xenditUC := usecase.NewXenditConfigUsecase(xenditRepo, credentialCipher)
+	settlementUC := usecase.NewPOSSettlementUsecase(settlementRepo)
 	sessionUC := usecase.NewPOSSessionUsecase(sessionRepo, outletRepo)
 	deviceTokenUC := usecase.NewPOSDeviceTokenUsecase(deviceTokenRepo, outletRepo)
 
@@ -95,6 +97,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	paymentH := handler.NewPOSPaymentHandler(paymentUC)
 	configH := handler.NewPOSConfigHandler(configUC)
 	xenditH := handler.NewXenditConfigHandler(xenditUC)
+	settlementH := handler.NewPOSSettlementHandler(settlementUC)
 	sessionH := handler.NewPOSSessionHandler(sessionUC)
 	deviceTokenH := handler.NewPOSDeviceTokenHandler(deviceTokenUC)
 
@@ -115,6 +118,7 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	router.RegisterPOSPaymentRoutes(group, paymentH)
 	router.RegisterPOSConfigRoutes(group, configH)
 	router.RegisterXenditConfigRoutes(group, xenditH)
+	router.RegisterPOSSettlementRoutes(group, settlementH)
 	router.RegisterPOSSessionRoutes(group, sessionH)
 	group.POST("/device-token", middleware.RequirePermission("pos.order.read"), deviceTokenH.Register)
 
