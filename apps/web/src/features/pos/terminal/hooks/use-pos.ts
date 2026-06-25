@@ -632,10 +632,40 @@ export function useCreatePOSSettlementPayout() {
       posSettlementService.createPayout(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: posKeys.settlementOverview() });
-      toast.success("Payout request sent to Xendit.");
+      qc.invalidateQueries({ queryKey: posKeys.settlementPayouts() });
+      toast.success("Payout request processed successfully.");
     },
-    onError: () => {
-      toast.error("Failed to create payout.");
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const errMsg = error?.response?.data?.message || error?.message || "Failed to create payout.";
+      toast.error(errMsg);
+    },
+  });
+}
+
+export function useValidatePOSBankAccount() {
+  return useMutation({
+    mutationFn: ({ bankCode, accountNumber }: { bankCode: string; accountNumber: string }) =>
+      posSettlementService.validateBankAccount(bankCode, accountNumber),
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const errMsg = error?.response?.data?.message || error?.message || "Failed to validate bank account.";
+      toast.error(errMsg);
+    },
+  });
+}
+
+export function useRequestPOSPayoutOTP() {
+  return useMutation({
+    mutationFn: (amount: number) =>
+      posSettlementService.requestPayoutOTP(amount),
+    onSuccess: () => {
+      toast.success("Verification code sent to owner's email.");
+    },
+    onError: (err: unknown) => {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const errMsg = error?.response?.data?.message || error?.message || "Failed to send verification code.";
+      toast.error(errMsg);
     },
   });
 }

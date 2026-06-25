@@ -101,6 +101,46 @@ func (h *POSSettlementHandler) CreatePayout(c *gin.Context) {
 	response.SuccessResponseCreated(c, payout, nil)
 }
 
+func (h *POSSettlementHandler) ValidateBankAccount(c *gin.Context) {
+	if !requireTenantOwner(c) {
+		return
+	}
+
+	var req dto.ValidatePOSBankAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		coreErrors.HandleValidationError(c, err)
+		return
+	}
+
+	res, err := h.uc.ValidateBankAccount(c.Request.Context(), &req)
+	if err != nil {
+		coreErrors.ErrorResponse(c, "BANK_ACCOUNT_VALIDATION_FAILED", map[string]interface{}{"reason": err.Error()}, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *POSSettlementHandler) RequestPayoutOTP(c *gin.Context) {
+	if !requireTenantOwner(c) {
+		return
+	}
+
+	var req dto.RequestPayoutOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		coreErrors.HandleValidationError(c, err)
+		return
+	}
+
+	tenantID := strings.TrimSpace(c.GetString("tenant_id"))
+	userID := strings.TrimSpace(c.GetString("user_id"))
+	err := h.uc.RequestPayoutOTP(c.Request.Context(), tenantID, userID, req.Amount)
+	if err != nil {
+		coreErrors.ErrorResponse(c, "REQUEST_PAYOUT_OTP_FAILED", map[string]interface{}{"reason": err.Error()}, nil)
+		return
+	}
+	response.SuccessResponse(c, map[string]string{"message": "OTP sent successfully"}, nil)
+}
+
 func requireTenantOwner(c *gin.Context) bool {
 	roleCode := strings.TrimSpace(c.GetString("user_role"))
 	tenantID := strings.TrimSpace(c.GetString("tenant_id"))

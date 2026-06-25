@@ -22,6 +22,7 @@ import type {
   POSSettlementPayoutChannel,
   CreatePOSSettlementPayoutRequest,
   POSSettlementPayout,
+  ValidatePOSBankAccountResponse,
 } from "../types";
 import type {
   Outlet,
@@ -295,6 +296,24 @@ export const posSettlementService = {
   getPayouts() {
     return apiClient
       .get<ApiResponse<POSSettlementPayout[]>>(`${BASE}/settlement/payouts`)
+      .then((r) => r.data);
+  },
+
+  validateBankAccount(bankCode: string, accountNumber: string) {
+    return apiClient
+      .post<ApiResponse<ValidatePOSBankAccountResponse>>(
+        `${BASE}/settlement/validate-bank-account`,
+        { bank_code: bankCode, account_number: accountNumber }
+      )
+      .then((r) => r.data);
+  },
+
+  requestPayoutOTP(amount: number) {
+    return apiClient
+      .post<ApiResponse<{ message: string }>>(
+        `${BASE}/settlement/payouts/request-otp`,
+        { amount }
+      )
       .then((r) => r.data);
   },
 };

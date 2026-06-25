@@ -259,6 +259,8 @@ export interface POSSettlementOverview {
   available_payout_amount: number;
   platform_liquidity_status: "not_configured" | "available" | "unavailable";
   message?: string;
+  payout_fee: number;
+  payout_vat_percent: number;
 }
 
 export interface POSSettlementPayoutChannel {
@@ -280,6 +282,19 @@ export interface CreatePOSSettlementPayoutRequest {
   account_holder_name: string;
   description?: string;
   idempotency_key: string;
+  otp_code: string;
+}
+
+export interface ValidatePOSBankAccountRequest {
+  bank_code: string;
+  account_number: string;
+}
+
+export interface ValidatePOSBankAccountResponse {
+  bank_code: string;
+  account_number: string;
+  account_holder_name: string;
+  status: string;
 }
 
 export interface POSSettlementPayout {
@@ -288,6 +303,8 @@ export interface POSSettlementPayout {
   xendit_payout_id?: string | null;
   status: string;
   amount: number;
+  fee?: number;
+  vat?: number;
   currency: string;
   channel_code: string;
   account_number_masked: string;

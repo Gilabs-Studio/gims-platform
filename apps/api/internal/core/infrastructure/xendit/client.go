@@ -65,6 +65,11 @@ func (c *Client) IsConfigured() bool {
 		!strings.HasPrefix(key, "CHANGE_ME")
 }
 
+// IsSandbox returns true when the secret key is a development key (does not start with xnd_production_).
+func (c *Client) IsSandbox() bool {
+	return !strings.HasPrefix(c.secretKey, "xnd_production_")
+}
+
 // CreateInvoiceRequest holds the fields for creating a Xendit invoice.
 type CreateInvoiceRequest struct {
 	// ExternalID must be unique per invoice; use the pending registration token.
@@ -556,4 +561,21 @@ func doPostWithHeaders[T any](ctx context.Context, c *Client, path string, req a
 		return nil, fmt.Errorf("xendit: parse response %s: %w", path, err)
 	}
 	return &result, nil
+}
+
+type ValidateBankAccountRequest struct {
+	BankCode      string `json:"bank_code"`
+	AccountNumber string `json:"account_number"`
+}
+
+type ValidateBankAccountResponse struct {
+	BankCode          string `json:"bank_code"`
+	AccountNumber     string `json:"account_number"`
+	BankName          string `json:"bank_name"`
+	AccountHolderName string `json:"account_holder_name"`
+	Status            string `json:"status"`
+}
+
+func (c *Client) ValidateBankAccount(ctx context.Context, req ValidateBankAccountRequest) (*ValidateBankAccountResponse, error) {
+	return doPost[ValidateBankAccountResponse](ctx, c, "/bank_accounts/data_lookup", req)
 }

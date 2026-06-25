@@ -29,6 +29,8 @@ type POSSettlementPayout struct {
 	XenditPayoutID       *string                   `gorm:"type:varchar(100);index" json:"xendit_payout_id,omitempty"`
 	Status               POSSettlementPayoutStatus `gorm:"type:varchar(20);not null;default:'PENDING';index" json:"status"`
 	Amount               float64                   `gorm:"type:decimal(15,2);not null;default:0" json:"amount"`
+	Fee                  float64                   `gorm:"type:decimal(15,2);not null;default:0" json:"fee"`
+	Vat                  float64                   `gorm:"type:decimal(15,2);not null;default:0" json:"vat"`
 	Currency             string                    `gorm:"type:varchar(3);not null;default:'IDR'" json:"currency"`
 	ChannelCode          string                    `gorm:"type:varchar(50);not null" json:"channel_code"`
 	AccountNumberMasked  string                    `gorm:"type:varchar(100);not null" json:"account_number_masked"`

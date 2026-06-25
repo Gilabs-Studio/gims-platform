@@ -53,7 +53,7 @@ func (r *posSettlementRepository) GetReservedPayoutTotal(ctx context.Context, te
 			models.POSSettlementPayoutStatusRequested,
 			models.POSSettlementPayoutStatusSucceeded,
 		}).
-		Select("COALESCE(SUM(amount), 0)").
+		Select("COALESCE(SUM(amount + fee + vat), 0)").
 		Scan(&total).Error
 	return total, err
 }
