@@ -633,42 +633,39 @@ func (u *posOrderUsecase) recalculateAndSaveInMemory(ctx context.Context, order 
 	for _, item := range items {
 		subtotal += item.Subtotal
 	}
-	taxRate, serviceRate, err := u.loadChargeRates(ctx, order.OutletID)
+	serviceRate, err := u.loadServiceRate(ctx, order.OutletID)
 	if err != nil {
 		return err
 	}
 
-	taxableBase := subtotal - order.DiscountAmount
-	if taxableBase < 0 {
-		taxableBase = 0
+	netBase := subtotal - order.DiscountAmount
+	if netBase < 0 {
+		netBase = 0
 	}
 
 	order.Subtotal = roundCurrency(subtotal)
-	order.TaxAmount = roundCurrency(taxableBase * taxRate)
-	order.ServiceCharge = roundCurrency(taxableBase * serviceRate)
-	order.TotalAmount = roundCurrency(taxableBase + order.TaxAmount + order.ServiceCharge)
+	order.TaxAmount = 0
+	order.ServiceCharge = roundCurrency(netBase * serviceRate)
+	order.TotalAmount = roundCurrency(netBase + order.ServiceCharge)
 	return u.orderRepo.Update(ctx, order)
 }
 
-func (u *posOrderUsecase) loadChargeRates(ctx context.Context, outletID string) (float64, float64, error) {
-	const (
-		defaultTaxRate     = 0.11
-		defaultServiceRate = 0.0
-	)
+func (u *posOrderUsecase) loadServiceRate(ctx context.Context, outletID string) (float64, error) {
+	const defaultServiceRate = 0.0
 
 	if u.configRepo == nil {
-		return defaultTaxRate, defaultServiceRate, nil
+		return defaultServiceRate, nil
 	}
 
 	cfg, err := u.configRepo.FindByOutletID(ctx, outletID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return defaultTaxRate, defaultServiceRate, nil
+			return defaultServiceRate, nil
 		}
-		return 0, 0, err
+		return 0, err
 	}
 
-	return normalizeRate(cfg.TaxRate), normalizeRate(cfg.ServiceChargeRate), nil
+	return normalizeRate(cfg.ServiceChargeRate), nil
 }
 
 func normalizeRate(rate float64) float64 {

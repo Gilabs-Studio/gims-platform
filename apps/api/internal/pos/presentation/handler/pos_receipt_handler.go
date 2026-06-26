@@ -85,7 +85,6 @@ type receiptTemplateData struct {
 
 	Subtotal     string
 	DiscountLine string
-	TaxLine      string
 	ServiceLine  string
 	Total        string
 
@@ -196,9 +195,6 @@ func (h *POSReceiptHandler) GetReceipt(c *gin.Context) {
 	data.Subtotal = formatCurrency(currency, orderResp.Subtotal)
 	if orderResp.DiscountAmount > 0 {
 		data.DiscountLine = formatCurrency(currency, orderResp.DiscountAmount)
-	}
-	if orderResp.TaxAmount > 0 {
-		data.TaxLine = formatCurrency(currency, orderResp.TaxAmount)
 	}
 	if orderResp.ServiceCharge > 0 {
 		data.ServiceLine = formatCurrency(currency, orderResp.ServiceCharge)

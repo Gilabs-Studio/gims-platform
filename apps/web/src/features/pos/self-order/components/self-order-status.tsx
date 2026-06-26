@@ -298,12 +298,6 @@ export function SelfOrderStatus({
             <span>{t("status.subtotal")}</span>
             <span>{formatCurrency(order.subtotal, currency)}</span>
           </div>
-          {order.tax_amount > 0 && (
-            <div className="flex justify-between text-sm font-medium text-muted-foreground">
-              <span>{t("status.tax")}</span>
-              <span>{formatCurrency(order.tax_amount, currency)}</span>
-            </div>
-          )}
           <div className="flex justify-between text-lg font-bold tracking-tight pt-2">
             <span>{t("status.total")}</span>
             <span>{formatCurrency(order.total_amount, currency)}</span>

@@ -143,6 +143,7 @@ type POSCatalogItem struct {
 
 // UpsertPOSConfigRequest creates or updates POS outlet configuration
 type UpsertPOSConfigRequest struct {
+	// Deprecated: accepted for legacy clients, ignored by POS pricing.
 	TaxRate                 *float64 `json:"tax_rate"`
 	ServiceChargeRate       *float64 `json:"service_charge_rate"`
 	AllowDiscount           *bool    `json:"allow_discount"`
@@ -160,8 +161,9 @@ type UpdateReceiptWhatsAppTemplateRequest struct {
 
 // POSConfigResponse returned to client
 type POSConfigResponse struct {
-	ID                      string  `json:"id"`
-	OutletID                string  `json:"outlet_id"`
+	ID       string `json:"id"`
+	OutletID string `json:"outlet_id"`
+	// Deprecated: always returned as 0 for legacy clients; POS pricing ignores tax.
 	TaxRate                 float64 `json:"tax_rate"`
 	ServiceChargeRate       float64 `json:"service_charge_rate"`
 	AllowDiscount           bool    `json:"allow_discount"`

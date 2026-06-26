@@ -314,9 +314,8 @@ func (u *posPaymentUsecase) ProcessCash(ctx context.Context, orderID string, req
 	}
 
 	// Offline-sync tolerance: when the tendered amount covers at least the net subtotal
-	// (items minus discount, before tax/service charge), the gap is assumed to be a
-	// tax-rate mismatch between the offline client and the server. Accept the payment
-	// and record order.TotalAmount as the authoritative amount so accounting stays correct.
+	// (items minus discount, before service charge), accept the payment and record
+	// order.TotalAmount as the authoritative amount so accounting stays correct.
 	netSubtotal := order.Subtotal - order.DiscountAmount
 	if req.Amount < order.TotalAmount && req.Amount >= netSubtotal {
 		log.Printf("[pos-payment] offline-sync amount adjustment: order=%s tendered=%.2f server_total=%.2f net_subtotal=%.2f — applying server total",
@@ -606,7 +605,7 @@ func computeRewardDiscount(baseAmount float64, reward *loyaltyDTO.RewardConfig) 
 }
 
 func (u *posPaymentUsecase) applySelectedRewardPricing(ctx context.Context, order *models.PosOrder, req *dto.ProcessPaymentRequest) (bool, error) {
-	baseAmount := math.Max(order.Subtotal+order.TaxAmount+order.ServiceCharge, 0)
+	baseAmount := math.Max(order.Subtotal+order.ServiceCharge, 0)
 
 	selectedRewardID := ""
 	if req.LoyaltyRewardID != nil {
@@ -1278,7 +1277,6 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 		customerEmail = *order.CustomerEmail
 	}
 
-	taxRatePercent := deriveTaxRatePercent(order)
 	serviceCharge := order.ServiceCharge
 	if serviceCharge < 0 {
 		serviceCharge = 0
@@ -1294,8 +1292,8 @@ func (u *posPaymentUsecase) createSalesOrderFromPOS(ctx context.Context, order *
 		CustomerEmail:    customerEmail,
 		Subtotal:         order.Subtotal,
 		DiscountAmount:   order.DiscountAmount,
-		TaxRate:          taxRatePercent,
-		TaxAmount:        order.TaxAmount,
+		TaxRate:          0,
+		TaxAmount:        0,
 		OtherCost:        serviceCharge,
 		TotalAmount:      order.TotalAmount,
 		Status:           salesModels.SalesOrderStatusClosed,
@@ -1345,8 +1343,8 @@ func (u *posPaymentUsecase) createCustomerInvoiceFromPOS(ctx context.Context, sa
 		SalesOrderID:    &so.ID,
 		PaymentTermsID:  so.PaymentTermsID,
 		Subtotal:        so.Subtotal,
-		TaxRate:         so.TaxRate,
-		TaxAmount:       so.TaxAmount,
+		TaxRate:         0,
+		TaxAmount:       0,
 		DeliveryCost:    so.DeliveryCost,
 		OtherCost:       so.OtherCost,
 		Amount:          so.TotalAmount,
@@ -1521,18 +1519,4 @@ func optionalActorIDPointer(raw string) *string {
 	}
 	normalized := normalizedActorID(trimmed)
 	return &normalized
-}
-
-func deriveTaxRatePercent(order *models.PosOrder) float64 {
-	taxableBase := order.Subtotal - order.DiscountAmount
-	if taxableBase <= 0 || order.TaxAmount <= 0 {
-		return 0
-	}
-
-	ratePercent := (order.TaxAmount / taxableBase) * 100
-	if ratePercent < 0 {
-		return 0
-	}
-
-	return math.Round(ratePercent*100) / 100
 }

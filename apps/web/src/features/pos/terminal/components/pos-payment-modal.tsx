@@ -327,7 +327,7 @@ export function POSPaymentModal({
   const hasRewardOptions = !!effectiveMember && effectiveRewards.length > 0;
 
   const amountBeforeReward = Math.max(
-    order.subtotal + order.tax_amount + order.service_charge,
+    order.subtotal + order.service_charge,
     0,
   );
   const selectedRewardDiscount = calculateRewardDiscount(

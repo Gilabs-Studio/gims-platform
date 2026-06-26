@@ -13,8 +13,9 @@ type PublicTableInfoResponse struct {
 	Config     PublicPOSConfig  `json:"config"`
 }
 
-// PublicPOSConfig exposes tax/service rates needed for cart total calculation.
+// PublicPOSConfig exposes pricing config needed for cart total calculation.
 type PublicPOSConfig struct {
+	// Deprecated: always returned as 0 for legacy clients; self-order pricing ignores tax.
 	TaxRate           float64 `json:"tax_rate"`
 	ServiceChargeRate float64 `json:"service_charge_rate"`
 	Currency          string  `json:"currency"`

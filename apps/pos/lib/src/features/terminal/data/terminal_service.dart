@@ -115,17 +115,23 @@ class TerminalService {
       final entry = existing ?? CachedOrder();
 
       var statusToSave = order.status.value;
-      var itemsJsonToSave = jsonEncode(order.items.map((item) => {
-        'id': item.id,
-        'product_id': item.productId,
-        'product_name': item.productName,
-        'product_code': item.productCode,
-        'quantity': item.quantity,
-        'unit_price': item.unitPrice,
-        'subtotal': item.subtotal,
-        'status': item.status,
-        if (item.notes != null) 'notes': item.notes,
-      }).toList());
+      var itemsJsonToSave = jsonEncode(
+        order.items
+            .map(
+              (item) => {
+                'id': item.id,
+                'product_id': item.productId,
+                'product_name': item.productName,
+                'product_code': item.productCode,
+                'quantity': item.quantity,
+                'unit_price': item.unitPrice,
+                'subtotal': item.subtotal,
+                'status': item.status,
+                if (item.notes != null) 'notes': item.notes,
+              },
+            )
+            .toList(),
+      );
       var syncStatusToSave = syncStatus;
       var totalAmountToSave = order.totalAmount;
       var tableIdToSave = order.tableId;
@@ -135,7 +141,8 @@ class TerminalService {
       if (existing != null) {
         final localStatus = PosOrderStatus.fromValue(existing.status);
         final newStatus = order.status;
-        final hasLocalProgress = _orderStatusRank(localStatus) > _orderStatusRank(newStatus);
+        final hasLocalProgress =
+            _orderStatusRank(localStatus) > _orderStatusRank(newStatus);
 
         if (hasLocalProgress) {
           statusToSave = existing.status;
@@ -268,8 +275,9 @@ class TerminalService {
       // Evict from in-memory maps.
       _orderById.remove(localId);
       for (final key in _ordersByOutlet.keys.toList()) {
-        _ordersByOutlet[key] =
-            _ordersByOutlet[key]!.where((o) => o.id != localId).toList();
+        _ordersByOutlet[key] = _ordersByOutlet[key]!
+            .where((o) => o.id != localId)
+            .toList();
       }
     }
 
@@ -415,14 +423,16 @@ class TerminalService {
     final relatedOrderIds = orderIds.where((value) => value.isNotEmpty).toSet();
     final jobs = await _isar.syncJobs
         .filter()
-        .group((q) => q
-            .statusEqualTo(SyncJobStatus.pending)
-            .or()
-            .statusEqualTo(SyncJobStatus.processing)
-            .or()
-            .statusEqualTo(SyncJobStatus.failed)
-            .or()
-            .statusEqualTo(SyncJobStatus.failedConflict))
+        .group(
+          (q) => q
+              .statusEqualTo(SyncJobStatus.pending)
+              .or()
+              .statusEqualTo(SyncJobStatus.processing)
+              .or()
+              .statusEqualTo(SyncJobStatus.failed)
+              .or()
+              .statusEqualTo(SyncJobStatus.failedConflict),
+        )
         .findAll();
 
     final matches = <SyncJob>[];
@@ -435,7 +445,8 @@ class TerminalService {
       }
 
       final resolvedOrderId = job.resolvedOrderId;
-      if (resolvedOrderId != null && relatedOrderIds.contains(resolvedOrderId)) {
+      if (resolvedOrderId != null &&
+          relatedOrderIds.contains(resolvedOrderId)) {
         matches.add(job);
         continue;
       }
@@ -445,7 +456,8 @@ class TerminalService {
         final payloadClientId = payload['clientId'] as String?;
         final payloadOrderId = payload['orderId'] as String?;
         if (payloadClientId == clientId ||
-            (payloadOrderId != null && relatedOrderIds.contains(payloadOrderId))) {
+            (payloadOrderId != null &&
+                relatedOrderIds.contains(payloadOrderId))) {
           matches.add(job);
         }
       } catch (_) {
@@ -472,17 +484,20 @@ class TerminalService {
     }
 
     // Check 2: Check SyncJob table for pending/processing/failed jobs for this order
-    final resolvedServerId = cached?.orderId ?? (orderId.startsWith('local-') ? null : orderId);
-    
-    final activeJobsCount = await _isar.syncJobs.filter()
-        .group((q) => q
-            .statusEqualTo(SyncJobStatus.pending)
-            .or()
-            .statusEqualTo(SyncJobStatus.processing)
-            .or()
-            .statusEqualTo(SyncJobStatus.failed)
-            .or()
-            .statusEqualTo(SyncJobStatus.failedConflict)
+    final resolvedServerId =
+        cached?.orderId ?? (orderId.startsWith('local-') ? null : orderId);
+
+    final activeJobsCount = await _isar.syncJobs
+        .filter()
+        .group(
+          (q) => q
+              .statusEqualTo(SyncJobStatus.pending)
+              .or()
+              .statusEqualTo(SyncJobStatus.processing)
+              .or()
+              .statusEqualTo(SyncJobStatus.failed)
+              .or()
+              .statusEqualTo(SyncJobStatus.failedConflict),
         )
         .and()
         .group((q) {
@@ -677,23 +692,14 @@ class TerminalService {
       items.fold<double>(0, (sum, item) => sum + item.subtotal),
     );
     final config = await getConfig(source.outletId);
-    if (config == null) {
-      throw ApiException(
-        'Konfigurasi POS belum tersedia di cache offline. Jalankan Sync POS Offline Data saat online terlebih dahulu.',
-      );
-    }
 
-    final taxableBase = subtotal - source.discountAmount;
-    final safeTaxableBase = taxableBase < 0 ? 0.0 : taxableBase;
-    final taxAmount = _roundCurrency(
-      safeTaxableBase * _normalizeRate(config.taxRate),
-    );
+    final netBase = subtotal - source.discountAmount;
+    final safeNetBase = netBase < 0 ? 0.0 : netBase;
+    const taxAmount = 0.0;
     final serviceCharge = _roundCurrency(
-      safeTaxableBase * _normalizeRate(config.serviceChargeRate),
+      safeNetBase * _normalizeRate(config?.serviceChargeRate ?? 0),
     );
-    final totalAmount = _roundCurrency(
-      safeTaxableBase + taxAmount + serviceCharge,
-    );
+    final totalAmount = _roundCurrency(safeNetBase + serviceCharge);
 
     return PosOrder(
       id: source.id,
@@ -1278,16 +1284,18 @@ class TerminalService {
     final resolvedOrderId = await _resolvedServerOrderIdForLocal(orderId);
     final relatedOrderIds = <String>{
       orderId,
-      if (resolvedOrderId != null && resolvedOrderId.isNotEmpty) resolvedOrderId,
+      if (resolvedOrderId != null && resolvedOrderId.isNotEmpty)
+        resolvedOrderId,
     };
-    final resolvedCachedEntries = resolvedOrderId == null ||
+    final resolvedCachedEntries =
+        resolvedOrderId == null ||
             resolvedOrderId.isEmpty ||
             resolvedOrderId == orderId
         ? const <CachedOrder>[]
         : await _isar.cachedOrders
-            .filter()
-            .orderIdEqualTo(resolvedOrderId)
-            .findAll();
+              .filter()
+              .orderIdEqualTo(resolvedOrderId)
+              .findAll();
 
     _removeOrderFromMemory(relatedOrderIds);
 
@@ -1555,8 +1563,11 @@ class TerminalService {
             var syncStatusToSave = CachedOrderSyncStatus.synced;
             if (existing != null) {
               final localOrder = _cachedToOrder(existing);
-              final hasLocalProgress = _orderStatusRank(localOrder.status) > _orderStatusRank(order.status);
-              if (hasLocalProgress || existing.syncStatus != CachedOrderSyncStatus.synced) {
+              final hasLocalProgress =
+                  _orderStatusRank(localOrder.status) >
+                  _orderStatusRank(order.status);
+              if (hasLocalProgress ||
+                  existing.syncStatus != CachedOrderSyncStatus.synced) {
                 syncStatusToSave = existing.syncStatus;
               }
             } else if (order.id.startsWith('local-')) {
@@ -1741,18 +1752,14 @@ class TerminalService {
     return PosPayment.fromJson(_dataMap(response.data));
   }
 
-  Future<List<PosPayment>> getPaymentsByOrderId(String orderId) async {
-    final response = await _api.get<Map<String, dynamic>>(
-      '/pos/orders/$orderId/payments',
+  Future<PosPayment> syncDigitalPayment(
+    String orderId,
+    String paymentId,
+  ) async {
+    final response = await _api.post<Map<String, dynamic>>(
+      '/pos/orders/$orderId/payments/$paymentId/sync',
     );
-    final raw = response.data?['data'];
-    if (raw is List) {
-      return raw
-          .whereType<Map<String, dynamic>>()
-          .map(PosPayment.fromJson)
-          .toList();
-    }
-    return const [];
+    return PosPayment.fromJson(_dataMap(response.data));
   }
 
   Future<XenditConnectionStatus> getXenditConnectionStatus() async {

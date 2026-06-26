@@ -95,7 +95,7 @@ func ToPOSConfigResponse(c *models.POSConfig) *dto.POSConfigResponse {
 	return &dto.POSConfigResponse{
 		ID:                      c.ID,
 		OutletID:                c.OutletID,
-		TaxRate:                 c.TaxRate,
+		TaxRate:                 0,
 		ServiceChargeRate:       c.ServiceChargeRate,
 		AllowDiscount:           c.AllowDiscount,
 		MaxDiscountPercent:      c.MaxDiscountPercent,

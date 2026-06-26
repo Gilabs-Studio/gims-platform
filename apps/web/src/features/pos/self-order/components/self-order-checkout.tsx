@@ -43,9 +43,8 @@ export function SelfOrderCheckout({
   const [nameError, setNameError] = useState("");
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const tax = Math.round(subtotal * config.tax_rate);
   const service = Math.round(subtotal * config.service_charge_rate);
-  const total = subtotal + tax + service;
+  const total = subtotal + service;
 
   function validate() {
     if (!name.trim()) {
@@ -109,12 +108,6 @@ export function SelfOrderCheckout({
           </div>
           <Separator className="my-4 border-border/50" />
           <div className="space-y-2">
-            {config.tax_rate > 0 && (
-              <div className="flex justify-between text-sm font-medium text-muted-foreground">
-                <span>{t("checkout.tax")}</span>
-                <span>{formatCurrency(tax, config.currency)}</span>
-              </div>
-            )}
             {config.service_charge_rate > 0 && (
               <div className="flex justify-between text-sm font-medium text-muted-foreground">
                 <span>{t("checkout.service")}</span>

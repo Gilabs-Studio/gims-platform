@@ -16,7 +16,9 @@ class ReceiptLayout {
     double? tenderAmount,
     double? changeAmount,
   }) {
-    final usedCurrency = currency.isNotEmpty ? currency : (config?.currency ?? 'IDR');
+    final usedCurrency = currency.isNotEmpty
+        ? currency
+        : (config?.currency ?? 'IDR');
     final lines = <String>[];
 
     void add(String line) => lines.add(line);
@@ -67,35 +69,61 @@ class ReceiptLayout {
     }
 
     divider('-');
-    add(_row('Subtotal', formatMoney(order.subtotal, usedCurrency), widthChars));
+    add(
+      _row('Subtotal', formatMoney(order.subtotal, usedCurrency), widthChars),
+    );
     if (order.discountAmount > 0) {
-      add(_row('Diskon', '- ${formatMoney(order.discountAmount, usedCurrency)}', widthChars));
-    }
-    if (order.taxAmount > 0) {
-      add(_row('Pajak', formatMoney(order.taxAmount, usedCurrency), widthChars));
+      add(
+        _row(
+          'Diskon',
+          '- ${formatMoney(order.discountAmount, usedCurrency)}',
+          widthChars,
+        ),
+      );
     }
     if (order.serviceCharge > 0) {
-      add(_row('Service', formatMoney(order.serviceCharge, usedCurrency), widthChars));
+      add(
+        _row(
+          'Service',
+          formatMoney(order.serviceCharge, usedCurrency),
+          widthChars,
+        ),
+      );
     }
 
     add('=' * widthChars);
-    add(_row('TOTAL', formatMoney(order.totalAmount, usedCurrency), widthChars));
+    add(
+      _row('TOTAL', formatMoney(order.totalAmount, usedCurrency), widthChars),
+    );
     divider('-');
 
-    final paymentMethod = (order.status == PosOrderStatus.completed || order.status == PosOrderStatus.paid || order.status == PosOrderStatus.served)
+    final paymentMethod =
+        (order.status == PosOrderStatus.completed ||
+            order.status == PosOrderStatus.paid ||
+            order.status == PosOrderStatus.served)
         ? 'CASH'
         : 'CASH (OFFLINE)';
     add(_row('Pembayaran', paymentMethod, widthChars));
 
     if (tenderAmount != null && tenderAmount > 0) {
-      add(_row('Diterima', formatMoney(tenderAmount, usedCurrency), widthChars));
+      add(
+        _row('Diterima', formatMoney(tenderAmount, usedCurrency), widthChars),
+      );
       final change = changeAmount ?? (tenderAmount - order.totalAmount);
-      add(_row('Kembalian', formatMoney(change < 0 ? 0 : change, usedCurrency), widthChars));
+      add(
+        _row(
+          'Kembalian',
+          formatMoney(change < 0 ? 0 : change, usedCurrency),
+          widthChars,
+        ),
+      );
     }
 
     divider('-');
 
-    final usedFooter = (footer != null && footer.isNotEmpty) ? footer : (config?.receiptFooter ?? 'Terima kasih atas kunjungan Anda!');
+    final usedFooter = (footer != null && footer.isNotEmpty)
+        ? footer
+        : (config?.receiptFooter ?? 'Terima kasih atas kunjungan Anda!');
     for (final line in usedFooter.split('\n')) {
       final trimmed = line.trim();
       if (trimmed.isNotEmpty) {

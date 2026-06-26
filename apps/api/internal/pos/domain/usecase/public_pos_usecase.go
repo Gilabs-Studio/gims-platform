@@ -126,7 +126,7 @@ func (u *publicPOSUsecase) GetTableInfo(ctx context.Context, token string) (*dto
 	config, _ := u.configRepo.FindByOutletID(ctx, qr.OutletID)
 	pubConfig := dto.PublicPOSConfig{Currency: "IDR"}
 	if config != nil {
-		pubConfig.TaxRate = config.TaxRate
+		pubConfig.TaxRate = 0
 		pubConfig.ServiceChargeRate = config.ServiceChargeRate
 		pubConfig.Currency = config.Currency
 	}
