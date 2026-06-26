@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -63,7 +62,7 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 			if err == nil {
 				var sc ScopeContext
 				if err := json.Unmarshal([]byte(val), &sc); err == nil {
-					log.Printf("[scope] cache hit for user_id=%s", userIDStr)
+					debugLog("[scope] cache hit for user_id=%s", userIDStr)
 					c.Set("scope_context", &sc)
 					reqCtx := c.Request.Context()
 					reqCtx = context.WithValue(reqCtx, "scope_user_id", sc.UserID)
@@ -151,7 +150,7 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 					sc.WarehouseIDs = warehouseIDs
 				}
 
-				log.Printf(
+				debugLog(
 					"[scope] resolved user_id=%s employee_id=%s division_id=%s area_ids=%d outlet_ids=%d warehouse_ids=%d",
 					userIDStr,
 					sc.EmployeeID,
@@ -165,7 +164,7 @@ func ScopeMiddleware(db *gorm.DB) gin.HandlerFunc {
 			}
 
 			if err == gorm.ErrRecordNotFound {
-				log.Printf("[scope] no-employee user_id=%s", userIDStr)
+				debugLog("[scope] no-employee user_id=%s", userIDStr)
 			}
 
 			// Cache resolved scope context
