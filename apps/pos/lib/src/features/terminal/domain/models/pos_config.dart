@@ -1,6 +1,6 @@
 import '../../../../shared/models/json_helpers.dart';
 
-/// POS outlet configuration (tax, service charge, receipt).
+/// POS outlet configuration.
 class PosConfig {
   PosConfig({
     required this.currency,
@@ -12,6 +12,8 @@ class PosConfig {
   });
 
   final String currency;
+
+  /// Deprecated: parsed for legacy API/cache compatibility; pricing ignores tax.
   final double taxRate;
   final double serviceChargeRate;
   final bool printReceiptAuto;

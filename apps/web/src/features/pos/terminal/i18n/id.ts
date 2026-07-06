@@ -20,9 +20,12 @@ export const posTerminalId = {
       warehouseNotConfigured:
         "Outlet ini belum memiliki warehouse terhubung. Buka Sesi tidak dapat dilakukan sebelum mapping warehouse tersedia.",
       errors: {
-        invalidOutlet: "Outlet yang dipilih tidak valid. Silakan pilih ulang outlet.",
-        missingWarehouse: "Warehouse untuk outlet ini belum tersedia. Silakan hubungi admin.",
-        invalidSessionData: "Data sesi belum valid. Mohon periksa kembali input Anda.",
+        invalidOutlet:
+          "Outlet yang dipilih tidak valid. Silakan pilih ulang outlet.",
+        missingWarehouse:
+          "Warehouse untuk outlet ini belum tersedia. Silakan hubungi admin.",
+        invalidSessionData:
+          "Data sesi belum valid. Mohon periksa kembali input Anda.",
         apiFailed: "Gagal membuka sesi POS. Silakan coba lagi.",
       },
     },
@@ -88,13 +91,15 @@ export const posTerminalId = {
       scanQr: "Scan QR Code",
       scanQrHint: "Scan dengan e-wallet atau aplikasi bank yang mendukung QRIS",
       openPage: "Buka Halaman Pembayaran",
+      checkStatus: "Cek Status Pembayaran",
       expires: "Kadaluarsa pukul",
       selectChannel: "Pilih metode pembayaran untuk melanjutkan",
       searchChannelPlaceholder: "Cari channel (DANA, GOPAY, BRI...)",
       backToChannels: "Kembali ke metode pembayaran",
       digitalError: "Gagal memulai pembayaran digital. Silakan coba lagi.",
       digitalNotAvailable: "Pembayaran Digital Tidak Tersedia",
-      digitalNotAvailableDesc: "Payment gateway belum terhubung. Hubungi administrator untuk mengatur pembayaran digital.",
+      digitalNotAvailableDesc:
+        "Payment gateway belum terhubung. Hubungi administrator untuk mengatur pembayaran digital.",
       paymentStatus: "Status Pembayaran",
       channel: "Channel",
       amountToPay: "Jumlah yang Harus Dibayar",
@@ -153,7 +158,8 @@ export const posTerminalId = {
         updateStatusFailed: "Gagal memperbarui status",
         serveItemFailed: "Gagal menyajikan item",
         noFloorPlanTitle: "Tidak ada denah lantai",
-        noFloorPlanDescription: "Tidak ada denah lantai yang dipublikasikan untuk outlet ini.",
+        noFloorPlanDescription:
+          "Tidak ada denah lantai yang dipublikasikan untuk outlet ini.",
         goBack: "Kembali",
         loading: "Memuat…",
       },
@@ -177,15 +183,18 @@ export const posTerminalId = {
         email: "Email",
         convertMember: "Convert ke Member",
         converting: "Mengonversi...",
-        convertMemberNeedName: "Nama pelanggan wajib diisi untuk daftar member.",
+        convertMemberNeedName:
+          "Nama pelanggan wajib diisi untuk daftar member.",
         convertMemberSuccess: "Pelanggan berhasil menjadi member.",
         convertMemberFailed: "Gagal mengonversi pelanggan menjadi member.",
         cancel: "Batal",
         continueToPayment: "Lanjut ke Pembayaran",
         paymentFailed: "Pembayaran gagal. Silakan coba lagi.",
         cancelPaymentTitle: "Batalkan Pembayaran",
-        cancelPaymentDescription: "Kasir dapat membatalkan pembayaran digital yang masih pending dan menuliskan alasannya.",
-        cancelPaymentPlaceholder: "Contoh: pelanggan batal pesan karena perubahan rencana.",
+        cancelPaymentDescription:
+          "Kasir dapat membatalkan pembayaran digital yang masih pending dan menuliskan alasannya.",
+        cancelPaymentPlaceholder:
+          "Contoh: pelanggan batal pesan karena perubahan rencana.",
         cancelPaymentAction: "Batalkan Pembayaran",
         cancelPaymentLoading: "Membatalkan...",
         cancelPaymentSuccess: "Pembayaran berhasil dibatalkan.",
@@ -200,15 +209,19 @@ export const posTerminalId = {
       openInNewTab: "Buka receipt di tab baru",
       print: "Cetak",
       sendWhatsApp: "Kirim WA",
-      sendDisabled: "Nomor WhatsApp pelanggan diperlukan untuk mengirim receipt.",
+      sendDisabled:
+        "Nomor WhatsApp pelanggan diperlukan untuk mengirim receipt.",
       settings: "Pengaturan template",
     },
     whatsappTemplate: {
       title: "Pengaturan template WhatsApp",
-      description: "Gunakan #tag untuk menyisipkan nilai receipt ke pesan WhatsApp sebelum dikirim.",
+      description:
+        "Gunakan #tag untuk menyisipkan nilai receipt ke pesan WhatsApp sebelum dikirim.",
       templateLabel: "Template pesan",
-      templatePlaceholder: "Tulis pesan WhatsApp di sini dan sisipkan tag seperti #customer_name atau #total_amount.",
-      templateHelp: "Template disimpan per outlet dan akan dipakai lagi pada receipt berikutnya.",
+      templatePlaceholder:
+        "Tulis pesan WhatsApp di sini dan sisipkan tag seperti #customer_name atau #total_amount.",
+      templateHelp:
+        "Template disimpan per outlet dan akan dipakai lagi pada receipt berikutnya.",
       availableTags: "Tag tersedia",
       previewLabel: "Pratinjau",
       restoreDefault: "Kembalikan default",
@@ -251,7 +264,8 @@ export const posTerminalId = {
       applySuccess: "Draft berhasil diterapkan.",
       applyFailed: "Gagal menerapkan draft.",
       directDraftsLabel: "Draft Tersimpan",
-      applyTableSelect: "Pilih meja kosong untuk menerapkan transaksi #{orderNumber}:",
+      applyTableSelect:
+        "Pilih meja kosong untuk menerapkan transaksi #{orderNumber}:",
     },
   },
 } as const;

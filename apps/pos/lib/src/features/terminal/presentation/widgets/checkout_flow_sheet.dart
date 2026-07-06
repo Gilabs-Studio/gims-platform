@@ -10,6 +10,7 @@ import '../../../../core/utils/error_utils.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/url_utils.dart';
 import '../../../loyalty/domain/models/loyalty_member.dart';
+import '../../data/pos_ws_service.dart';
 import '../../domain/models/pos_config.dart';
 import '../../domain/models/pos_customer.dart';
 import '../../domain/models/pos_order.dart';
@@ -143,7 +144,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   _PaymentTab _paymentTab = _PaymentTab.cash;
 
   bool _loading = false;
-  bool _polling = false;
+  bool _checkingDigitalStatus = false;
   String _channelSearch = '';
 
   List<PosCustomer> _customers = const [];
@@ -153,7 +154,8 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
   PosPayment? _digitalPayment;
   PosPayment? _finalPayment;
   XenditConnectionStatus? _xenditStatus;
-  Timer? _paymentPollTimer;
+  PosWsService? _paymentWs;
+  StreamSubscription<PosWsEvent>? _paymentWsSub;
   bool _summaryExpanded = true;
 
   @override
@@ -167,11 +169,13 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     }
     _loadXenditStatus();
     _loadCustomers();
+    _connectPaymentWs();
   }
 
   @override
   void dispose() {
-    _paymentPollTimer?.cancel();
+    _paymentWsSub?.cancel();
+    _paymentWs?.dispose();
     _customerName.dispose();
     _customerPhone.dispose();
     _customerEmail.dispose();
@@ -180,9 +184,9 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     super.dispose();
   }
 
-  // Use order.totalAmount as the payable base. For offline orders this is
-  // calculated locally with cached POS tax/service config.
-  double get _amountBeforeReward => widget.order.totalAmount;
+  // Use the server/offline total as the payable base. Tax is intentionally
+  // disabled, so this should match subtotal minus discount plus service only.
+  double get _amountBeforeReward => _order.totalAmount;
 
   double get _selectedRewardDiscount =>
       _calculateRewardDiscount(_amountBeforeReward, _selectedReward);
@@ -228,6 +232,42 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     }
     final value = _customerEmail.text.trim();
     return value.isEmpty ? null : value;
+  }
+
+  void _connectPaymentWs() {
+    final service = PosWsService(outletId: widget.outletId);
+    _paymentWs = service;
+    _paymentWsSub = service.events.listen(_handlePaymentWsEvent);
+    unawaited(service.connect());
+  }
+
+  void _handlePaymentWsEvent(PosWsEvent event) {
+    final payment = _digitalPayment;
+    if (payment == null || _checkingDigitalStatus) return;
+
+    final orderId = _extractWsOrderId(event.data);
+    if (orderId != _order.id) return;
+
+    _syncDigitalPayment(silent: true);
+  }
+
+  String? _extractWsOrderId(Map<String, dynamic> payload) {
+    final direct = payload['order_id'] ?? payload['orderId'] ?? payload['id'];
+    if (direct is String && direct.isNotEmpty) return direct;
+
+    final order = payload['order'];
+    if (order is Map<String, dynamic>) {
+      final nested = order['id'] ?? order['order_id'] ?? order['orderId'];
+      if (nested is String && nested.isNotEmpty) return nested;
+    }
+
+    final payment = payload['payment'];
+    if (payment is Map<String, dynamic>) {
+      final nested = payment['order_id'] ?? payment['orderId'];
+      if (nested is String && nested.isNotEmpty) return nested;
+    }
+
+    return null;
   }
 
   Future<void> _loadXenditStatus() async {
@@ -439,13 +479,16 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       if (!mounted) return;
       _order = _order.copyWith(status: PosOrderStatus.completed);
       _finalPayment = payment;
-      Navigator.pop(context, CheckoutResult(
-        order: _order,
-        customerName: _resolvedCustomerName,
-        customerPhone: _resolvedCustomerPhone,
-        tenderAmount: payment.tenderAmount ?? _tenderAmount.toDouble(),
-        finalPayment: payment,
-      ));
+      Navigator.pop(
+        context,
+        CheckoutResult(
+          order: _order,
+          customerName: _resolvedCustomerName,
+          customerPhone: _resolvedCustomerPhone,
+          tenderAmount: payment.tenderAmount ?? _tenderAmount.toDouble(),
+          finalPayment: payment,
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       showError(context, error);
@@ -458,7 +501,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     setState(() {
       _loading = true;
       _digitalPayment = null;
-      _polling = false;
+      _checkingDigitalStatus = false;
     });
 
     try {
@@ -488,17 +531,21 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
         if (!mounted) return;
         _order = _order.copyWith(status: PosOrderStatus.completed);
         _finalPayment = payment;
-        Navigator.pop(context, CheckoutResult(
-          order: _order,
-          customerName: _resolvedCustomerName,
-          customerPhone: _resolvedCustomerPhone,
-          tenderAmount: payment.tenderAmount ?? _totalAmount,
-          finalPayment: payment,
-        ));
+        Navigator.pop(
+          context,
+          CheckoutResult(
+            order: _order,
+            customerName: _resolvedCustomerName,
+            customerPhone: _resolvedCustomerPhone,
+            tenderAmount: payment.tenderAmount ?? _totalAmount,
+            finalPayment: payment,
+          ),
+        );
         return;
       }
 
-      _startPaymentPolling();
+      // No polling here: status changes arrive through Xendit webhook/WebSocket,
+      // and cashiers can press "Check payment status" for an immediate sync.
     } catch (error) {
       if (!mounted) return;
       showError(context, error);
@@ -507,53 +554,60 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
     }
   }
 
-  void _startPaymentPolling() {
-    _paymentPollTimer?.cancel();
-    setState(() => _polling = true);
+  Future<void> _syncDigitalPayment({bool silent = false}) async {
+    final payment = _digitalPayment;
+    if (payment == null || _checkingDigitalStatus) return;
 
-    _paymentPollTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      try {
-        final payments = await ServiceLocator.instance.terminalService
-            .getPaymentsByOrderId(_order.id);
-        if (!mounted) return;
-        if (payments.isEmpty) return;
+    if (!silent && mounted) {
+      setState(() => _checkingDigitalStatus = true);
+    } else {
+      _checkingDigitalStatus = true;
+    }
 
-        final latest = payments.first;
-        if (latest.status == 'PAID') {
-          _paymentPollTimer?.cancel();
-          _order = _order.copyWith(status: PosOrderStatus.completed);
-          _polling = false;
-          _finalPayment = latest;
-          _digitalPayment = latest;
-          Navigator.pop(context, CheckoutResult(
+    try {
+      final latest = await ServiceLocator.instance.terminalService
+          .syncDigitalPayment(_order.id, payment.id);
+      if (!mounted) return;
+
+      final status = latest.status.toUpperCase();
+      if (status == 'PAID') {
+        _order = _order.copyWith(status: PosOrderStatus.completed);
+        _finalPayment = latest;
+        _digitalPayment = latest;
+        Navigator.pop(
+          context,
+          CheckoutResult(
             order: _order,
             customerName: _resolvedCustomerName,
             customerPhone: _resolvedCustomerPhone,
             tenderAmount: latest.tenderAmount ?? _totalAmount,
             finalPayment: latest,
-          ));
-        } else if (latest.status == 'FAILED' || latest.status == 'EXPIRED') {
-          _paymentPollTimer?.cancel();
-          setState(() {
-            _polling = false;
-            _digitalPayment = latest;
-          });
-        }
-      } catch (_) {
-        // Polling can continue silently on transient errors.
+          ),
+        );
+        return;
       }
-    });
+
+      setState(() {
+        _digitalPayment = latest;
+      });
+    } catch (error) {
+      if (!mounted || silent) return;
+      showError(context, error);
+    } finally {
+      if (mounted) {
+        setState(() => _checkingDigitalStatus = false);
+      } else {
+        _checkingDigitalStatus = false;
+      }
+    }
   }
 
   void _resetDigitalSelection() {
-    _paymentPollTimer?.cancel();
     setState(() {
-      _polling = false;
+      _checkingDigitalStatus = false;
       _digitalPayment = null;
     });
   }
-
-
 
   void _handleNumpadTap(String key) {
     if (key == '⌫') {
@@ -608,9 +662,6 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
       Navigator.of(context).pop();
     }
   }
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -815,40 +866,27 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Tax',
-                      style: TextStyle(color: GimsColors.mutedForeground),
-                    ),
-                    Text(
-                      formatMoney(
-                        _order.taxAmount,
-                        widget.config?.currency ?? 'IDR',
+                if (_order.serviceCharge > 0) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Service',
+                        style: TextStyle(color: GimsColors.mutedForeground),
                       ),
-                      style: const TextStyle(color: GimsColors.mutedForeground),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Service',
-                      style: TextStyle(color: GimsColors.mutedForeground),
-                    ),
-                    Text(
-                      formatMoney(
-                        _order.serviceCharge,
-                        widget.config?.currency ?? 'IDR',
+                      Text(
+                        formatMoney(
+                          _order.serviceCharge,
+                          widget.config?.currency ?? 'IDR',
+                        ),
+                        style: const TextStyle(
+                          color: GimsColors.mutedForeground,
+                        ),
                       ),
-                      style: const TextStyle(color: GimsColors.mutedForeground),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
                 if (_selectedRewardDiscount > 0) ...[
                   const SizedBox(height: 4),
                   Row(
@@ -1548,7 +1586,7 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
-                if (_polling)
+                if (_checkingDigitalStatus)
                   const SizedBox(
                     width: 16,
                     height: 16,
@@ -1565,8 +1603,25 @@ class _CheckoutFlowSheetState extends State<CheckoutFlowSheet> {
                 label: const Text('Open payment URL'),
               ),
             const SizedBox(height: 4),
+            FilledButton.icon(
+              onPressed: _checkingDigitalStatus
+                  ? null
+                  : () => _syncDigitalPayment(),
+              icon: _checkingDigitalStatus
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.sync_outlined),
+              label: const Text('Check payment status'),
+            ),
+            const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: _polling ? null : _resetDigitalSelection,
+              onPressed: _checkingDigitalStatus ? null : _resetDigitalSelection,
               icon: const Icon(Icons.arrow_back),
               label: const Text('Back to Channel List'),
             ),
@@ -1685,8 +1740,6 @@ String _categoryLabel(String category) {
       return category;
   }
 }
-
-
 
 double _normalizeRewardPercent(double value) {
   if (value <= 0) return 0;

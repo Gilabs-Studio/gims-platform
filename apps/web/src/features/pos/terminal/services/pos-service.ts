@@ -18,8 +18,16 @@ import type {
   XenditConnectionStatusResponse,
   ConnectXenditRequest,
   UpdateXenditConfigRequest,
+  POSSettlementOverview,
+  POSSettlementPayoutChannel,
+  CreatePOSSettlementPayoutRequest,
+  POSSettlementPayout,
+  ValidatePOSBankAccountResponse,
 } from "../types";
-import type { Outlet, OutletListResponse } from "@/features/master-data/outlet/types";
+import type {
+  Outlet,
+  OutletListResponse,
+} from "@/features/master-data/outlet/types";
 
 const BASE = "/pos";
 const API_BASE_URL_FALLBACK = "http://localhost:8087";
@@ -89,13 +97,17 @@ export const posOrderService = {
 
   updateItem(orderId: string, itemId: string, data: UpdateOrderItemRequest) {
     return apiClient
-      .put<ApiResponse<POSOrder>>(`${BASE}/orders/${orderId}/items/${itemId}`, data)
+      .put<
+        ApiResponse<POSOrder>
+      >(`${BASE}/orders/${orderId}/items/${itemId}`, data)
       .then((r) => r.data);
   },
 
   removeItem(orderId: string, itemId: string) {
     return apiClient
-      .delete<ApiResponse<POSOrder>>(`${BASE}/orders/${orderId}/items/${itemId}`)
+      .delete<
+        ApiResponse<POSOrder>
+      >(`${BASE}/orders/${orderId}/items/${itemId}`)
       .then((r) => r.data);
   },
 
@@ -119,7 +131,9 @@ export const posOrderService = {
 
   serveItem(orderId: string, itemId: string) {
     return apiClient
-      .post<ApiResponse<POSOrder>>(`${BASE}/orders/${orderId}/items/${itemId}/serve`)
+      .post<
+        ApiResponse<POSOrder>
+      >(`${BASE}/orders/${orderId}/items/${itemId}/serve`)
       .then((r) => r.data);
   },
 
@@ -146,13 +160,25 @@ export const posOrderService = {
 export const posPaymentService = {
   processCash(orderId: string, data: ProcessPaymentRequest) {
     return apiClient
-      .post<ApiResponse<POSPayment>>(`${BASE}/orders/${orderId}/payments/cash`, data)
+      .post<
+        ApiResponse<POSPayment>
+      >(`${BASE}/orders/${orderId}/payments/cash`, data)
       .then((r) => r.data);
   },
 
   initiateDigital(orderId: string, data: ProcessPaymentRequest) {
     return apiClient
-      .post<ApiResponse<POSPayment>>(`${BASE}/orders/${orderId}/payments/digital`, data)
+      .post<
+        ApiResponse<POSPayment>
+      >(`${BASE}/orders/${orderId}/payments/digital`, data)
+      .then((r) => r.data);
+  },
+
+  syncDigital(orderId: string, paymentId: string) {
+    return apiClient
+      .post<
+        ApiResponse<POSPayment>
+      >(`${BASE}/orders/${orderId}/payments/${paymentId}/sync`)
       .then((r) => r.data);
   },
 
@@ -164,9 +190,12 @@ export const posPaymentService = {
 
   cancelPending(orderId: string, paymentId: string, reason?: string) {
     return apiClient
-      .post<ApiResponse<{ cancelled: boolean }>>(`${BASE}/orders/${orderId}/payments/${paymentId}/cancel`, {
-        reason,
-      })
+      .post<ApiResponse<{ cancelled: boolean }>>(
+        `${BASE}/orders/${orderId}/payments/${paymentId}/cancel`,
+        {
+          reason,
+        },
+      )
       .then((r) => r.data);
   },
 };
@@ -180,9 +209,14 @@ export const posConfigService = {
       .then((r) => r.data);
   },
 
-  updateReceiptWhatsAppTemplate(outletId: string, data: UpdatePOSReceiptWhatsAppTemplateRequest) {
+  updateReceiptWhatsAppTemplate(
+    outletId: string,
+    data: UpdatePOSReceiptWhatsAppTemplateRequest,
+  ) {
     return apiClient
-      .put<ApiResponse<POSConfig>>(`${BASE}/config/outlet/${outletId}/receipt-whatsapp-template`, data)
+      .put<
+        ApiResponse<POSConfig>
+      >(`${BASE}/config/outlet/${outletId}/receipt-whatsapp-template`, data)
       .then((r) => r.data);
   },
 };
@@ -192,7 +226,9 @@ export const posConfigService = {
 export const xenditConfigService = {
   getConnectionStatus() {
     return apiClient
-      .get<ApiResponse<XenditConnectionStatusResponse>>(`${BASE}/payment/status`)
+      .get<
+        ApiResponse<XenditConnectionStatusResponse>
+      >(`${BASE}/payment/status`)
       .then((r) => r.data);
   },
 
@@ -217,6 +253,67 @@ export const xenditConfigService = {
   disconnect() {
     return apiClient
       .delete<ApiResponse<XenditConfig>>(`${BASE}/payment/config/disconnect`)
+      .then((r) => r.data);
+  },
+};
+
+// ─── Settlement ───────────────────────────────────────────────────────────────
+
+export const posSettlementService = {
+  getOverview() {
+    return apiClient
+      .get<ApiResponse<POSSettlementOverview>>(`${BASE}/settlement/overview`)
+      .then((r) => r.data);
+  },
+
+  getPayoutChannels() {
+    return apiClient
+      .get<ApiResponse<POSSettlementPayoutChannel[]>>(
+        `${BASE}/settlement/payout-channels`,
+        {
+          params: {
+            currency: "IDR",
+          },
+        },
+      )
+      .then((r) => r.data);
+  },
+
+  createPayout(data: CreatePOSSettlementPayoutRequest) {
+    return apiClient
+      .post<ApiResponse<POSSettlementPayout>>(
+        `${BASE}/settlement/payouts`,
+        data,
+        {
+          headers: {
+            "X-Idempotency-Key": data.idempotency_key,
+          },
+        },
+      )
+      .then((r) => r.data);
+  },
+
+  getPayouts() {
+    return apiClient
+      .get<ApiResponse<POSSettlementPayout[]>>(`${BASE}/settlement/payouts`)
+      .then((r) => r.data);
+  },
+
+  validateBankAccount(bankCode: string, accountNumber: string) {
+    return apiClient
+      .post<ApiResponse<ValidatePOSBankAccountResponse>>(
+        `${BASE}/settlement/validate-bank-account`,
+        { bank_code: bankCode, account_number: accountNumber }
+      )
+      .then((r) => r.data);
+  },
+
+  requestPayoutOTP(amount: number) {
+    return apiClient
+      .post<ApiResponse<{ message: string }>>(
+        `${BASE}/settlement/payouts/request-otp`,
+        { amount }
+      )
       .then((r) => r.data);
   },
 };

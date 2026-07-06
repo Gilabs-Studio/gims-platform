@@ -3,6 +3,8 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
@@ -17,9 +19,23 @@ var DB *gorm.DB
 func Connect() error {
 	dsn := config.GetDSN()
 
-	logLevel := logger.Info
-	if config.AppConfig != nil && config.AppConfig.Server.Env == "production" {
-		logLevel = logger.Warn
+	// Default to logger.Warn to keep terminal output clean like Gin framework (no verbose SQL queries)
+	logLevel := logger.Warn
+
+	// Allow overriding via environment variables
+	if dbLogLevelEnv := os.Getenv("DB_LOG_LEVEL"); dbLogLevelEnv != "" {
+		switch strings.ToLower(dbLogLevelEnv) {
+		case "info", "debug":
+			logLevel = logger.Info
+		case "silent":
+			logLevel = logger.Silent
+		case "error":
+			logLevel = logger.Error
+		case "warn":
+			logLevel = logger.Warn
+		}
+	} else if os.Getenv("DB_DEBUG") == "true" {
+		logLevel = logger.Info
 	}
 
 	// Slow query logging: logs any query taking > 100ms

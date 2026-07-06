@@ -44,7 +44,7 @@ func (u *posConfigUsecase) GetOrCreate(ctx context.Context, outletID string) (*d
 	if cfg == nil {
 		cfg = &posModels.POSConfig{
 			OutletID:           outletID,
-			TaxRate:            0.11,
+			TaxRate:            0,
 			ServiceChargeRate:  0,
 			AllowDiscount:      true,
 			MaxDiscountPercent: 100,
@@ -69,7 +69,7 @@ func (u *posConfigUsecase) Upsert(ctx context.Context, outletID string, req *dto
 
 	cfg := &posModels.POSConfig{OutletID: outletID}
 	if existing != nil {
-		cfg.TaxRate = existing.TaxRate
+		cfg.TaxRate = 0
 		cfg.ServiceChargeRate = existing.ServiceChargeRate
 		cfg.AllowDiscount = existing.AllowDiscount
 		cfg.MaxDiscountPercent = existing.MaxDiscountPercent
@@ -82,9 +82,8 @@ func (u *posConfigUsecase) Upsert(ctx context.Context, outletID string, req *dto
 		cfg.AllowDiscount = true
 	}
 
-	if req.TaxRate != nil {
-		cfg.TaxRate = *req.TaxRate
-	}
+	// tax_rate is accepted for legacy clients but intentionally ignored.
+	cfg.TaxRate = 0
 	if req.ServiceChargeRate != nil {
 		cfg.ServiceChargeRate = *req.ServiceChargeRate
 	}
@@ -137,7 +136,7 @@ func (u *posConfigUsecase) UpdateReceiptWhatsAppTemplate(ctx context.Context, ou
 		}
 		cfg = &posModels.POSConfig{
 			OutletID:           outletID,
-			TaxRate:            0.11,
+			TaxRate:            0,
 			ServiceChargeRate:  0,
 			AllowDiscount:      true,
 			MaxDiscountPercent: 100,

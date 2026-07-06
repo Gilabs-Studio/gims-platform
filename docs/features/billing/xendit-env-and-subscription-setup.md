@@ -159,6 +159,21 @@ Webhook yang relevan untuk alur recurring kita:
 - `payment.refunded`
 - `payment.chargeback`
 
+### POS / self-order payment webhook
+
+Set webhook POS invoice di Xendit ke:
+
+- `POST https://<your-domain>/api/v1/pos/payments/xendit/webhook`
+
+Endpoint ini public untuk server-to-server callback Xendit, tetapi tetap diverifikasi dengan header `x-callback-token` yang nilainya sama dengan `XENDIT_BILLING_WEBHOOK_TOKEN`.
+
+Ketika webhook Xendit mengonfirmasi invoice `PAID`, backend akan:
+
+- update status payment POS menjadi `PAID`,
+- finalize order POS,
+- publish WebSocket event `pos.payment_confirmed`,
+- update staff terminal/live-table tanpa polling fetch.
+
 ### Settlement webhook
 
 Belum aktif di code saat ini.
@@ -286,13 +301,30 @@ Sudah di-handle aplikasi:
 - provision tenant setelah initial payment berhasil,
 - renewal recurring,
 - seat upgrade/downgrade agar mengikuti renewal amount,
-- platform-managed Xendit untuk POS/self-order.
+- platform-managed Xendit untuk POS/self-order,
+- owner-only merchant payout manual dari Settings > Digital Payment Gateway.
 
 Belum aktif:
 
-- payout merchant otomatis,
+- payout merchant otomatis berbasis schedule,
 - settlement webhook processing,
 - mapping final `channel_code` payout merchant dari bank master GIMS.
+
+## Merchant Settlement Payout di Settings
+
+Settings > Digital Payment Gateway sekarang menampilkan panel owner-only untuk dana merchant:
+
+- `Available payout` dihitung dari transaksi POS digital tenant yang sudah `PAID`, dikurangi payout yang sudah tercatat di ledger GIMS.
+- Saldo global Xendit platform tidak ditampilkan ke tenant karena itu saldo akun GIMS lintas merchant.
+- Tombol payout hanya tersedia untuk protected tenant owner role, dan backend tetap mengecek owner di server.
+- Request payout memakai `XENDIT_MERCHANT_SETTLEMENT_SECRET_KEY` dan dikirim ke Xendit Payout API dengan `Idempotency-key`.
+- Nomor rekening tujuan tidak disimpan mentah di database; GIMS hanya menyimpan versi masked untuk audit.
+
+Catatan rollout:
+
+- Pastikan `XENDIT_MERCHANT_SETTLEMENT_SECRET_KEY` adalah key money-out yang terpisah dari billing recurring key.
+- Untuk fase ini, owner memasukkan `channel_code` Xendit secara manual, misalnya `ID_BCA`.
+- Mapping bank master ke `channel_code` Xendit dan settlement webhook bisa ditambahkan sebagai fase berikutnya.
 
 ## Recommended Operating Decision
 

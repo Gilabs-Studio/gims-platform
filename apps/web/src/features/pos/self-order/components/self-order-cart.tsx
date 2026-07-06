@@ -42,9 +42,8 @@ export function SelfOrderCart({
 }: SelfOrderCartProps) {
   const t = useTranslations("selfOrder");
   const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const tax = Math.round(subtotal * config.tax_rate);
   const service = Math.round(subtotal * config.service_charge_rate);
-  const total = subtotal + tax + service;
+  const total = subtotal + service;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -114,12 +113,6 @@ export function SelfOrderCart({
                 <span>{t("cart.subtotal")}</span>
                 <span>{formatCurrency(subtotal, config.currency)}</span>
               </div>
-              {config.tax_rate > 0 && (
-                <div className="flex justify-between text-sm font-medium text-muted-foreground">
-                  <span>{t("cart.tax")} ({(config.tax_rate * 100).toFixed(0)}%)</span>
-                  <span>{formatCurrency(tax, config.currency)}</span>
-                </div>
-              )}
               {config.service_charge_rate > 0 && (
                 <div className="flex justify-between text-sm font-medium text-muted-foreground">
                   <span>

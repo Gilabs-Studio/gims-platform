@@ -175,11 +175,9 @@ export function POSCartPanel({
   isSavingDraft,
 }: POSCartPanelProps) {
   const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
-  const taxRate = normalizeRate(config?.tax_rate, 0.11);
   const serviceRate = normalizeRate(config?.service_charge_rate, 0);
-  const taxAmount = subtotal * taxRate;
   const serviceAmount = subtotal * serviceRate;
-  const total = subtotal + taxAmount + serviceAmount;
+  const total = subtotal + serviceAmount;
 
   if (items.length === 0) {
     return (
@@ -248,12 +246,6 @@ export function POSCartPanel({
           <span>Subtotal</span>
           <span className="tabular-nums">{formatCurrency(subtotal)}</span>
         </div>
-        {taxAmount > 0 && (
-          <div className="flex justify-between text-muted-foreground">
-            <span>Tax ({formatRatePercent(taxRate)}%)</span>
-            <span className="tabular-nums">{formatCurrency(taxAmount)}</span>
-          </div>
-        )}
         {serviceAmount > 0 && (
           <div className="flex justify-between text-muted-foreground">
             <span>Service ({formatRatePercent(serviceRate)}%)</span>

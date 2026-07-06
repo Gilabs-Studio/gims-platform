@@ -143,7 +143,7 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 				// remain accessible when permissions are not present. Tenant isolation must
 				// still be enforced downstream (tenant middleware / repository filters).
 				if c.Request.Method == "POST" || (c.Request.Method == "GET" && strings.HasSuffix(requiredPermission, ".read")) {
-					log.Printf("[permission][bypass] missing permission map; allowing %s bypass user_id=%s role=%s", c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
+					debugLog("[permission][bypass] missing permission map; allowing %s bypass user_id=%s role=%s", c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
 					c.Set("permission_scope", "OWN")
 					reqCtx := c.Request.Context()
 					reqCtx = context.WithValue(reqCtx, "permission_scope", "OWN")
@@ -160,7 +160,7 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 			permMap, ok := perms.(map[string]bool)
 			if !ok {
 				if c.Request.Method == "POST" || (c.Request.Method == "GET" && strings.HasSuffix(requiredPermission, ".read")) {
-					log.Printf("[permission][bypass] permission map format error; allowing %s bypass user_id=%s role=%s", c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
+					debugLog("[permission][bypass] permission map format error; allowing %s bypass user_id=%s role=%s", c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
 					c.Set("permission_scope", "OWN")
 					reqCtx := c.Request.Context()
 					reqCtx = context.WithValue(reqCtx, "permission_scope", "OWN")
@@ -188,7 +188,7 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 			// so form lookup endpoints remain accessible. Always inject `OWN` scope to
 			// ensure downstream scope/tenant filters still apply.
 			if c.Request.Method == "POST" || (c.Request.Method == "GET" && strings.HasSuffix(requiredPermission, ".read")) {
-				log.Printf("[permission][bypass] missing required permission %s; allowing %s bypass user_id=%s role=%s", requiredPermission, c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
+				debugLog("[permission][bypass] missing required permission %s; allowing %s bypass user_id=%s role=%s", requiredPermission, c.Request.Method, c.GetString("user_id"), c.GetString("user_role"))
 				c.Set("permission_scope", "OWN")
 				reqCtx := c.Request.Context()
 				reqCtx = context.WithValue(reqCtx, "permission_scope", "OWN")
@@ -211,7 +211,7 @@ func RequirePermission(requiredPermission string) gin.HandlerFunc {
 				}
 			}
 		}
-		log.Printf("[permission] resolved permission=%s scope=%s user_id=%s role=%s", requiredPermission, scope, c.GetString("user_id"), c.GetString("user_role"))
+		debugLog("[permission] resolved permission=%s scope=%s user_id=%s role=%s", requiredPermission, scope, c.GetString("user_id"), c.GetString("user_role"))
 		c.Set("permission_scope", scope)
 		reqCtx := c.Request.Context()
 		reqCtx = context.WithValue(reqCtx, "permission_scope", scope)
@@ -303,7 +303,7 @@ func InjectDashboardScope(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		if dashboardMenuID == "" {
-			log.Printf("[dashboard][scope] dashboard menu not found")
+			debugLog("[dashboard][scope] dashboard menu not found")
 			c.Next()
 			return
 		}
@@ -322,7 +322,7 @@ func InjectDashboardScope(db *gorm.DB) gin.HandlerFunc {
 		// If menu-level scope is found, inject it into context
 		if menuScope != "" {
 			menuScope = strings.ToUpper(strings.TrimSpace(menuScope))
-			log.Printf("[dashboard][scope] menu-level override found menu_id=%s role_id=%s scope=%s user_id=%s", dashboardMenuID, roleID, menuScope, userID)
+			debugLog("[dashboard][scope] menu-level override found menu_id=%s role_id=%s scope=%s user_id=%s", dashboardMenuID, roleID, menuScope, userID)
 
 			// Inject permission_scope from menu-level override
 			c.Set("permission_scope", menuScope)
@@ -340,7 +340,7 @@ func InjectDashboardScope(db *gorm.DB) gin.HandlerFunc {
 					Pluck("employee_outlets.outlet_id::text", &outletIDs).Error; err != nil {
 					log.Printf("[dashboard][scope] failed to query outlet ids: %v", err)
 				} else if len(outletIDs) > 0 {
-					log.Printf("[dashboard][scope] injected scope_outlet_ids from menu-level override count=%d user_id=%s", len(outletIDs), userID)
+					debugLog("[dashboard][scope] injected scope_outlet_ids from menu-level override count=%d user_id=%s", len(outletIDs), userID)
 					c.Set("scope_outlet_ids", outletIDs)
 					reqCtx = c.Request.Context()
 					reqCtx = context.WithValue(reqCtx, "scope_outlet_ids", outletIDs)

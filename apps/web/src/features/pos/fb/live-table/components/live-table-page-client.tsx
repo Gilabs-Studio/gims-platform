@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   AlertTriangle,
@@ -35,7 +34,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useRouter } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import "@/features/pos/fb/pos-fb-theme.module.css";
@@ -52,7 +55,6 @@ import {
   useDeleteOrder,
   useAssignTable,
   usePOSOrderList,
-  posKeys,
 } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
@@ -117,7 +119,10 @@ const STATUS_CONFIG: Record<
   },
 };
 
-function getStatusLabel(status: LiveTableStatus, t: ReturnType<typeof useTranslations>): string {
+function getStatusLabel(
+  status: LiveTableStatus,
+  t: ReturnType<typeof useTranslations>,
+): string {
   const labelMap: Record<LiveTableStatus, string> = {
     AVAILABLE: t("statusLabels.available"),
     WAITING_PAYMENT: t("statusLabels.waitingPayment"),
@@ -193,7 +198,9 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
         "transition-all duration-200 focus-visible:outline-none",
         "focus-visible:ring-2 focus-visible:ring-ring hover:-translate-y-0.5",
         "hover:shadow-md active:scale-[0.98] cursor-pointer",
-        isDragOver ? "border-primary ring-2 ring-primary/20 bg-primary/5 scale-[1.02]" : cfg.card,
+        isDragOver
+          ? "border-primary ring-2 ring-primary/20 bg-primary/5 scale-[1.02]"
+          : cfg.card,
       )}
     >
       <span
@@ -208,7 +215,12 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
       <p className="text-2xl font-bold tracking-tight text-foreground">
         {label}
       </p>
-      <div className={cn("mt-1.5 flex items-center gap-1.5 text-xs font-medium", cfg.text)}>
+      <div
+        className={cn(
+          "mt-1.5 flex items-center gap-1.5 text-xs font-medium",
+          cfg.text,
+        )}
+      >
         <Icon className="h-3.5 w-3.5 shrink-0" />
         <span>{getStatusLabel(info.status, t)}</span>
       </div>
@@ -216,20 +228,31 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
         <Users className="h-3.5 w-3.5 shrink-0" />
         <span>{formatSeatCount(info.seatCount)}</span>
       </div>
-      {(info.needsPaymentCount > 0 || info.needsServeCount > 0 || info.doneCount > 0) && (
+      {(info.needsPaymentCount > 0 ||
+        info.needsServeCount > 0 ||
+        info.doneCount > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {info.needsPaymentCount > 0 && (
-            <Badge variant="outline" className="h-5 rounded-full border-amber-500/35 bg-amber-500/10 px-2 text-[9px] font-semibold text-amber-700">
+            <Badge
+              variant="outline"
+              className="h-5 rounded-full border-amber-500/35 bg-amber-500/10 px-2 text-[9px] font-semibold text-amber-700"
+            >
               Pay {info.needsPaymentCount}
             </Badge>
           )}
           {info.needsServeCount > 0 && (
-            <Badge variant="outline" className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] font-semibold text-primary">
+            <Badge
+              variant="outline"
+              className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] font-semibold text-primary"
+            >
               Serve {info.needsServeCount}
             </Badge>
           )}
           {info.doneCount > 0 && (
-            <Badge variant="outline" className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] font-semibold text-success">
+            <Badge
+              variant="outline"
+              className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] font-semibold text-success"
+            >
               Done {info.doneCount}
             </Badge>
           )}
@@ -248,11 +271,15 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
             #{info.order.order_number}
           </p>
           {info.orders.length > 1 && (
-            <p className="text-[10px] text-muted-foreground">{info.orders.length} active orders in session</p>
+            <p className="text-[10px] text-muted-foreground">
+              {info.orders.length} active orders in session
+            </p>
           )}
         </div>
       ) : (
-         <p className="mt-3 text-[11px] text-muted-foreground">{getStatusLabel(info.status, t)}</p>
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          {getStatusLabel(info.status, t)}
+        </p>
       )}
     </button>
   );
@@ -316,7 +343,11 @@ interface SessionOrderRowProps {
   onEditOrder?: () => void;
 }
 
-  function SessionOrderRow({ order, onOpenReceipt, onEditOrder }: SessionOrderRowProps) {
+function SessionOrderRow({
+  order,
+  onOpenReceipt,
+  onEditOrder,
+}: SessionOrderRowProps) {
   const t = useTranslations("posTerminal.liveTable");
   const { data: paymentsData } = usePOSPayments(order.id, {
     enabled: !!order.id,
@@ -327,79 +358,107 @@ interface SessionOrderRowProps {
   const payments = (paymentsData?.data ?? []) as POSPayment[];
   const paidPayment = payments.find((p) => p.status === "PAID") ?? null;
   const pendingServeCount = getPendingServeItemCount(order);
-    const canOpenReceipt =
-      !!paidPayment ||
-      order.status === "PAID" ||
-      order.status === "PARTIAL_SERVED" ||
-      order.status === "SERVED" ||
-      order.status === "COMPLETED";
+  const canOpenReceipt =
+    !!paidPayment ||
+    order.status === "PAID" ||
+    order.status === "PARTIAL_SERVED" ||
+    order.status === "SERVED" ||
+    order.status === "COMPLETED";
 
   return (
-      <div className="rounded-xl border border-border/60 bg-background/60 p-3">
-        <div className="grid grid-cols-[1fr_auto] gap-3">
-          <div className="space-y-2 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-mono text-xs font-semibold truncate">#{order.order_number}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{order.customer_name || "Walk-in"}</p>
-              </div>
+    <div className="rounded-xl border border-border/60 bg-background/60 p-3">
+      <div className="grid grid-cols-[1fr_auto] gap-3">
+        <div className="space-y-2 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-mono text-xs font-semibold truncate">
+                #{order.order_number}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {order.customer_name || "Walk-in"}
+              </p>
+            </div>
+            <Badge
+              variant="outline"
+              className={cn(
+                "h-5 px-2 text-[9px] rounded-full",
+                order.status === "SERVED" &&
+                  "border-success/35 bg-success/10 text-success",
+                (order.status === "PAID" ||
+                  order.status === "PARTIAL_SERVED") &&
+                  "border-primary/35 bg-primary/10 text-primary",
+                (order.status === "DRAFT" ||
+                  order.status === "IN_PROGRESS" ||
+                  order.status === "READY" ||
+                  order.status === "WAITING_PAYMENT") &&
+                  "border-amber-500/35 bg-amber-500/10 text-amber-700",
+              )}
+            >
+              {order.status.replace("_", " ")}
+            </Badge>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-muted-foreground">Total</span>
+            <span className="tabular-nums">
+              Rp {order.total_amount.toLocaleString("id-ID")}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+            {order.status !== "COMPLETED" && order.status !== "VOIDED" && (
               <Badge
                 variant="outline"
-                className={cn(
-                  "h-5 px-2 text-[9px] rounded-full",
-                  order.status === "SERVED" && "border-success/35 bg-success/10 text-success",
-                  (order.status === "PAID" || order.status === "PARTIAL_SERVED") && "border-primary/35 bg-primary/10 text-primary",
-                  (order.status === "DRAFT" || order.status === "IN_PROGRESS" || order.status === "READY" || order.status === "WAITING_PAYMENT") &&
-                    "border-amber-500/35 bg-amber-500/10 text-amber-700",
-                )}
+                className="h-5 rounded-full border-muted-foreground/20 px-2 text-[9px]"
               >
-                {order.status.replace("_", " ")}
+                Items {order.items.length}
               </Badge>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Total</span>
-              <span className="tabular-nums">Rp {order.total_amount.toLocaleString("id-ID")}</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-              {order.status !== "COMPLETED" && order.status !== "VOIDED" && (
-                <Badge variant="outline" className="h-5 rounded-full border-muted-foreground/20 px-2 text-[9px]">
-                  Items {order.items.length}
-                </Badge>
-              )}
-              {pendingServeCount > 0 && (
-                <Badge variant="outline" className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] text-primary">
-                  Need Serve {pendingServeCount}
-                </Badge>
-              )}
-              {order.status === "SERVED" && (
-                <Badge variant="outline" className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] text-success">
-                  Done Serve
-                </Badge>
-              )}
-            </div>
+            )}
+            {pendingServeCount > 0 && (
+              <Badge
+                variant="outline"
+                className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] text-primary"
+              >
+                Need Serve {pendingServeCount}
+              </Badge>
+            )}
+            {order.status === "SERVED" && (
+              <Badge
+                variant="outline"
+                className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] text-success"
+              >
+                Done Serve
+              </Badge>
+            )}
+          </div>
         </div>
 
-          <div className="flex items-start">
-            {canOpenReceipt ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-8 min-w-[86px] px-3 text-[11px] cursor-pointer"
-                onClick={() =>
-                  onOpenReceipt({
-                    order,
-                    customerName: order.customer_name ?? undefined,
-                    tenderAmount: paidPayment?.method === "CASH" ? paidPayment.tender_amount : undefined,
-                  })
-                }
-              >
-                {t("sidebar.viewReceipt")}
-              </Button>
-            ) : (
-              <div className="flex flex-col gap-1 shrink-0">
-                {(order.status === "DRAFT" || order.status === "IN_PROGRESS" || order.status === "READY" || order.status === "WAITING_PAYMENT") && onEditOrder && (
+        <div className="flex items-start">
+          {canOpenReceipt ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 min-w-[86px] px-3 text-[11px] cursor-pointer"
+              onClick={() =>
+                onOpenReceipt({
+                  order,
+                  customerName: order.customer_name ?? undefined,
+                  tenderAmount:
+                    paidPayment?.method === "CASH"
+                      ? paidPayment.tender_amount
+                      : undefined,
+                })
+              }
+            >
+              {t("sidebar.viewReceipt")}
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-1 shrink-0">
+              {(order.status === "DRAFT" ||
+                order.status === "IN_PROGRESS" ||
+                order.status === "READY" ||
+                order.status === "WAITING_PAYMENT") &&
+                onEditOrder && (
                   <Button
                     type="button"
                     variant="outline"
@@ -410,25 +469,36 @@ interface SessionOrderRowProps {
                     <span>Edit</span>
                   </Button>
                 )}
-                <span className="text-[10px] text-muted-foreground text-center">No receipt</span>
-              </div>
-            )}
-          </div>
+              <span className="text-[10px] text-muted-foreground text-center">
+                No receipt
+              </span>
+            </div>
+          )}
         </div>
+      </div>
     </div>
   );
 }
 
-function OrderDetailDialog({ info, onClose, onOpenReceipt, onEditOrder }: OrderDetailDialogProps) {
+function OrderDetailDialog({
+  info,
+  onClose,
+  onOpenReceipt,
+  onEditOrder,
+}: OrderDetailDialogProps) {
   const t = useTranslations("posTerminal.liveTable");
 
   if (!info) return null;
   const cfg = STATUS_CONFIG[info.status];
   const Icon = cfg.icon;
-  const label = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+  const label =
+    info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
   const activeOrders = info.orders;
   const order = info.order;
-  const sessionTotal = activeOrders.reduce((total, sessionOrder) => total + sessionOrder.total_amount, 0);
+  const sessionTotal = activeOrders.reduce(
+    (total, sessionOrder) => total + sessionOrder.total_amount,
+    0,
+  );
 
   return (
     <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
@@ -441,7 +511,7 @@ function OrderDetailDialog({ info, onClose, onOpenReceipt, onEditOrder }: OrderD
               className={cn("gap-1 rounded-full border-current", cfg.text)}
             >
               <Icon className="h-3 w-3" />
-               {getStatusLabel(info.status, t)}
+              {getStatusLabel(info.status, t)}
             </Badge>
           </DialogTitle>
         </DialogHeader>
@@ -449,7 +519,7 @@ function OrderDetailDialog({ info, onClose, onOpenReceipt, onEditOrder }: OrderD
         {!order ? (
           <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground">
             <CheckCircle2 className="h-10 w-10 text-success/40" />
-             <p className="text-sm">{t("messages.tableAvailable")}</p>
+            <p className="text-sm">{t("messages.tableAvailable")}</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -466,22 +536,36 @@ function OrderDetailDialog({ info, onClose, onOpenReceipt, onEditOrder }: OrderD
               </div>
               <div className="rounded-xl bg-muted/50 p-3">
                 <p className="text-xs text-muted-foreground mb-1">Total</p>
-                <p className="font-bold text-sm tabular-nums">Rp {sessionTotal.toLocaleString("id-ID")}</p>
+                <p className="font-bold text-sm tabular-nums">
+                  Rp {sessionTotal.toLocaleString("id-ID")}
+                </p>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-center">
-                <p className="text-[10px] text-amber-700 uppercase tracking-wider">Need Pay</p>
-                <p className="mt-0.5 text-sm font-semibold text-amber-700">{info.needsPaymentCount}</p>
+                <p className="text-[10px] text-amber-700 uppercase tracking-wider">
+                  Need Pay
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-amber-700">
+                  {info.needsPaymentCount}
+                </p>
               </div>
               <div className="rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-2 text-center">
-                <p className="text-[10px] text-primary uppercase tracking-wider">Need Serve</p>
-                <p className="mt-0.5 text-sm font-semibold text-primary">{info.needsServeCount}</p>
+                <p className="text-[10px] text-primary uppercase tracking-wider">
+                  Need Serve
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-primary">
+                  {info.needsServeCount}
+                </p>
               </div>
               <div className="rounded-lg border border-success/30 bg-success/10 px-2.5 py-2 text-center">
-                <p className="text-[10px] text-success uppercase tracking-wider">Done</p>
-                <p className="mt-0.5 text-sm font-semibold text-success">{info.doneCount}</p>
+                <p className="text-[10px] text-success uppercase tracking-wider">
+                  Done
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-success">
+                  {info.doneCount}
+                </p>
               </div>
             </div>
 
@@ -505,7 +589,11 @@ function OrderDetailDialog({ info, onClose, onOpenReceipt, onEditOrder }: OrderD
                       key={sessionOrder.id}
                       order={sessionOrder}
                       onOpenReceipt={onOpenReceipt}
-                      onEditOrder={onEditOrder ? () => onEditOrder(sessionOrder) : undefined}
+                      onEditOrder={
+                        onEditOrder
+                          ? () => onEditOrder(sessionOrder)
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -523,13 +611,21 @@ interface ActiveTableCancelDialogProps {
   onClose: () => void;
 }
 
-function ActiveTableCancelDialog({ info, onClose }: ActiveTableCancelDialogProps) {
+function ActiveTableCancelDialog({
+  info,
+  onClose,
+}: ActiveTableCancelDialogProps) {
   const t = useTranslations("posTerminal.liveTable.payNow");
-  const cancelPayment = useCancelPendingPOSPayment({ invalidateOnSuccess: false });
+  const cancelPayment = useCancelPendingPOSPayment({
+    invalidateOnSuccess: false,
+  });
   const voidOrder = useVoidOrder({ invalidateOnSuccess: false });
   const [reason, setReason] = useState("");
   const order = info?.unpaidOrder ?? null;
-  const tableLabel = info ? (info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`) : "";
+  const tableLabel = info
+    ? (info.tableObj.label ??
+      `T${info.tableObj.tableNumber ?? info.tableObj.id}`)
+    : "";
 
   const { data: paymentsData } = usePOSPayments(order?.id ?? "", {
     enabled: !!order?.id,
@@ -538,7 +634,8 @@ function ActiveTableCancelDialog({ info, onClose }: ActiveTableCancelDialogProps
   });
 
   const payments = (paymentsData?.data ?? []) as POSPayment[];
-  const pendingPayment = payments.find((payment) => payment.status === "PENDING") ?? null;
+  const pendingPayment =
+    payments.find((payment) => payment.status === "PENDING") ?? null;
 
   if (!info || !order) return null;
 
@@ -570,13 +667,21 @@ function ActiveTableCancelDialog({ info, onClose }: ActiveTableCancelDialogProps
     <Dialog open={!!info} onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="sm">
         <DialogHeader>
-          <DialogTitle>{t("cancelPaymentTitle")} · {tableLabel}</DialogTitle>
+          <DialogTitle>
+            {t("cancelPaymentTitle")} · {tableLabel}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">{t("cancelPaymentDescription")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("cancelPaymentDescription")}
+          </p>
           <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
-            <p className="text-xs text-muted-foreground">#{order.order_number}</p>
-            <p className="mt-1 text-sm font-medium">Rp {order.total_amount.toLocaleString("id-ID")}</p>
+            <p className="text-xs text-muted-foreground">
+              #{order.order_number}
+            </p>
+            <p className="mt-1 text-sm font-medium">
+              Rp {order.total_amount.toLocaleString("id-ID")}
+            </p>
           </div>
           <Textarea
             value={reason}
@@ -600,7 +705,9 @@ function ActiveTableCancelDialog({ info, onClose }: ActiveTableCancelDialogProps
               disabled={cancelPayment.isPending || voidOrder.isPending}
               onClick={handleSubmit}
             >
-              {cancelPayment.isPending || voidOrder.isPending ? t("cancelPaymentLoading") : t("cancelPaymentAction")}
+              {cancelPayment.isPending || voidOrder.isPending
+                ? t("cancelPaymentLoading")
+                : t("cancelPaymentAction")}
             </Button>
           </div>
         </div>
@@ -608,8 +715,6 @@ function ActiveTableCancelDialog({ info, onClose }: ActiveTableCancelDialogProps
     </Dialog>
   );
 }
-
-
 
 // ─── Live Table Stats Bar ─────────────────────────────────────────────────────
 
@@ -651,12 +756,36 @@ const STATUS_SVG: Record<
   LiveTableStatus,
   { fill: string; stroke: string; text: string }
 > = {
-  AVAILABLE:      { fill: "var(--pos-available-fill)", stroke: "var(--pos-available-stroke)", text: "var(--pos-available-text)" },
-  WAITING_PAYMENT: { fill: "var(--pos-partial-fill)", stroke: "var(--pos-partial-stroke)", text: "var(--pos-partial-text)" },
-  SEATED:         { fill: "var(--pos-seated-fill)", stroke: "var(--pos-seated-stroke)", text: "var(--pos-seated-text)" },
-  WARN_LONG:      { fill: "var(--pos-warn-fill)", stroke: "var(--pos-warn-stroke)", text: "var(--pos-warn-text)" },
-  PARTIAL_SERVED: { fill: "var(--pos-partial-fill)", stroke: "var(--pos-partial-stroke)", text: "var(--pos-partial-text)" },
-  SERVED:         { fill: "var(--pos-served-fill)", stroke: "var(--pos-served-stroke)", text: "var(--pos-served-text)" },
+  AVAILABLE: {
+    fill: "var(--pos-available-fill)",
+    stroke: "var(--pos-available-stroke)",
+    text: "var(--pos-available-text)",
+  },
+  WAITING_PAYMENT: {
+    fill: "var(--pos-partial-fill)",
+    stroke: "var(--pos-partial-stroke)",
+    text: "var(--pos-partial-text)",
+  },
+  SEATED: {
+    fill: "var(--pos-seated-fill)",
+    stroke: "var(--pos-seated-stroke)",
+    text: "var(--pos-seated-text)",
+  },
+  WARN_LONG: {
+    fill: "var(--pos-warn-fill)",
+    stroke: "var(--pos-warn-stroke)",
+    text: "var(--pos-warn-text)",
+  },
+  PARTIAL_SERVED: {
+    fill: "var(--pos-partial-fill)",
+    stroke: "var(--pos-partial-stroke)",
+    text: "var(--pos-partial-text)",
+  },
+  SERVED: {
+    fill: "var(--pos-served-fill)",
+    stroke: "var(--pos-served-stroke)",
+    text: "var(--pos-served-text)",
+  },
 };
 
 // ─── Floor Layout View ────────────────────────────────────────────────────────
@@ -693,13 +822,10 @@ function LiveFloorView({
   const [scale, setScale] = useState(1);
   const [hoveredTableId, setHoveredTableId] = useState<string | null>(null);
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      setScale((prev) => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.0004)));
-    },
-    [],
-  );
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setScale((prev) => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.0004)));
+  }, []);
 
   return (
     <div className="relative flex min-h-full flex-1 items-center justify-center overflow-auto p-4">
@@ -744,116 +870,119 @@ function LiveFloorView({
           }}
           preserveAspectRatio="xMidYMid meet"
         >
-        {layoutObjects.map((obj) => {
-          const transform = `translate(${obj.x}, ${obj.y}) rotate(${obj.rotation ?? 0}, ${obj.width / 2}, ${obj.height / 2})`;
+          {layoutObjects.map((obj) => {
+            const transform = `translate(${obj.x}, ${obj.y}) rotate(${obj.rotation ?? 0}, ${obj.width / 2}, ${obj.height / 2})`;
 
-          if (obj.type === "table") {
-            const label =
-              obj.label ?? obj.tableNumber?.toString() ?? obj.id;
-            const info = infoByLabel.get(label);
-            const colors = info
-              ? STATUS_SVG[info.status]
-              : STATUS_SVG.AVAILABLE;
-            const isCircle = obj.tableShape === "circle";
-            const r = Math.min(obj.width, obj.height) / 2;
-            const seatCountText = formatSeatCount(info?.seatCount ?? 0);
+            if (obj.type === "table") {
+              const label = obj.label ?? obj.tableNumber?.toString() ?? obj.id;
+              const info = infoByLabel.get(label);
+              const colors = info
+                ? STATUS_SVG[info.status]
+                : STATUS_SVG.AVAILABLE;
+              const isCircle = obj.tableShape === "circle";
+              const r = Math.min(obj.width, obj.height) / 2;
+              const seatCountText = formatSeatCount(info?.seatCount ?? 0);
 
-            const isOver = hoveredTableId === obj.id;
-            const isAvailable = !info || info.status === "AVAILABLE";
+              const isOver = hoveredTableId === obj.id;
+              const isAvailable = !info || info.status === "AVAILABLE";
 
-            return (
-              <g
-                key={obj.id}
-                transform={transform}
-                onClick={() => info && onTableClick(info)}
-                onDragOver={(e) => {
-                  if (isAvailable) {
-                    e.preventDefault();
-                    setHoveredTableId(obj.id);
-                  }
-                }}
-                onDragLeave={() => {
-                  setHoveredTableId(null);
-                }}
-                onDrop={(e) => {
-                  if (isAvailable) {
-                    e.preventDefault();
-                    setHoveredTableId(null);
-                    const draftId = e.dataTransfer.getData("text/plain");
-                    const tId = info?.tableObj.id || obj.id;
-                    if (draftId && onDropDraft) {
-                      onDropDraft(draftId, tId, label);
+              return (
+                <g
+                  key={obj.id}
+                  transform={transform}
+                  onClick={() => info && onTableClick(info)}
+                  onDragOver={(e) => {
+                    if (isAvailable) {
+                      e.preventDefault();
+                      setHoveredTableId(obj.id);
                     }
-                  }
-                }}
-                style={{ cursor: info ? "pointer" : "default" }}
-              >
-                {isCircle ? (
-                  <circle
-                    cx={obj.width / 2}
-                    cy={obj.height / 2}
-                    r={r - 2}
-                    fill={isOver ? "rgba(59, 130, 246, 0.15)" : colors.fill}
-                    stroke={isOver ? "var(--primary, #3b82f6)" : colors.stroke}
-                    strokeWidth={isOver ? 3 : 2}
-                  />
-                ) : (
-                  <rect
-                    x={1}
-                    y={1}
-                    width={obj.width - 2}
-                    height={obj.height - 2}
-                    rx={6}
-                    fill={isOver ? "rgba(59, 130, 246, 0.15)" : colors.fill}
-                    stroke={isOver ? "var(--primary, #3b82f6)" : colors.stroke}
-                    strokeWidth={isOver ? 3 : 2}
-                  />
-                )}
-                <text
-                  x={obj.width / 2}
-                  y={obj.height * 0.43}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize={Math.min(obj.width, obj.height) * 0.28}
-                  fontWeight="700"
-                  fill={colors.text}
-                  className="select-none pointer-events-none"
+                  }}
+                  onDragLeave={() => {
+                    setHoveredTableId(null);
+                  }}
+                  onDrop={(e) => {
+                    if (isAvailable) {
+                      e.preventDefault();
+                      setHoveredTableId(null);
+                      const draftId = e.dataTransfer.getData("text/plain");
+                      const tId = info?.tableObj.id || obj.id;
+                      if (draftId && onDropDraft) {
+                        onDropDraft(draftId, tId, label);
+                      }
+                    }
+                  }}
+                  style={{ cursor: info ? "pointer" : "default" }}
                 >
-                  {label}
-                </text>
-                <text
-                  x={obj.width / 2}
-                  y={obj.height * 0.67}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize={Math.min(obj.width, obj.height) * 0.14}
-                  fill={colors.text}
-                  opacity={0.8}
-                  className="select-none pointer-events-none"
-                >
-                  {seatCountText}
-                </text>
-                {info?.order && (
+                  {isCircle ? (
+                    <circle
+                      cx={obj.width / 2}
+                      cy={obj.height / 2}
+                      r={r - 2}
+                      fill={isOver ? "rgba(59, 130, 246, 0.15)" : colors.fill}
+                      stroke={
+                        isOver ? "var(--primary, #3b82f6)" : colors.stroke
+                      }
+                      strokeWidth={isOver ? 3 : 2}
+                    />
+                  ) : (
+                    <rect
+                      x={1}
+                      y={1}
+                      width={obj.width - 2}
+                      height={obj.height - 2}
+                      rx={6}
+                      fill={isOver ? "rgba(59, 130, 246, 0.15)" : colors.fill}
+                      stroke={
+                        isOver ? "var(--primary, #3b82f6)" : colors.stroke
+                      }
+                      strokeWidth={isOver ? 3 : 2}
+                    />
+                  )}
                   <text
                     x={obj.width / 2}
-                    y={obj.height * 0.82}
+                    y={obj.height * 0.43}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    fontSize={Math.min(obj.width, obj.height) * 0.18}
+                    fontSize={Math.min(obj.width, obj.height) * 0.28}
+                    fontWeight="700"
                     fill={colors.text}
-                    opacity={0.75}
                     className="select-none pointer-events-none"
                   >
-                    {formatDuration(info.durationSec)}
+                    {label}
                   </text>
-                )}
-              </g>
-            );
-          }
+                  <text
+                    x={obj.width / 2}
+                    y={obj.height * 0.67}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={Math.min(obj.width, obj.height) * 0.14}
+                    fill={colors.text}
+                    opacity={0.8}
+                    className="select-none pointer-events-none"
+                  >
+                    {seatCountText}
+                  </text>
+                  {info?.order && (
+                    <text
+                      x={obj.width / 2}
+                      y={obj.height * 0.82}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize={Math.min(obj.width, obj.height) * 0.18}
+                      fill={colors.text}
+                      opacity={0.75}
+                      className="select-none pointer-events-none"
+                    >
+                      {formatDuration(info.durationSec)}
+                    </text>
+                  )}
+                </g>
+              );
+            }
 
-          if (obj.type === "wall") {
-            return (
-              <rect
+            if (obj.type === "wall") {
+              return (
+                <rect
                   key={obj.id}
                   transform={transform}
                   x={0}
@@ -863,31 +992,31 @@ function LiveFloorView({
                   fill="var(--pos-wall-fill)"
                   rx={1}
                 />
-            );
-          }
+              );
+            }
 
-          if (obj.type === "zone") {
-            const color = obj.color ?? "var(--pos-zone-default)";
-            return (
-              <rect
-                key={obj.id}
-                transform={transform}
-                x={0}
-                y={0}
-                width={obj.width}
-                height={obj.height}
-                rx={8}
-                fill={color}
-                opacity={(obj.opacity ?? 30) / 100}
-                stroke={color}
-                strokeWidth={1}
-              />
-            );
-          }
+            if (obj.type === "zone") {
+              const color = obj.color ?? "var(--pos-zone-default)";
+              return (
+                <rect
+                  key={obj.id}
+                  transform={transform}
+                  x={0}
+                  y={0}
+                  width={obj.width}
+                  height={obj.height}
+                  rx={8}
+                  fill={color}
+                  opacity={(obj.opacity ?? 30) / 100}
+                  stroke={color}
+                  strokeWidth={1}
+                />
+              );
+            }
 
-          if (obj.type === "door") {
-            return (
-              <rect
+            if (obj.type === "door") {
+              return (
+                <rect
                   key={obj.id}
                   transform={transform}
                   x={0}
@@ -899,12 +1028,12 @@ function LiveFloorView({
                   stroke="var(--pos-door-stroke)"
                   strokeWidth={1}
                 />
-            );
-          }
+              );
+            }
 
-          if (obj.type === "chair") {
-            return (
-              <rect
+            if (obj.type === "chair") {
+              return (
+                <rect
                   key={obj.id}
                   transform={transform}
                   x={1}
@@ -916,26 +1045,26 @@ function LiveFloorView({
                   stroke="var(--pos-chair-stroke)"
                   strokeWidth={1}
                 />
-            );
-          }
+              );
+            }
 
-          // decoration / cashier / other
-          return (
-            <rect
-              key={obj.id}
-              transform={transform}
-              x={0}
-              y={0}
-              width={obj.width}
-              height={obj.height}
-              rx={4}
-              fill="var(--pos-decor-fill)"
-              stroke="var(--pos-decor-stroke)"
-              strokeWidth={1}
-            />
-          );
-        })}
-      </svg>
+            // decoration / cashier / other
+            return (
+              <rect
+                key={obj.id}
+                transform={transform}
+                x={0}
+                y={0}
+                width={obj.width}
+                height={obj.height}
+                rx={4}
+                fill="var(--pos-decor-fill)"
+                stroke="var(--pos-decor-stroke)"
+                strokeWidth={1}
+              />
+            );
+          })}
+        </svg>
       </div>
     </div>
   );
@@ -994,7 +1123,8 @@ function TableSidebar({
               {t("confirmPaymentNotice")}
             </p>
             <p className="mt-1 text-[11px] text-foreground leading-snug">
-              {paymentNotice.tableLabel} · {paymentNotice.orderNumber ?? t("payNow.order")}
+              {paymentNotice.tableLabel} ·{" "}
+              {paymentNotice.orderNumber ?? t("payNow.order")}
             </p>
             <div className="mt-2 flex items-center gap-1.5">
               <Button
@@ -1038,20 +1168,23 @@ function TableSidebar({
               const pendingPaymentOrders = info.unpaidOrders;
               const pendingServeOrders = info.serviceOrders;
               const doneOrders = info.servedOrders;
-              const serviceQueueItems = pendingServeOrders.flatMap((queueOrder) =>
-                queueOrder.items.map((item) => ({
-                  orderId: queueOrder.id,
-                  orderNumber: queueOrder.order_number,
-                  itemId: item.id,
-                  productName: item.product_name,
-                  quantity: item.quantity,
-                  status: item.status,
-                })),
+              const serviceQueueItems = pendingServeOrders.flatMap(
+                (queueOrder) =>
+                  queueOrder.items.map((item) => ({
+                    orderId: queueOrder.id,
+                    orderNumber: queueOrder.order_number,
+                    itemId: item.id,
+                    productName: item.product_name,
+                    quantity: item.quantity,
+                    status: item.status,
+                  })),
               );
               const paymentOrderId = paymentOrder?.id;
               const serviceOrderId = serviceOrder?.id;
               const completionOrderId = doneOrders[0]?.id;
-              const serviceOrderIds = pendingServeOrders.map((order) => order.id);
+              const serviceOrderIds = pendingServeOrders.map(
+                (order) => order.id,
+              );
 
               const canServe =
                 serviceOrder?.status === "PAID" ||
@@ -1081,9 +1214,12 @@ function TableSidebar({
                     </div>
                     <Badge
                       variant="outline"
-                      className={cn("text-[10px] shrink-0 border-current", cfg.text)}
+                      className={cn(
+                        "text-[10px] shrink-0 border-current",
+                        cfg.text,
+                      )}
                     >
-                       {getStatusLabel(info.status, t)}
+                      {getStatusLabel(info.status, t)}
                     </Badge>
                   </div>
 
@@ -1106,20 +1242,31 @@ function TableSidebar({
                     <span>{formatSeatCount(info.seatCount)}</span>
                   </div>
 
-                  {(info.needsPaymentCount > 0 || info.needsServeCount > 0 || info.doneCount > 0) && (
+                  {(info.needsPaymentCount > 0 ||
+                    info.needsServeCount > 0 ||
+                    info.doneCount > 0) && (
                     <div className="flex flex-wrap items-center gap-1">
                       {info.needsPaymentCount > 0 && (
-                        <Badge variant="outline" className="h-5 rounded-full border-amber-500/35 bg-amber-500/10 px-2 text-[9px] font-semibold text-amber-700">
+                        <Badge
+                          variant="outline"
+                          className="h-5 rounded-full border-amber-500/35 bg-amber-500/10 px-2 text-[9px] font-semibold text-amber-700"
+                        >
                           Pay {info.needsPaymentCount}
                         </Badge>
                       )}
                       {info.needsServeCount > 0 && (
-                        <Badge variant="outline" className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] font-semibold text-primary">
+                        <Badge
+                          variant="outline"
+                          className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] font-semibold text-primary"
+                        >
                           Serve {info.needsServeCount}
                         </Badge>
                       )}
                       {info.doneCount > 0 && (
-                        <Badge variant="outline" className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] font-semibold text-success">
+                        <Badge
+                          variant="outline"
+                          className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] font-semibold text-success"
+                        >
                           Done {info.doneCount}
                         </Badge>
                       )}
@@ -1145,7 +1292,9 @@ function TableSidebar({
                           className="col-span-2 h-6 w-full text-[10px] cursor-pointer"
                           onClick={() => onOpenPaymentAction(info)}
                         >
-                          {isWaitingPayment ? t("payNowAction") : t("confirmPayment")}
+                          {isWaitingPayment
+                            ? t("payNowAction")
+                            : t("confirmPayment")}
                         </Button>
                         <Button
                           size="sm"
@@ -1167,13 +1316,22 @@ function TableSidebar({
 
                       {isWaitingPayment && paymentOrder?.items.length ? (
                         <div className="mt-1.5 space-y-1">
-                          {pendingPaymentOrders.slice(0, 2).map((queueOrder) => (
-                            <p key={queueOrder.id} className="text-[10px] text-muted-foreground line-clamp-1">
-                              #{queueOrder.order_number} · {queueOrder.items[0]?.quantity ?? 0}x {queueOrder.items[0]?.product_name ?? "Item"}
-                            </p>
-                          ))}
+                          {pendingPaymentOrders
+                            .slice(0, 2)
+                            .map((queueOrder) => (
+                              <p
+                                key={queueOrder.id}
+                                className="text-[10px] text-muted-foreground line-clamp-1"
+                              >
+                                #{queueOrder.order_number} ·{" "}
+                                {queueOrder.items[0]?.quantity ?? 0}x{" "}
+                                {queueOrder.items[0]?.product_name ?? "Item"}
+                              </p>
+                            ))}
                           {pendingPaymentOrders.length > 2 && (
-                            <p className="text-[10px] text-muted-foreground">+{pendingPaymentOrders.length - 2} more orders</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              +{pendingPaymentOrders.length - 2} more orders
+                            </p>
                           )}
                         </div>
                       ) : null}
@@ -1239,13 +1397,17 @@ function TableSidebar({
                                 variant="warning"
                                 className={cn(
                                   "cursor-pointer text-[9px] shrink-0",
-                                  servingItemId === itemKey && "opacity-50 pointer-events-none",
+                                  servingItemId === itemKey &&
+                                    "opacity-50 pointer-events-none",
                                 )}
                                 onClick={() => {
-                                  if (servingItemId !== itemKey) onServeItem(item.orderId, item.itemId);
+                                  if (servingItemId !== itemKey)
+                                    onServeItem(item.orderId, item.itemId);
                                 }}
                               >
-                                {servingItemId === itemKey ? "…" : t("sidebar.serve")}
+                                {servingItemId === itemKey
+                                  ? "…"
+                                  : t("sidebar.serve")}
                               </Badge>
                             )}
                           </div>
@@ -1256,8 +1418,12 @@ function TableSidebar({
 
                   {doneOrders.length > 0 && (
                     <div className="rounded-md border border-success/30 bg-success/10 px-2 py-1.5">
-                      <p className="text-[10px] font-semibold text-success uppercase tracking-wider">Done Queue</p>
-                      <p className="mt-1 text-[10px] text-success/90">{doneOrders.length} served order waiting customer left</p>
+                      <p className="text-[10px] font-semibold text-success uppercase tracking-wider">
+                        Done Queue
+                      </p>
+                      <p className="mt-1 text-[10px] text-success/90">
+                        {doneOrders.length} served order waiting customer left
+                      </p>
                     </div>
                   )}
 
@@ -1269,11 +1435,17 @@ function TableSidebar({
                           size="sm"
                           variant="secondary"
                           className="w-full h-7 text-[11px] cursor-pointer gap-1.5"
-                          disabled={serviceOrderIds.some((orderId) => servingId === orderId)}
+                          disabled={serviceOrderIds.some(
+                            (orderId) => servingId === orderId,
+                          )}
                           onClick={() => onServe(serviceOrderIds)}
                         >
                           <Utensils className="h-3 w-3" />
-                          {serviceOrderIds.some((orderId) => servingId === orderId) ? t("sidebar.serving") + "…" : t("sidebar.allServed")}
+                          {serviceOrderIds.some(
+                            (orderId) => servingId === orderId,
+                          )
+                            ? t("sidebar.serving") + "…"
+                            : t("sidebar.allServed")}
                         </Button>
                       )}
                       {canComplete && (
@@ -1281,11 +1453,17 @@ function TableSidebar({
                           size="sm"
                           variant="default"
                           className="w-full h-7 text-[11px] cursor-pointer gap-1.5 bg-orange-500 hover:bg-orange-600"
-                          disabled={doneOrders.some((order) => completingId === order.id)}
-                          onClick={() => onComplete(doneOrders.map((order) => order.id))}
+                          disabled={doneOrders.some(
+                            (order) => completingId === order.id,
+                          )}
+                          onClick={() =>
+                            onComplete(doneOrders.map((order) => order.id))
+                          }
                         >
                           <LogOut className="h-3 w-3" />
-                          {doneOrders.some((order) => completingId === order.id) ? t("sidebar.completing") + "…" : t("sidebar.customerLeft")}
+                          {doneOrders.some((order) => completingId === order.id)
+                            ? t("sidebar.completing") + "…"
+                            : t("sidebar.customerLeft")}
                         </Button>
                       )}
                     </div>
@@ -1307,7 +1485,9 @@ export function LiveTablePageClient() {
   const outletId = searchParams.get("outlet_id") ?? undefined;
 
   const { data: outletsData } = usePOSOutlets();
-  const outletName = outletsData?.data?.find((o: { id: string; name: string }) => o.id === outletId)?.name;
+  const outletName = outletsData?.data?.find(
+    (o: { id: string; name: string }) => o.id === outletId,
+  )?.name;
 
   const t = useTranslations("posTerminal.liveTable");
   const tTerminal = useTranslations("posTerminal");
@@ -1323,7 +1503,9 @@ export function LiveTablePageClient() {
   const [now, setNow] = useState<number>();
   const [viewMode, setViewMode] = useState<"grid" | "floor">(() => {
     if (typeof window !== "undefined") {
-      return (localStorage.getItem("live-table-view") as "grid" | "floor") ?? "grid";
+      return (
+        (localStorage.getItem("live-table-view") as "grid" | "floor") ?? "grid"
+      );
     }
     return "grid";
   });
@@ -1354,34 +1536,23 @@ export function LiveTablePageClient() {
   const [servingId, setServingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [servingItemId, setServingItemId] = useState<string | null>(null);
-  const [paymentNotice, setPaymentNotice] = useState<PaymentNotice | null>(null);
-  const [selectedPaymentInfo, setSelectedPaymentInfo] = useState<LiveTableInfo | null>(null);
-  const [selectedCancelPaymentInfo, setSelectedCancelPaymentInfo] = useState<LiveTableInfo | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<PaymentNotice | null>(
+    null,
+  );
+  const [selectedPaymentInfo, setSelectedPaymentInfo] =
+    useState<LiveTableInfo | null>(null);
+  const [selectedCancelPaymentInfo, setSelectedCancelPaymentInfo] =
+    useState<LiveTableInfo | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<POSOrder | null>(null);
-  const [receiptCustomerName, setReceiptCustomerName] = useState<string | undefined>();
-  const [receiptCustomerPhone, setReceiptCustomerPhone] = useState<string | undefined>();
-  const [receiptTenderAmount, setReceiptTenderAmount] = useState<number | undefined>();
-
-  const queryClient = useQueryClient();
-  const ordersInvalidateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const scheduleOrdersInvalidate = useCallback(() => {
-    if (ordersInvalidateTimerRef.current) {
-      clearTimeout(ordersInvalidateTimerRef.current);
-    }
-    ordersInvalidateTimerRef.current = setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: posKeys.orders() });
-      ordersInvalidateTimerRef.current = null;
-    }, 800);
-  }, [queryClient]);
-
-  useEffect(() => {
-    return () => {
-      if (ordersInvalidateTimerRef.current) {
-        clearTimeout(ordersInvalidateTimerRef.current);
-      }
-    };
-  }, []);
+  const [receiptCustomerName, setReceiptCustomerName] = useState<
+    string | undefined
+  >();
+  const [receiptCustomerPhone, setReceiptCustomerPhone] = useState<
+    string | undefined
+  >();
+  const [receiptTenderAmount, setReceiptTenderAmount] = useState<
+    number | undefined
+  >();
 
   const { data: draftOrdersResponse } = usePOSOrderList(
     {
@@ -1392,7 +1563,7 @@ export function LiveTablePageClient() {
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-    }
+    },
   );
 
   const drafts = useMemo(() => {
@@ -1425,62 +1596,88 @@ export function LiveTablePageClient() {
         toast.error("Failed to apply draft to table");
       }
     },
-    [assignTable, outletId, router]
+    [assignTable, outletId, router],
   );
 
-  const handleEditOrder = useCallback((info: LiveTableInfo) => {
-    const tableId = info.tableObj.id;
-    const tableLabel = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
-    router.push(`/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`);
-  }, [router, outletId]);
+  const handleEditOrder = useCallback(
+    (info: LiveTableInfo) => {
+      const tableId = info.tableObj.id;
+      const tableLabel =
+        info.tableObj.label ??
+        `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+      router.push(
+        `/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`,
+      );
+    },
+    [router, outletId],
+  );
 
   const handleEditOrderFromOrder = useCallback(
-    (order: POSOrder, tableObj: { id: string; label?: string; tableNumber?: string | number }) => {
+    (
+      order: POSOrder,
+      tableObj: { id: string; label?: string; tableNumber?: string | number },
+    ) => {
       const tableId = tableObj.id;
-      const tableLabel = tableObj.label ?? `T${tableObj.tableNumber ?? tableObj.id}`;
-      router.push(`/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`);
+      const tableLabel =
+        tableObj.label ?? `T${tableObj.tableNumber ?? tableObj.id}`;
+      router.push(
+        `/pos/fb/terminal?outlet_id=${outletId || ""}&table_id=${tableId}&table_label=${encodeURIComponent(tableLabel)}`,
+      );
     },
-    [router, outletId]
+    [router, outletId],
   );
 
-  const suppressedToastEvents = useMemo(() => ["pos.new_customer_order", "pos.payment_confirmed", "pos.order_status_changed", "pos.order_deleted"], []);
+  const suppressedToastEvents = useMemo(
+    () => [
+      "pos.new_customer_order",
+      "pos.payment_confirmed",
+      "pos.order_status_changed",
+      "pos.order_deleted",
+    ],
+    [],
+  );
 
-  const handleWsEvent = useCallback((eventType: string, payload: {
-    table_label?: string;
-    order_id?: string;
-    order_number?: string;
-    order?: POSOrder;
-  } | undefined) => {
-    if (eventType === "pos.payment_confirmed") {
-      setPaymentNotice({
-        tableLabel: payload?.table_label ?? "Meja",
-        orderId: payload?.order_id,
-        orderNumber: payload?.order_number,
-        at: Date.now(),
-      });
-    }
-
-    if (
-      !payload?.order &&
-      (
-        eventType === "pos.order_deleted" ||
-        eventType === "pos.order_created" ||
-        eventType === "pos.order_status_changed" ||
-        eventType === "pos.new_customer_order"
-      )
-    ) {
-      scheduleOrdersInvalidate();
-    }
-  }, [scheduleOrdersInvalidate]);
+  const handleWsEvent = useCallback(
+    (
+      eventType: string,
+      payload:
+        | {
+            table_label?: string;
+            order_id?: string;
+            order_number?: string;
+            order?: POSOrder;
+          }
+        | undefined,
+    ) => {
+      if (eventType === "pos.payment_confirmed") {
+        setPaymentNotice({
+          tableLabel: payload?.table_label ?? "Meja",
+          orderId: payload?.order_id,
+          orderNumber: payload?.order_number,
+          at: Date.now(),
+        });
+      }
+    },
+    [],
+  );
 
   // Real-time staff notifications and payment confirmation state in Active Tables.
-  usePosWs(outletId, { onEvent: handleWsEvent, suppressToastEvents: suppressedToastEvents });
+  usePosWs(outletId, {
+    onEvent: handleWsEvent,
+    suppressToastEvents: suppressedToastEvents,
+  });
 
   const handleOpenPaymentNotice = useCallback(() => {
     if (!paymentNotice) return;
     const target = liveTableInfos.find((info) => {
-      const label = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
-      if (paymentNotice.orderId && (info.unpaidOrder?.id === paymentNotice.orderId || info.order?.id === paymentNotice.orderId)) {
+      const label =
+        info.tableObj.label ??
+        `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+      if (
+        paymentNotice.orderId &&
+        (info.unpaidOrder?.id === paymentNotice.orderId ||
+          info.order?.id === paymentNotice.orderId)
+      ) {
         return true;
       }
       return label === paymentNotice.tableLabel;
@@ -1519,13 +1716,19 @@ export function LiveTablePageClient() {
       if (!orderIds.length) return;
 
       setServingId(orderIds[0]);
-      const results = await Promise.allSettled(orderIds.map((orderId) => serveOrder.mutateAsync(orderId)));
-      const failedCount = results.filter((result) => result.status === "rejected").length;
+      const results = await Promise.allSettled(
+        orderIds.map((orderId) => serveOrder.mutateAsync(orderId)),
+      );
+      const failedCount = results.filter(
+        (result) => result.status === "rejected",
+      ).length;
 
       if (failedCount === 0) {
         toast.success(t("messages.tableStatusChanged"));
       } else if (failedCount < orderIds.length) {
-        toast.warning(`${orderIds.length - failedCount}/${orderIds.length} orders served. Please retry remaining.`);
+        toast.warning(
+          `${orderIds.length - failedCount}/${orderIds.length} orders served. Please retry remaining.`,
+        );
       } else {
         toast.error(t("messages.updateStatusFailed"));
       }
@@ -1540,13 +1743,19 @@ export function LiveTablePageClient() {
       if (!orderIds.length) return;
 
       setCompletingId(orderIds[0]);
-      const results = await Promise.allSettled(orderIds.map((orderId) => completeOrder.mutateAsync(orderId)));
-      const failedCount = results.filter((result) => result.status === "rejected").length;
+      const results = await Promise.allSettled(
+        orderIds.map((orderId) => completeOrder.mutateAsync(orderId)),
+      );
+      const failedCount = results.filter(
+        (result) => result.status === "rejected",
+      ).length;
 
       if (failedCount === 0) {
         toast.success(t("messages.customerLeft"));
       } else if (failedCount < orderIds.length) {
-        toast.warning(`${orderIds.length - failedCount}/${orderIds.length} orders completed. Please retry remaining.`);
+        toast.warning(
+          `${orderIds.length - failedCount}/${orderIds.length} orders completed. Please retry remaining.`,
+        );
       } else {
         toast.error(t("messages.updateStatusFailed"));
       }
@@ -1601,8 +1810,13 @@ export function LiveTablePageClient() {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center space-y-3">
-          <LoadingSpinner className="mx-auto h-8 w-8 text-primary" strokeWidth={2} />
-           <p className="text-sm text-muted-foreground">{t("messages.loading")}</p>
+          <LoadingSpinner
+            className="mx-auto h-8 w-8 text-primary"
+            strokeWidth={2}
+          />
+          <p className="text-sm text-muted-foreground">
+            {t("messages.loading")}
+          </p>
         </div>
       </div>
     );
@@ -1611,13 +1825,15 @@ export function LiveTablePageClient() {
   if (!plan) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 px-4">
-         <p className="font-semibold text-lg">{t("messages.noFloorPlanTitle")}</p>
-         <p className="text-sm text-muted-foreground text-center max-w-xs">
-           {t("messages.noFloorPlanDescription")}
-         </p>
+        <p className="font-semibold text-lg">
+          {t("messages.noFloorPlanTitle")}
+        </p>
+        <p className="text-sm text-muted-foreground text-center max-w-xs">
+          {t("messages.noFloorPlanDescription")}
+        </p>
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4 mr-1.5" />
-           {t("messages.goBack")}
+          {t("messages.goBack")}
         </Button>
       </div>
     );
@@ -1648,7 +1864,7 @@ export function LiveTablePageClient() {
 
         <div className="flex items-center gap-2">
           <StatsBar infos={liveTableInfos} />
-          
+
           <Popover>
             <PopoverTrigger asChild>
               <span className="relative inline-block overflow-visible">
@@ -1658,11 +1874,13 @@ export function LiveTablePageClient() {
                     "cursor-pointer gap-2 h-8 text-xs transition-all duration-200",
                     drafts.length > 0
                       ? "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:text-primary text-primary dark:border-primary/30 dark:bg-primary/10 dark:hover:bg-primary/25"
-                      : "text-muted-foreground"
+                      : "text-muted-foreground",
                   )}
                 >
                   <Archive className="h-4 w-4" />
-                  <span className="hidden sm:inline">{tTerminal("savedTransactions.label")}</span>
+                  <span className="hidden sm:inline">
+                    {tTerminal("savedTransactions.label")}
+                  </span>
                 </Button>
                 {drafts.length > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white shadow-sm pointer-events-none z-10">
@@ -1671,13 +1889,18 @@ export function LiveTablePageClient() {
                 )}
               </span>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 animate-in fade-in zoom-in-95 duration-150 shadow-lg border rounded-lg" align="end">
+            <PopoverContent
+              className="w-80 p-0 animate-in fade-in zoom-in-95 duration-150 shadow-lg border rounded-lg"
+              align="end"
+            >
               <div className="p-3 border-b bg-muted/40 rounded-t-lg">
                 <h4 className="font-semibold text-xs text-foreground flex items-center gap-1.5">
                   <Archive className="h-3.5 w-3.5 text-muted-foreground" />
                   {tTerminal("savedTransactions.title")}
                 </h4>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{tTerminal("savedTransactions.dragHint")}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {tTerminal("savedTransactions.dragHint")}
+                </p>
               </div>
               <ScrollArea className="max-h-80">
                 {drafts.length === 0 ? (
@@ -1697,9 +1920,12 @@ export function LiveTablePageClient() {
                         className="p-3 hover:bg-muted/30 cursor-grab active:cursor-grabbing transition-colors flex flex-col gap-1 w-full text-left"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-semibold text-foreground">#{draft.order_number}</span>
+                          <span className="font-mono text-xs font-semibold text-foreground">
+                            #{draft.order_number}
+                          </span>
                           <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[120px]">
-                            {draft.customer_name || tTerminal("savedTransactions.walkIn")}
+                            {draft.customer_name ||
+                              tTerminal("savedTransactions.walkIn")}
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-1">
@@ -1707,7 +1933,9 @@ export function LiveTablePageClient() {
                             Rp {draft.total_amount.toLocaleString("id-ID")}
                           </span>
                           <span className="text-[10px] text-muted-foreground font-medium">
-                            {tTerminal("savedTransactions.itemsCount", { count: draft.items.length })}
+                            {tTerminal("savedTransactions.itemsCount", {
+                              count: draft.items.length,
+                            })}
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-2.5 gap-2">
@@ -1726,9 +1954,13 @@ export function LiveTablePageClient() {
                             onClick={async () => {
                               try {
                                 await deleteOrder.mutateAsync(draft.id);
-                                toast.success(tTerminal("savedTransactions.deleteSuccess"));
+                                toast.success(
+                                  tTerminal("savedTransactions.deleteSuccess"),
+                                );
                               } catch {
-                                toast.error(tTerminal("savedTransactions.deleteFailed"));
+                                toast.error(
+                                  tTerminal("savedTransactions.deleteFailed"),
+                                );
                               }
                             }}
                             disabled={deleteOrder.isPending}
@@ -1748,7 +1980,11 @@ export function LiveTablePageClient() {
           <Button
             variant="ghost"
             size="icon"
-            title={viewMode === "grid" ? "Switch to floor layout" : "Switch to card grid"}
+            title={
+              viewMode === "grid"
+                ? "Switch to floor layout"
+                : "Switch to card grid"
+            }
             className="h-8 w-8 rounded-full cursor-pointer"
             onClick={toggleView}
           >
@@ -1775,7 +2011,9 @@ export function LiveTablePageClient() {
         ).map(([key, cfg]) => (
           <div key={key} className="flex items-center gap-1.5 shrink-0">
             <span className={cn("h-2 w-2 rounded-full", cfg.dot)} />
-             <span className="text-[11px] text-muted-foreground">{getStatusLabel(key as LiveTableStatus, t)}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {getStatusLabel(key as LiveTableStatus, t)}
+            </span>
           </div>
         ))}
       </div>
@@ -1789,7 +2027,11 @@ export function LiveTablePageClient() {
               <p className="text-sm">No tables in this floor plan.</p>
             </div>
           ) : viewMode === "grid" ? (
-            <TableGrid infos={liveTableInfos} onTableClick={handleTableClick} onDropDraft={handleDropDraftOnTable} />
+            <TableGrid
+              infos={liveTableInfos}
+              onTableClick={handleTableClick}
+              onDropDraft={handleDropDraftOnTable}
+            />
           ) : (
             <LiveFloorView
               planWidth={plan.width ?? 1200}
@@ -1823,9 +2065,16 @@ export function LiveTablePageClient() {
       <OrderDetailDialog
         info={selectedInfo}
         onClose={() => setSelectedInfo(null)}
-        onOpenReceipt={({ order, customerName, customerPhone, tenderAmount }) => {
+        onOpenReceipt={({
+          order,
+          customerName,
+          customerPhone,
+          tenderAmount,
+        }) => {
           setReceiptOrder(order);
-          setReceiptCustomerName(customerName ?? order.customer_name ?? undefined);
+          setReceiptCustomerName(
+            customerName ?? order.customer_name ?? undefined,
+          );
           setReceiptCustomerPhone(customerPhone);
           setReceiptTenderAmount(tenderAmount);
         }}
@@ -1842,10 +2091,14 @@ export function LiveTablePageClient() {
         onSuccess={({ order, customerName, customerPhone, tenderAmount }) => {
           setSelectedPaymentInfo(null);
           setReceiptOrder(order);
-          setReceiptCustomerName(customerName ?? order.customer_name ?? undefined);
+          setReceiptCustomerName(
+            customerName ?? order.customer_name ?? undefined,
+          );
           setReceiptCustomerPhone(customerPhone);
           setReceiptTenderAmount(tenderAmount);
-          toast.success(t("messages.paymentConfirmed"), { id: "live-table-payment-confirmed" });
+          toast.success(t("messages.paymentConfirmed"), {
+            id: "live-table-payment-confirmed",
+          });
         }}
       />
       <ActiveTableCancelDialog
@@ -1853,21 +2106,30 @@ export function LiveTablePageClient() {
         onClose={() => setSelectedCancelPaymentInfo(null)}
       />
 
-      <Dialog open={!!applyingDraft} onOpenChange={(open) => !open && setApplyingDraft(null)}>
+      <Dialog
+        open={!!applyingDraft}
+        onOpenChange={(open) => !open && setApplyingDraft(null)}
+      >
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle>{tTerminal("savedTransactions.applyTable")}</DialogTitle>
+            <DialogTitle>
+              {tTerminal("savedTransactions.applyTable")}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              {tTerminal("savedTransactions.applyTableSelect", { orderNumber: applyingDraft?.order_number ?? "" })}
+              {tTerminal("savedTransactions.applyTableSelect", {
+                orderNumber: applyingDraft?.order_number ?? "",
+              })}
             </p>
             <ScrollArea className="max-h-60 pr-2">
               <div className="space-y-1">
                 {liveTableInfos
                   .filter((info) => info.status === "AVAILABLE")
                   .map((info) => {
-                    const label = info.tableObj.label ?? `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
+                    const label =
+                      info.tableObj.label ??
+                      `T${info.tableObj.tableNumber ?? info.tableObj.id}`;
                     return (
                       <Button
                         key={info.tableObj.id}
@@ -1875,7 +2137,11 @@ export function LiveTablePageClient() {
                         className="w-full justify-start cursor-pointer h-9 text-xs"
                         onClick={() => {
                           if (applyingDraft) {
-                            handleDropDraftOnTable(applyingDraft.id, info.tableObj.id, label);
+                            handleDropDraftOnTable(
+                              applyingDraft.id,
+                              info.tableObj.id,
+                              label,
+                            );
                             setApplyingDraft(null);
                           }
                         }}
@@ -1884,8 +2150,11 @@ export function LiveTablePageClient() {
                       </Button>
                     );
                   })}
-                {liveTableInfos.filter((info) => info.status === "AVAILABLE").length === 0 && (
-                  <p className="text-center text-xs text-muted-foreground py-4">No empty tables available.</p>
+                {liveTableInfos.filter((info) => info.status === "AVAILABLE")
+                  .length === 0 && (
+                  <p className="text-center text-xs text-muted-foreground py-4">
+                    No empty tables available.
+                  </p>
                 )}
               </div>
             </ScrollArea>

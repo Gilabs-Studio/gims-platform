@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"log"
 	"strings"
 
 	"github.com/gilabs/gims/api/internal/core/errors"
@@ -206,7 +205,7 @@ func AuthMiddleware(jwtManager *jwt.JWTManager, permService interface {
 			reqCtx = context.WithValue(reqCtx, "is_system_admin", true)
 		}
 
-		log.Printf("[AuthMiddleware] method=%s path=%s user_id=%s role=%s tenant_id=%s", c.Request.Method, c.Request.URL.Path, claims.UserID, claims.Role, claims.TenantID)
+		debugLog("[AuthMiddleware] method=%s path=%s user_id=%s role=%s tenant_id=%s", c.Request.Method, c.Request.URL.Path, claims.UserID, claims.Role, claims.TenantID)
 
 		// Load permissions with strict tenant boundary when available.
 		var err error

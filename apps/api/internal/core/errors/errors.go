@@ -471,6 +471,22 @@ var ErrorCodeMap = map[string]ErrorInfo{
 		HTTPStatus: http.StatusBadRequest,
 		Message:    "Failed to create digital payment invoice",
 	},
+	"SETTLEMENT_NOT_CONFIGURED": {
+		HTTPStatus: http.StatusServiceUnavailable,
+		Message:    "Merchant settlement is not configured",
+	},
+	"SETTLEMENT_INSUFFICIENT_BALANCE": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Available settlement balance is insufficient",
+	},
+	"SETTLEMENT_PAYOUT_FAILED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Failed to create merchant payout",
+	},
+	"BANK_ACCOUNT_VALIDATION_FAILED": {
+		HTTPStatus: http.StatusBadRequest,
+		Message:    "Bank account validation failed. The account number may be invalid or not found.",
+	},
 	"BUDGET_CONTROL_FAILED": {
 		HTTPStatus: http.StatusUnprocessableEntity,
 		Message:    "Budget control validation failed",

@@ -127,7 +127,7 @@ export function ActiveTablePaymentDialog({ info, onClose, onSuccess }: ActiveTab
     return (lookupMemberQuery.data?.data?.available_rewards ?? []).filter((reward) => reward.is_active);
   }, [convertedMember, convertedMemberProgram?.data?.config.rewards, lookupMemberQuery.data?.data?.available_rewards]);
 
-  const amountBeforeDiscount = Math.max(order?.subtotal ?? 0, 0) + Math.max(order?.tax_amount ?? 0, 0) + Math.max(order?.service_charge ?? 0, 0);
+  const amountBeforeDiscount = Math.max(order?.subtotal ?? 0, 0) + Math.max(order?.service_charge ?? 0, 0);
   const rewardDiscount = calculateRewardDiscount(amountBeforeDiscount, selectedReward);
   const totalAfterReward = Math.max(amountBeforeDiscount - rewardDiscount, 0);
   const payments = (paymentsData?.data ?? []) as POSPayment[];
@@ -249,10 +249,6 @@ export function ActiveTablePaymentDialog({ info, onClose, onSuccess }: ActiveTab
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>{t("subtotal")}</span>
                 <span>{formatCurrency(order.subtotal)}</span>
-              </div>
-              <div className="flex items-center justify-between text-muted-foreground">
-                <span>{t("tax")}</span>
-                <span>{formatCurrency(order.tax_amount)}</span>
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
                 <span>{t("service")}</span>

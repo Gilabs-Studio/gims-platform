@@ -87,7 +87,8 @@ class ThermalPrinterService {
   /// Lists paired/bonded Bluetooth devices
   Future<List<BluetoothInfo>> getBluetoothDevices() async {
     try {
-      final List<BluetoothInfo> list = await PrintBluetoothThermal.pairedBluetooths;
+      final List<BluetoothInfo> list =
+          await PrintBluetoothThermal.pairedBluetooths;
       return list;
     } catch (e) {
       debugPrint('Failed to get bluetooth devices: $e');
@@ -129,7 +130,8 @@ class ThermalPrinterService {
   }) async {
     await init();
 
-    final bool isDesktop = !kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
+    final bool isDesktop =
+        !kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
 
     // Allow overriding `system` route when a deviceAddress is configured
     // and looks like a network host or bluetooth MAC. This helps when the
@@ -139,7 +141,11 @@ class ThermalPrinterService {
     if (type == 'system' && addrProbe.isNotEmpty) {
       // host:port or ip.address -> treat as network (helps users who set
       // a raw printer address but left the type as `system`)
-      final looksLikeIp = addrProbe.contains('.') || (addrProbe.contains(':') && addrProbe.split(':').length == 2 && int.tryParse(addrProbe.split(':').last) != null);
+      final looksLikeIp =
+          addrProbe.contains('.') ||
+          (addrProbe.contains(':') &&
+              addrProbe.split(':').length == 2 &&
+              int.tryParse(addrProbe.split(':').last) != null);
       if (looksLikeIp) {
         type = 'network';
       }
@@ -153,10 +159,12 @@ class ThermalPrinterService {
 
           if (!isLocalOrder) {
             try {
-              await ApiClient.instance.get<String>(
-                '/pos/orders/${order.id}/receipt',
-                options: Options(responseType: ResponseType.plain),
-              ).timeout(const Duration(seconds: 5));
+              await ApiClient.instance
+                  .get<String>(
+                    '/pos/orders/${order.id}/receipt',
+                    options: Options(responseType: ResponseType.plain),
+                  )
+                  .timeout(const Duration(seconds: 5));
               isTrulyOffline = false;
             } catch (htmlError) {
               if (htmlError is DioException) {
@@ -165,25 +173,34 @@ class ThermalPrinterService {
                     type == DioExceptionType.sendTimeout ||
                     type == DioExceptionType.receiveTimeout ||
                     type == DioExceptionType.connectionError ||
-                    (htmlError.error != null && htmlError.error.toString().contains('SocketException'))) {
+                    (htmlError.error != null &&
+                        htmlError.error.toString().contains(
+                          'SocketException',
+                        ))) {
                   isTrulyOffline = true;
                 }
               }
             }
           }
 
-          final renderer = EscPosReceiptRenderer(widthChars: paperSize == '80mm' ? 48 : 32);
+          final renderer = EscPosReceiptRenderer(
+            widthChars: paperSize == '80mm' ? 48 : 32,
+          );
           String? qrText;
           if (!isTrulyOffline && !isLocalOrder) {
             try {
-              final resp = await ApiClient.instance.get<String>(
-                '/pos/orders/${order.id}/receipt',
-                options: Options(responseType: ResponseType.plain),
-              ).timeout(const Duration(seconds: 3));
+              final resp = await ApiClient.instance
+                  .get<String>(
+                    '/pos/orders/${order.id}/receipt',
+                    options: Options(responseType: ResponseType.plain),
+                  )
+                  .timeout(const Duration(seconds: 3));
               final html = resp.data ?? '';
               qrText = _extractFeedbackUrlFromHtml(html);
               if (qrText != null) {
-                debugPrint('ThermalPrinterService: extracted feedback QR text: $qrText');
+                debugPrint(
+                  'ThermalPrinterService: extracted feedback QR text: $qrText',
+                );
               }
             } catch (_) {}
           }
@@ -204,8 +221,12 @@ class ThermalPrinterService {
             bytes,
             printerName: printerIdentifier,
           );
-          debugPrint('Thermal print (system->linux-raw) -> printer=$printerIdentifier bytes=${bytes.length} ok=$ok');
-          if (!ok && (printerIdentifier == null || printerIdentifier.isEmpty) && context.mounted) {
+          debugPrint(
+            'Thermal print (system->linux-raw) -> printer=$printerIdentifier bytes=${bytes.length} ok=$ok',
+          );
+          if (!ok &&
+              (printerIdentifier == null || printerIdentifier.isEmpty) &&
+              context.mounted) {
             ThermalPrinterSettingsDialog.show(context);
           }
           return ok;
@@ -216,17 +237,21 @@ class ThermalPrinterService {
 
         if (!isLocalOrder) {
           try {
-            final response = await ApiClient.instance.get<String>(
-              '/pos/orders/${order.id}/receipt',
-              options: Options(responseType: ResponseType.plain),
-            ).timeout(const Duration(seconds: 5));
+            final response = await ApiClient.instance
+                .get<String>(
+                  '/pos/orders/${order.id}/receipt',
+                  options: Options(responseType: ResponseType.plain),
+                )
+                .timeout(const Duration(seconds: 5));
 
             isTrulyOffline = false;
 
             final htmlContent = response.data;
             if (htmlContent != null && htmlContent.isNotEmpty) {
               try {
-                final format = paperSize == '80mm' ? PdfPageFormat.roll80 : PdfPageFormat.roll57;
+                final format = paperSize == '80mm'
+                    ? PdfPageFormat.roll80
+                    : PdfPageFormat.roll57;
                 final pdfBytes = await Printing.convertHtml(
                   html: htmlContent,
                   format: format,
@@ -242,14 +267,17 @@ class ThermalPrinterService {
               }
             }
           } catch (htmlError) {
-            debugPrint('Online HTML print failed, falling back to local PDF: $htmlError');
+            debugPrint(
+              'Online HTML print failed, falling back to local PDF: $htmlError',
+            );
             if (htmlError is DioException) {
               final type = htmlError.type;
               if (type == DioExceptionType.connectionTimeout ||
                   type == DioExceptionType.sendTimeout ||
                   type == DioExceptionType.receiveTimeout ||
                   type == DioExceptionType.connectionError ||
-                  (htmlError.error != null && htmlError.error.toString().contains('SocketException'))) {
+                  (htmlError.error != null &&
+                      htmlError.error.toString().contains('SocketException'))) {
                 isTrulyOffline = true;
               }
             }
@@ -264,7 +292,9 @@ class ThermalPrinterService {
           tenderAmount: tenderAmount,
           changeAmount: changeAmount,
         );
-        final format = paperSize == '80mm' ? PdfPageFormat.roll80 : PdfPageFormat.roll57;
+        final format = paperSize == '80mm'
+            ? PdfPageFormat.roll80
+            : PdfPageFormat.roll57;
         await _printOrSharePdf(doc, format, 'Receipt_${order.orderNumber}');
         return true;
       } catch (e) {
@@ -284,7 +314,9 @@ class ThermalPrinterService {
       try {
         final isConnected = await PrintBluetoothThermal.connectionStatus;
         if (!isConnected) {
-          final connectRes = await PrintBluetoothThermal.connect(macPrinterAddress: address);
+          final connectRes = await PrintBluetoothThermal.connect(
+            macPrinterAddress: address,
+          );
           if (!connectRes) {
             if (context.mounted) {
               ThermalPrinterSettingsDialog.show(context);
@@ -297,10 +329,12 @@ class ThermalPrinterService {
         bool isTrulyOffline = isOffline;
         if (!isLocalOrder) {
           try {
-            await ApiClient.instance.get<String>(
-              '/pos/orders/${order.id}/receipt',
-              options: Options(responseType: ResponseType.plain),
-            ).timeout(const Duration(seconds: 3));
+            await ApiClient.instance
+                .get<String>(
+                  '/pos/orders/${order.id}/receipt',
+                  options: Options(responseType: ResponseType.plain),
+                )
+                .timeout(const Duration(seconds: 3));
             isTrulyOffline = false;
           } catch (htmlError) {
             if (htmlError is DioException) {
@@ -309,7 +343,8 @@ class ThermalPrinterService {
                   type == DioExceptionType.sendTimeout ||
                   type == DioExceptionType.receiveTimeout ||
                   type == DioExceptionType.connectionError ||
-                  (htmlError.error != null && htmlError.error.toString().contains('SocketException'))) {
+                  (htmlError.error != null &&
+                      htmlError.error.toString().contains('SocketException'))) {
                 isTrulyOffline = true;
               }
             }
@@ -320,17 +355,21 @@ class ThermalPrinterService {
         String? qrText;
         if (!isTrulyOffline) {
           try {
-            final resp = await ApiClient.instance.get<String>(
-              '/pos/orders/${order.id}/receipt',
-              options: Options(responseType: ResponseType.plain),
-            ).timeout(const Duration(seconds: 3));
+            final resp = await ApiClient.instance
+                .get<String>(
+                  '/pos/orders/${order.id}/receipt',
+                  options: Options(responseType: ResponseType.plain),
+                )
+                .timeout(const Duration(seconds: 3));
             final html = resp.data ?? '';
             qrText = _extractFeedbackUrlFromHtml(html);
           } catch (_) {}
         }
 
         // Build ESC/POS bytes via renderer
-        final renderer = EscPosReceiptRenderer(widthChars: paperSize == '80mm' ? 48 : 32);
+        final renderer = EscPosReceiptRenderer(
+          widthChars: paperSize == '80mm' ? 48 : 32,
+        );
         final bytes = renderer.generate(
           order,
           outletName: outletName,
@@ -341,7 +380,9 @@ class ThermalPrinterService {
           feedbackQrText: qrText,
           currency: config?.currency ?? 'IDR',
         );
-        debugPrint('Thermal print (bluetooth) -> address=$address bytes=${bytes.length}');
+        debugPrint(
+          'Thermal print (bluetooth) -> address=$address bytes=${bytes.length}',
+        );
 
         // Desktop native bluetooth integration is not implemented here.
         // For mobile use the plugin; on desktop show settings to instruct
@@ -359,7 +400,11 @@ class ThermalPrinterService {
               if (context.mounted) ThermalPrinterSettingsDialog.show(context);
               return false;
             }
-            final ok = await LinuxBluetoothPrinter.printRaw(bytes, address: addr, channel: 1);
+            final ok = await LinuxBluetoothPrinter.printRaw(
+              bytes,
+              address: addr,
+              channel: 1,
+            );
             return ok;
           } catch (_) {
             return false;
@@ -397,17 +442,20 @@ class ThermalPrinterService {
         String? qrText;
         if (!order.id.startsWith('local-')) {
           try {
-            final resp = await ApiClient.instance.get<String>(
-              '/pos/orders/${order.id}/receipt',
-              options: Options(responseType: ResponseType.plain),
-            ).timeout(const Duration(seconds: 3));
+            final resp = await ApiClient.instance
+                .get<String>(
+                  '/pos/orders/${order.id}/receipt',
+                  options: Options(responseType: ResponseType.plain),
+                )
+                .timeout(const Duration(seconds: 3));
             final html = resp.data ?? '';
             qrText = _extractFeedbackUrlFromHtml(html);
-          } catch (_) {
-          }
+          } catch (_) {}
         }
 
-        final renderer = EscPosReceiptRenderer(widthChars: paperSize == '80mm' ? 48 : 32);
+        final renderer = EscPosReceiptRenderer(
+          widthChars: paperSize == '80mm' ? 48 : 32,
+        );
         final bytes = renderer.generate(
           order,
           outletName: outletName,
@@ -418,7 +466,9 @@ class ThermalPrinterService {
           feedbackQrText: qrText,
           currency: config?.currency ?? 'IDR',
         );
-        debugPrint('Thermal print (network) -> host=$host port=$port bytes=${bytes.length}');
+        debugPrint(
+          'Thermal print (network) -> host=$host port=$port bytes=${bytes.length}',
+        );
 
         final sendRes = await sendRawToNetworkPrinter(host, port, bytes);
         return sendRes;
@@ -435,16 +485,20 @@ class ThermalPrinterService {
         final isLocalOrder = order.id.startsWith('local-');
         if (!isLocalOrder) {
           try {
-            final resp = await ApiClient.instance.get<String>(
-              '/pos/orders/${order.id}/receipt',
-              options: Options(responseType: ResponseType.plain),
-            ).timeout(const Duration(seconds: 3));
+            final resp = await ApiClient.instance
+                .get<String>(
+                  '/pos/orders/${order.id}/receipt',
+                  options: Options(responseType: ResponseType.plain),
+                )
+                .timeout(const Duration(seconds: 3));
             final html = resp.data ?? '';
             qrText = _extractFeedbackUrlFromHtml(html);
           } catch (_) {}
         }
 
-        final renderer = EscPosReceiptRenderer(widthChars: paperSize == '80mm' ? 48 : 32);
+        final renderer = EscPosReceiptRenderer(
+          widthChars: paperSize == '80mm' ? 48 : 32,
+        );
         final bytes = renderer.generate(
           order,
           outletName: outletName,
@@ -456,15 +510,17 @@ class ThermalPrinterService {
           currency: config?.currency ?? 'IDR',
         );
         final printerIdentifier = (deviceAddress?.trim().isNotEmpty == true)
-          ? deviceAddress!.trim()
-          : deviceName?.trim();
+            ? deviceAddress!.trim()
+            : deviceName?.trim();
 
         if (Platform.isLinux) {
           final ok = await sendRawToLinuxUsbPrinter(
             bytes,
             printerName: printerIdentifier,
           );
-          debugPrint('Thermal print (usb-linux) -> printer=$printerIdentifier bytes=${bytes.length} ok=$ok');
+          debugPrint(
+            'Thermal print (usb-linux) -> printer=$printerIdentifier bytes=${bytes.length} ok=$ok',
+          );
           return ok;
         }
 
@@ -481,7 +537,12 @@ class ThermalPrinterService {
           } catch (_) {}
         }
 
-        final ok = await UsbPrinter.printRaw(bytes, vendorId: vendorId, productId: productId, deviceName: usbDeviceName);
+        final ok = await UsbPrinter.printRaw(
+          bytes,
+          vendorId: vendorId,
+          productId: productId,
+          deviceName: usbDeviceName,
+        );
         return ok;
       } catch (e) {
         debugPrint('USB print error: $e');
@@ -496,33 +557,45 @@ class ThermalPrinterService {
   Future<bool> printTestPage(BuildContext context) async {
     await init();
 
-
     if (connectionType == 'system') {
       try {
         final doc = pw.Document();
         doc.addPage(
           pw.Page(
-            pageFormat: paperSize == '80mm' ? PdfPageFormat.roll80 : PdfPageFormat.roll57,
+            pageFormat: paperSize == '80mm'
+                ? PdfPageFormat.roll80
+                : PdfPageFormat.roll57,
             build: (pw.Context context) {
               return pw.Container(
                 padding: const pw.EdgeInsets.all(5),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text('TEST PAGE', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                    pw.Text(
+                      'TEST PAGE',
+                      style: pw.TextStyle(
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     pw.SizedBox(height: 5),
                     pw.Text('Printer: System Print'),
                     pw.Text('Paper Size: $paperSize'),
                     pw.Text('Status: Working correctly!'),
                     pw.Divider(borderStyle: pw.BorderStyle.dashed),
-                    pw.Text('GIMS POS - Gilabs Studio', style: const pw.TextStyle(fontSize: 9)),
+                    pw.Text(
+                      'GIMS POS - Gilabs Studio',
+                      style: const pw.TextStyle(fontSize: 9),
+                    ),
                   ],
                 ),
               );
             },
           ),
         );
-        final format = paperSize == '80mm' ? PdfPageFormat.roll80 : PdfPageFormat.roll57;
+        final format = paperSize == '80mm'
+            ? PdfPageFormat.roll80
+            : PdfPageFormat.roll57;
         await _printOrSharePdf(doc, format, 'Test_Print');
         return true;
       } catch (e) {
@@ -539,21 +612,25 @@ class ThermalPrinterService {
       try {
         final isConnected = await PrintBluetoothThermal.connectionStatus;
         if (!isConnected) {
-          final connectRes = await PrintBluetoothThermal.connect(macPrinterAddress: address);
+          final connectRes = await PrintBluetoothThermal.connect(
+            macPrinterAddress: address,
+          );
           if (!connectRes) return false;
         }
 
         final List<int> bytes = [];
         bytes.addAll([0x1B, 0x40]); // Init
-        bytes.addAll(utf8.encode(
-          'TEST PAGE\n'
-          'Printer: $deviceName\n'
-          'Address: $deviceAddress\n'
-          'Paper Size: $paperSize\n'
-          'Status: OK\n'
-          '${'-' * (paperSize == '80mm' ? 48 : 32)}\n'
-          'GIMS POS by Gilabs Studio\n\n\n\n'
-        ));
+        bytes.addAll(
+          utf8.encode(
+            'TEST PAGE\n'
+            'Printer: $deviceName\n'
+            'Address: $deviceAddress\n'
+            'Paper Size: $paperSize\n'
+            'Status: OK\n'
+            '${'-' * (paperSize == '80mm' ? 48 : 32)}\n'
+            'GIMS POS by Gilabs Studio\n\n\n\n',
+          ),
+        );
         bytes.addAll([0x1D, 0x56, 0x42, 0x00]); // Cut
         return await PrintBluetoothThermal.writeBytes(bytes);
       } catch (e) {
@@ -574,9 +651,10 @@ class ThermalPrinterService {
     String name,
   ) async {
     final bytes = await doc.save();
-    
+
     // On desktop platforms, always use layoutPdf because sharePdf is not supported
-    final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+    final isDesktop =
+        !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
     if (isDesktop) {
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat _) async => bytes,
@@ -620,34 +698,73 @@ class ThermalPrinterService {
 
     doc.addPage(
       pw.Page(
-        pageFormat: paperSize == '80mm' ? PdfPageFormat.roll80 : PdfPageFormat.roll57,
+        pageFormat: paperSize == '80mm'
+            ? PdfPageFormat.roll80
+            : PdfPageFormat.roll57,
         build: (pw.Context context) {
           return pw.Container(
             padding: const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 4),
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.stretch,
               children: [
-                pw.Text(outletName, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13)),
-                pw.Text('=== RECEIPT ===', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                pw.Text(
+                  outletName,
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                pw.Text(
+                  '=== RECEIPT ===',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
                 pw.SizedBox(height: 4),
                 pw.Divider(borderStyle: pw.BorderStyle.dashed),
 
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('No. Order', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                    pw.Text('#${order.orderNumber}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                    pw.Text(
+                      'No. Order',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      '#${order.orderNumber}',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 if (isOffline) ...[
                   pw.SizedBox(height: 2),
-                  pw.Text('** MODE OFFLINE - ANTRIAN SYNC **', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 8, color: PdfColors.orange700, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(
+                    '** MODE OFFLINE - ANTRIAN SYNC **',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 8,
+                      color: PdfColors.orange700,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
                 ],
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Tanggal/Jam', style: const pw.TextStyle(fontSize: 8)),
-                    pw.Text('${_formatDate(order.createdAt)} ${_formatTime(order.createdAt)}', style: const pw.TextStyle(fontSize: 8)),
+                    pw.Text(
+                      'Tanggal/Jam',
+                      style: const pw.TextStyle(fontSize: 8),
+                    ),
+                    pw.Text(
+                      '${_formatDate(order.createdAt)} ${_formatTime(order.createdAt)}',
+                      style: const pw.TextStyle(fontSize: 8),
+                    ),
                   ],
                 ),
                 if (order.tableLabel != null && order.tableLabel!.isNotEmpty)
@@ -655,15 +772,25 @@ class ThermalPrinterService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text('Meja', style: const pw.TextStyle(fontSize: 8)),
-                      pw.Text(order.tableLabel!, style: const pw.TextStyle(fontSize: 8)),
+                      pw.Text(
+                        order.tableLabel!,
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
                     ],
                   ),
-                if (order.customerName != null && order.customerName!.isNotEmpty)
+                if (order.customerName != null &&
+                    order.customerName!.isNotEmpty)
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Pelanggan', style: const pw.TextStyle(fontSize: 8)),
-                      pw.Text(order.customerName!, style: const pw.TextStyle(fontSize: 8)),
+                      pw.Text(
+                        'Pelanggan',
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
+                      pw.Text(
+                        order.customerName!,
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
                     ],
                   ),
 
@@ -687,17 +814,33 @@ class ThermalPrinterService {
                               ),
                             ),
                             pw.SizedBox(width: 8),
-                            pw.Text(formatMoney(item.subtotal, currency), style: const pw.TextStyle(fontSize: 9)),
+                            pw.Text(
+                              formatMoney(item.subtotal, currency),
+                              style: const pw.TextStyle(fontSize: 9),
+                            ),
                           ],
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.only(left: 12),
-                          child: pw.Text('@ ${formatMoney(item.unitPrice, currency)}', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                          child: pw.Text(
+                            '@ ${formatMoney(item.unitPrice, currency)}',
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              color: PdfColors.grey700,
+                            ),
+                          ),
                         ),
                         if (item.notes != null && item.notes!.isNotEmpty)
                           pw.Padding(
                             padding: const pw.EdgeInsets.only(left: 12),
-                            child: pw.Text('* ${item.notes!}', style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700)),
+                            child: pw.Text(
+                              '* ${item.notes!}',
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                fontStyle: pw.FontStyle.italic,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -710,7 +853,10 @@ class ThermalPrinterService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text('Subtotal', style: const pw.TextStyle(fontSize: 8)),
-                    pw.Text(formatMoney(order.subtotal, currency), style: const pw.TextStyle(fontSize: 8)),
+                    pw.Text(
+                      formatMoney(order.subtotal, currency),
+                      style: const pw.TextStyle(fontSize: 8),
+                    ),
                   ],
                 ),
                 if (order.discountAmount > 0)
@@ -718,23 +864,24 @@ class ThermalPrinterService {
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       pw.Text('Diskon', style: const pw.TextStyle(fontSize: 8)),
-                      pw.Text('- ${formatMoney(order.discountAmount, currency)}', style: const pw.TextStyle(fontSize: 8)),
-                    ],
-                  ),
-                if (order.taxAmount > 0)
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text('Pajak', style: const pw.TextStyle(fontSize: 8)),
-                      pw.Text(formatMoney(order.taxAmount, currency), style: const pw.TextStyle(fontSize: 8)),
+                      pw.Text(
+                        '- ${formatMoney(order.discountAmount, currency)}',
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
                     ],
                   ),
                 if (order.serviceCharge > 0)
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Service', style: const pw.TextStyle(fontSize: 8)),
-                      pw.Text(formatMoney(order.serviceCharge, currency), style: const pw.TextStyle(fontSize: 8)),
+                      pw.Text(
+                        'Service',
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
+                      pw.Text(
+                        formatMoney(order.serviceCharge, currency),
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
                     ],
                   ),
 
@@ -743,8 +890,20 @@ class ThermalPrinterService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('TOTAL', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                    pw.Text(formatMoney(order.totalAmount, currency), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    pw.Text(
+                      'TOTAL',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      formatMoney(order.totalAmount, currency),
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
 
@@ -753,30 +912,60 @@ class ThermalPrinterService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Pembayaran', style: const pw.TextStyle(fontSize: 8)),
-                    pw.Text((order.status == PosOrderStatus.completed || order.status == PosOrderStatus.paid || order.status == PosOrderStatus.served) ? 'CASH' : 'CASH (OFFLINE)', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                    pw.Text(
+                      'Pembayaran',
+                      style: const pw.TextStyle(fontSize: 8),
+                    ),
+                    pw.Text(
+                      (order.status == PosOrderStatus.completed ||
+                              order.status == PosOrderStatus.paid ||
+                              order.status == PosOrderStatus.served)
+                          ? 'CASH'
+                          : 'CASH (OFFLINE)',
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 if (tenderAmount != null && tenderAmount > 0) ...[
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Diterima', style: const pw.TextStyle(fontSize: 8)),
-                      pw.Text(formatMoney(tenderAmount, currency), style: const pw.TextStyle(fontSize: 8)),
+                      pw.Text(
+                        'Diterima',
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
+                      pw.Text(
+                        formatMoney(tenderAmount, currency),
+                        style: const pw.TextStyle(fontSize: 8),
+                      ),
                     ],
                   ),
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text('Kembalian', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                        'Kembalian',
+                        style: pw.TextStyle(
+                          fontSize: 8,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
                       pw.Text(
                         formatMoney(
-                          (changeAmount ?? (tenderAmount - order.totalAmount)) < 0 
-                            ? 0 
-                            : (changeAmount ?? (tenderAmount - order.totalAmount)), 
-                          currency
+                          (changeAmount ?? (tenderAmount - order.totalAmount)) <
+                                  0
+                              ? 0
+                              : (changeAmount ??
+                                    (tenderAmount - order.totalAmount)),
+                          currency,
                         ),
-                        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)
+                        style: pw.TextStyle(
+                          fontSize: 8,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -793,8 +982,19 @@ class ThermalPrinterService {
 
                 if (isOffline) ...[
                   pw.SizedBox(height: 6),
-                  pw.Text('* KONEKSI INTERNET OFFLINE *', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Beberapa informasi loyalty/feedback dinonaktifkan.', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 7)),
+                  pw.Text(
+                    '* KONEKSI INTERNET OFFLINE *',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 7,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.Text(
+                    'Beberapa informasi loyalty/feedback dinonaktifkan.',
+                    textAlign: pw.TextAlign.center,
+                    style: const pw.TextStyle(fontSize: 7),
+                  ),
                 ],
               ],
             ),
@@ -805,8 +1005,6 @@ class ThermalPrinterService {
 
     return doc;
   }
-
-
 
   String _formatDate(DateTime dt) {
     final local = dt.toLocal();
@@ -820,14 +1018,20 @@ class ThermalPrinterService {
 
   String? _extractFeedbackUrlFromHtml(String html) {
     try {
-      final attrReg = RegExp("data-feedback-url=[\"']([^\"']+)[\"']", dotAll: true);
+      final attrReg = RegExp(
+        "data-feedback-url=[\"']([^\"']+)[\"']",
+        dotAll: true,
+      );
       final attrMatch = attrReg.firstMatch(html);
       final attrUrl = attrMatch?.group(1)?.trim();
       if (attrUrl != null && attrUrl.isNotEmpty) {
         return _unescapeHtmlEntities(attrUrl);
       }
 
-      final reg = RegExp(r'<!--\s*FEEDBACK_URL:\s*([^<\s]+)\s*-->', dotAll: true);
+      final reg = RegExp(
+        r'<!--\s*FEEDBACK_URL:\s*([^<\s]+)\s*-->',
+        dotAll: true,
+      );
       final m = reg.firstMatch(html);
       final commentUrl = m?.group(1)?.trim();
       if (commentUrl != null && commentUrl.isNotEmpty) {

@@ -81,9 +81,10 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
   Future<void> _handlePrint() async {
     final printerService = ServiceLocator.instance.thermalPrinterService;
     final isOffline = widget.order.id.startsWith('local-');
-    
+
     // Calculate tender and change
-    final tender = widget.finalPayment?.tenderAmount ?? widget.order.totalAmount;
+    final tender =
+        widget.finalPayment?.tenderAmount ?? widget.order.totalAmount;
     final change = widget.finalPayment?.changeAmount ?? 0.0;
 
     setState(() => _loading = true);
@@ -100,7 +101,9 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
       if (!success && mounted) {
         showError(
           context,
-          ApiException('Gagal mencetak nota. Periksa koneksi printer atau buka pengaturan printer dari ikon atas.'),
+          ApiException(
+            'Gagal mencetak nota. Periksa koneksi printer atau buka pengaturan printer dari ikon atas.',
+          ),
         );
       }
     } catch (e) {
@@ -131,7 +134,8 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
   }
 
   Map<String, String> _buildTemplateValues() {
-    final tender = widget.finalPayment?.tenderAmount ?? widget.order.totalAmount;
+    final tender =
+        widget.finalPayment?.tenderAmount ?? widget.order.totalAmount;
     final change = widget.finalPayment?.changeAmount ?? 0.0;
 
     return {
@@ -141,10 +145,6 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
       'order_date': _formatDateTime(widget.order.createdAt),
       'subtotal': formatMoney(
         widget.order.subtotal,
-        widget.config?.currency ?? 'IDR',
-      ),
-      'tax_amount': formatMoney(
-        widget.order.taxAmount,
         widget.config?.currency ?? 'IDR',
       ),
       'service_amount': formatMoney(
@@ -161,22 +161,30 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
       ),
       'tender_amount': formatMoney(tender, widget.config?.currency ?? 'IDR'),
       'change_amount': formatMoney(change, widget.config?.currency ?? 'IDR'),
-      'items_summary': widget.order.items
-          .map((item) => '${item.productName} x${item.quantity.toStringAsFixed(0)}')
-          .join(', ')
-          .trim()
-          .isEmpty
+      'items_summary':
+          widget.order.items
+              .map(
+                (item) =>
+                    '${item.productName} x${item.quantity.toStringAsFixed(0)}',
+              )
+              .join(', ')
+              .trim()
+              .isEmpty
           ? '-'
           : widget.order.items
-              .map((item) => '${item.productName} x${item.quantity.toStringAsFixed(0)}')
-              .join(', '),
+                .map(
+                  (item) =>
+                      '${item.productName} x${item.quantity.toStringAsFixed(0)}',
+                )
+                .join(', '),
     };
   }
 
   Widget _buildOfflineReceiptPreview() {
     final printerService = ServiceLocator.instance.thermalPrinterService;
     final isLocal = widget.order.id.startsWith('local-');
-    final tender = widget.finalPayment?.tenderAmount ?? widget.order.totalAmount;
+    final tender =
+        widget.finalPayment?.tenderAmount ?? widget.order.totalAmount;
     final change = widget.finalPayment?.changeAmount ?? 0.0;
 
     final receiptText = printerService.generateReceiptText(
@@ -201,7 +209,9 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
           Row(
             children: [
               Icon(
-                isLocal ? Icons.cloud_upload_outlined : Icons.receipt_long_outlined,
+                isLocal
+                    ? Icons.cloud_upload_outlined
+                    : Icons.receipt_long_outlined,
                 color: isLocal ? const Color(0xFFF59E0B) : GimsColors.primary,
                 size: 18,
               ),
@@ -211,7 +221,9 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                   isLocal ? 'Mode Offline - Preview Nota' : 'Preview Nota',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: isLocal ? const Color(0xFF92400E) : GimsColors.foreground,
+                    color: isLocal
+                        ? const Color(0xFF92400E)
+                        : GimsColors.foreground,
                     fontSize: 14,
                   ),
                 ),
@@ -223,7 +235,10 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
             isLocal
                 ? 'Order disimpan secara lokal dan akan disinkronkan saat online.'
                 : 'Menampilkan format printer thermal untuk order ini.',
-            style: const TextStyle(color: GimsColors.mutedForeground, fontSize: 12),
+            style: const TextStyle(
+              color: GimsColors.mutedForeground,
+              fontSize: 12,
+            ),
           ),
           const Divider(height: 24),
           Expanded(
@@ -234,7 +249,10 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                   scrollDirection: Axis.horizontal,
                   child: Container(
                     width: printerService.paperSize == '80mm' ? 380 : 280,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(4),
@@ -271,9 +289,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
     final hasPhone = (widget.customerPhone ?? '').isNotEmpty;
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: Colors.white,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Container(
@@ -322,24 +338,30 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
               ],
             ),
             const Divider(height: 24),
-            LayoutBuilder(builder: (context, constraints) {
-              final maxHeight = constraints.maxHeight;
-                final previewHeight = (maxHeight.isFinite ? (maxHeight * 0.75) : 460.0).clamp(220.0, 720.0);
-              return Container(
-              height: previewHeight,
-              decoration: BoxDecoration(
-                border: Border.all(color: GimsColors.border),
-                borderRadius: BorderRadius.circular(GimsRadius.medium),
-                color: Colors.white,
-              ),
-                child: ClipRRect(
-                borderRadius: BorderRadius.circular(GimsRadius.medium),
-                child: _receiptPreviewError
-                    ? _buildOfflineReceiptPreview()
-                    : WebViewWidget(controller: _receiptPreviewController!),
-              ),
-              );
-            }),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final maxHeight = constraints.maxHeight;
+                final previewHeight =
+                    (maxHeight.isFinite ? (maxHeight * 0.75) : 460.0).clamp(
+                      220.0,
+                      720.0,
+                    );
+                return Container(
+                  height: previewHeight,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: GimsColors.border),
+                    borderRadius: BorderRadius.circular(GimsRadius.medium),
+                    color: Colors.white,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(GimsRadius.medium),
+                    child: _receiptPreviewError
+                        ? _buildOfflineReceiptPreview()
+                        : WebViewWidget(controller: _receiptPreviewController!),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -356,9 +378,7 @@ class _ReceiptDialogState extends State<ReceiptDialog> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.print_outlined),
                     label: const Text(
@@ -445,6 +465,7 @@ String _renderWhatsAppTemplate({
   return base
       .replaceAllMapped(RegExp(r'#([A-Za-z0-9_]+)'), (match) {
         final tag = match.group(1) ?? '';
+        if (tag == 'tax_amount') return '';
         return values[tag] ?? match.group(0) ?? '';
       })
       .replaceAll('\u202f', ' ');

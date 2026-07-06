@@ -200,9 +200,9 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
           }
           NotificationSoundService.instance.play();
           // Use applyServerOrder to evict any ghost local-xxx entry first.
-          ServiceLocator.instance.terminalService
-              .applyServerOrder(order)
-              .then((canonical) {
+          ServiceLocator.instance.terminalService.applyServerOrder(order).then((
+            canonical,
+          ) {
             if (!mounted) return;
             setState(() => _upsertOrder(canonical));
           });
@@ -216,9 +216,9 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
             return;
           }
           // Use applyServerOrder to evict ghost local-xxx entries.
-          ServiceLocator.instance.terminalService
-              .applyServerOrder(order)
-              .then((canonical) {
+          ServiceLocator.instance.terminalService.applyServerOrder(order).then((
+            canonical,
+          ) {
             if (!mounted) return;
             setState(() {
               final localId = ServiceLocator.instance.terminalService
@@ -229,13 +229,15 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                   if (item.id == canonical.id) return false;
                   if (localId != null && item.id == localId) return false;
                   if (item.id.startsWith('local-')) {
-                    if (canonical.tableId != null && item.tableId == canonical.tableId) {
+                    if (canonical.tableId != null &&
+                        item.tableId == canonical.tableId) {
                       return false;
                     }
                     if (canonical.tableId == null &&
                         canonical.tableLabel != null &&
                         item.tableLabel != null &&
-                        _normalizeLabel(item.tableLabel) == _normalizeLabel(canonical.tableLabel)) {
+                        _normalizeLabel(item.tableLabel) ==
+                            _normalizeLabel(canonical.tableLabel)) {
                       return false;
                     }
                   }
@@ -245,13 +247,15 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                 _orders = _orders.where((item) {
                   if (localId != null && item.id == localId) return false;
                   if (item.id.startsWith('local-')) {
-                    if (canonical.tableId != null && item.tableId == canonical.tableId) {
+                    if (canonical.tableId != null &&
+                        item.tableId == canonical.tableId) {
                       return false;
                     }
                     if (canonical.tableId == null &&
                         canonical.tableLabel != null &&
                         item.tableLabel != null &&
-                        _normalizeLabel(item.tableLabel) == _normalizeLabel(canonical.tableLabel)) {
+                        _normalizeLabel(item.tableLabel) ==
+                            _normalizeLabel(canonical.tableLabel)) {
                       return false;
                     }
                   }
@@ -379,9 +383,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
           content: drafts.isEmpty
               ? const SizedBox(
                   height: 100,
-                  child: Center(
-                    child: Text('Tidak ada transaksi tersimpan'),
-                  ),
+                  child: Center(child: Text('Tidak ada transaksi tersimpan')),
                 )
               : SizedBox(
                   width: 400,
@@ -419,17 +421,24 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                               ),
                               const SizedBox(width: 8),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    color: Colors.red),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                ),
                                 onPressed: () async {
                                   final navigator = Navigator.of(ctx);
                                   try {
-                                    await ServiceLocator.instance.terminalService
+                                    await ServiceLocator
+                                        .instance
+                                        .terminalService
                                         .deleteOrder(draft.id);
                                     navigator.pop();
                                     _load();
                                     if (context.mounted) {
-                                      showNotification(context, 'Draft #${draft.orderNumber} berhasil dihapus');
+                                      showNotification(
+                                        context,
+                                        'Draft #${draft.orderNumber} berhasil dihapus',
+                                      );
                                     }
                                   } catch (error) {
                                     if (ctx.mounted) {
@@ -452,7 +461,9 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
 
   void _selectTableForDraft(PosOrder draft) {
     final liveTables = _liveTables();
-    final availableTables = liveTables.where((t) => t.status == 'AVAILABLE').toList();
+    final availableTables = liveTables
+        .where((t) => t.status == 'AVAILABLE')
+        .toList();
 
     showDialog(
       context: context,
@@ -462,9 +473,7 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
           content: availableTables.isEmpty
               ? const SizedBox(
                   height: 100,
-                  child: Center(
-                    child: Text('Tidak ada meja yang tersedia'),
-                  ),
+                  child: Center(child: Text('Tidak ada meja yang tersedia')),
                 )
               : SizedBox(
                   width: 400,
@@ -473,24 +482,31 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
                     itemCount: availableTables.length,
                     itemBuilder: (context, index) {
                       final info = availableTables[index];
-                      final tableName = info.table.label ?? info.table.tableNumber?.toString() ?? info.table.id;
+                      final tableName =
+                          info.table.label ??
+                          info.table.tableNumber?.toString() ??
+                          info.table.id;
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         child: ListTile(
                           onTap: () async {
                             final navigator = Navigator.of(ctx);
                             navigator.pop();
-                            
+
                             setState(() => _loading = true);
                             try {
-                              await ServiceLocator.instance.terminalService.updateOrderTable(
-                                orderId: draft.id,
-                                tableId: info.table.id,
-                                tableLabel: tableName,
-                              );
+                              await ServiceLocator.instance.terminalService
+                                  .updateOrderTable(
+                                    orderId: draft.id,
+                                    tableId: info.table.id,
+                                    tableLabel: tableName,
+                                  );
                               _load();
                               if (context.mounted) {
-                                showNotification(context, 'Draft #${draft.orderNumber} berhasil dipindahkan ke Meja $tableName');
+                                showNotification(
+                                  context,
+                                  'Draft #${draft.orderNumber} berhasil dipindahkan ke Meja $tableName',
+                                );
                               }
                             } catch (error) {
                               if (context.mounted) {
@@ -536,19 +552,20 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
       final normalizedLabel = _normalizeLabel(label);
       final matchedOrders = activeOrders.where((order) {
         final sameTableId = order.tableId != null && order.tableId == table.id;
-        final sameTableLabel = _normalizeLabel(order.tableLabel) == normalizedLabel;
+        final sameTableLabel =
+            _normalizeLabel(order.tableLabel) == normalizedLabel;
         return sameTableId || sameTableLabel;
-      }).toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       final unpaidOrders = matchedOrders
           .where((order) => _isWaitingPaymentStatus(order.status))
           .toList(growable: false);
 
-      final serviceFlowOrders = matchedOrders
-          .where((order) => _isServiceFlowStatus(order.status))
-          .toList()
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final serviceFlowOrders =
+          matchedOrders
+              .where((order) => _isServiceFlowStatus(order.status))
+              .toList()
+            ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
       final serviceOrders = serviceFlowOrders
           .where(
@@ -563,24 +580,23 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
 
       final unpaidOrder = unpaidOrders.isEmpty ? null : unpaidOrders.first;
       final serviceOrder = serviceOrders.isEmpty ? null : serviceOrders.first;
-      final order = unpaidOrder ??
+      final order =
+          unpaidOrder ??
           serviceOrder ??
           (servedOrders.isEmpty ? null : servedOrders.first) ??
           (matchedOrders.isEmpty ? null : matchedOrders.first);
-      final duration =
-          order == null ? Duration.zero : _now.difference(order.createdAt);
+      final duration = order == null
+          ? Duration.zero
+          : _now.difference(order.createdAt);
 
       final needsPaymentCount = unpaidOrders.fold<int>(
         0,
         (total, queuedOrder) => total + _paymentItemCount(queuedOrder),
       );
-      final needsServeCount = serviceOrders.fold<int>(
-        0,
-        (total, queuedOrder) {
-          final pending = _pendingServeItemCount(queuedOrder);
-          return total + (pending > 0 ? pending : 1);
-        },
-      );
+      final needsServeCount = serviceOrders.fold<int>(0, (total, queuedOrder) {
+        final pending = _pendingServeItemCount(queuedOrder);
+        return total + (pending > 0 ? pending : 1);
+      });
       final doneCount = servedOrders.length;
 
       final status = _deriveTableStatus(
@@ -693,9 +709,8 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     setState(() => _servingOrderId = info.table.id);
     try {
       for (final order in info.serviceOrders) {
-        final updated = await ServiceLocator.instance.terminalService.serveOrder(
-          order.id,
-        );
+        final updated = await ServiceLocator.instance.terminalService
+            .serveOrder(order.id);
         if (!mounted) return;
         setState(() => _upsertOrder(updated));
       }
@@ -781,9 +796,8 @@ class _LiveTableScreenState extends State<LiveTableScreen> {
     if (!mounted || checkout == null) return;
 
     try {
-      final refreshed = await ServiceLocator.instance.terminalService.getOrderById(
-        order.id,
-      );
+      final refreshed = await ServiceLocator.instance.terminalService
+          .getOrderById(order.id);
       if (!mounted) return;
       setState(() => _upsertOrder(refreshed));
     } catch (_) {
@@ -1164,7 +1178,8 @@ class _ActiveTableSidebar extends StatelessWidget {
                       final pendingPaymentOrders = info.unpaidOrders;
                       final pendingServeOrders = info.serviceOrders;
                       final doneOrders = info.servedOrders;
-                      final paymentConfirmed = paymentOrder == null && serviceOrder != null;
+                      final paymentConfirmed =
+                          paymentOrder == null && serviceOrder != null;
 
                       final tableLabel =
                           info.table.label ??
@@ -1295,7 +1310,8 @@ class _ActiveTableSidebar extends StatelessWidget {
                                   border: Border.all(color: GimsColors.border),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     const Text(
                                       'PAYMENT QUEUE',
@@ -1436,7 +1452,9 @@ class _ActiveTableSidebar extends StatelessWidget {
                                             '${item.quantity.toInt()}x ${item.productName}',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontSize: 12),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                            ),
                                           ),
                                         ),
                                         const SizedBox(width: 4),
@@ -1455,14 +1473,15 @@ class _ActiveTableSidebar extends StatelessWidget {
                                                     '${queueOrder.id}-${item.id}'
                                                 ? null
                                                 : () => onServeItem(
-                                                      queueOrder.id,
-                                                      item,
-                                                    ),
+                                                    queueOrder.id,
+                                                    item,
+                                                  ),
                                             style: OutlinedButton.styleFrom(
                                               minimumSize: const Size(0, 26),
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                  ),
                                             ),
                                             child: Text(
                                               servingItemKey ==
@@ -1634,8 +1653,7 @@ class _SelfOrderPayPreviewDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final amountDue =
-        order.subtotal + order.taxAmount + order.serviceCharge - order.discountAmount;
+    final amountDue = order.totalAmount;
 
     return Dialog(
       child: ConstrainedBox(
@@ -1774,14 +1792,11 @@ class _SelfOrderPayPreviewDialog extends StatelessWidget {
                 label: 'Subtotal',
                 value: formatMoney(order.subtotal, 'IDR'),
               ),
-              _AmountRow(
-                label: 'Tax',
-                value: formatMoney(order.taxAmount, 'IDR'),
-              ),
-              _AmountRow(
-                label: 'Service',
-                value: formatMoney(order.serviceCharge, 'IDR'),
-              ),
+              if (order.serviceCharge > 0)
+                _AmountRow(
+                  label: 'Service',
+                  value: formatMoney(order.serviceCharge, 'IDR'),
+                ),
               const SizedBox(height: 4),
               _AmountRow(
                 label: 'Total',

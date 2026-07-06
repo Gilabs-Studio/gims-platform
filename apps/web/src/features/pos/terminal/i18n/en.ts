@@ -21,8 +21,10 @@ export const posTerminalEn = {
         "This outlet has no linked warehouse. Open Session is unavailable until warehouse mapping is configured.",
       errors: {
         invalidOutlet: "Selected outlet is invalid. Please reselect outlet.",
-        missingWarehouse: "Warehouse is not configured for this outlet. Please contact admin.",
-        invalidSessionData: "Session data is invalid. Please review your input.",
+        missingWarehouse:
+          "Warehouse is not configured for this outlet. Please contact admin.",
+        invalidSessionData:
+          "Session data is invalid. Please review your input.",
         apiFailed: "Failed to open POS session. Please try again.",
       },
     },
@@ -88,13 +90,15 @@ export const posTerminalEn = {
       scanQr: "Scan QR Code",
       scanQrHint: "Scan with any QRIS-supported e-wallet or banking app",
       openPage: "Open Payment Page",
+      checkStatus: "Check Payment Status",
       expires: "Expires at",
       selectChannel: "Select a payment method to proceed",
       searchChannelPlaceholder: "Search channel (DANA, GOPAY, BRI...)",
       backToChannels: "Back to payment methods",
       digitalError: "Failed to initiate digital payment. Please try again.",
       digitalNotAvailable: "Digital Payment Not Available",
-      digitalNotAvailableDesc: "Payment gateway is not connected. Please contact your administrator to set up digital payments.",
+      digitalNotAvailableDesc:
+        "Payment gateway is not connected. Please contact your administrator to set up digital payments.",
       paymentStatus: "Payment Status",
       channel: "Channel",
       amountToPay: "Amount to Pay",
@@ -114,7 +118,8 @@ export const posTerminalEn = {
     liveTable: {
       title: "Live Table Management",
       activeTablesTitle: "Active Tables",
-      activeTablesDesc: "{count} table{count, plural, =1 { is} other {s}} occupied",
+      activeTablesDesc:
+        "{count} table{count, plural, =1 { is} other {s}} occupied",
       allTablesAvailable: "All tables available",
       noTablesInFloorPlan: "No tables in this floor plan",
       tableOpen: "Open",
@@ -153,7 +158,8 @@ export const posTerminalEn = {
         updateStatusFailed: "Failed to update status",
         serveItemFailed: "Failed to serve item",
         noFloorPlanTitle: "No floor plan found",
-        noFloorPlanDescription: "No published floor plan is associated with this outlet.",
+        noFloorPlanDescription:
+          "No published floor plan is associated with this outlet.",
         goBack: "Go Back",
         loading: "Loading…",
       },
@@ -184,7 +190,8 @@ export const posTerminalEn = {
         continueToPayment: "Continue to Payment",
         paymentFailed: "Payment failed. Please retry.",
         cancelPaymentTitle: "Cancel Payment",
-        cancelPaymentDescription: "Cashier can cancel a pending digital payment and add a reason.",
+        cancelPaymentDescription:
+          "Cashier can cancel a pending digital payment and add a reason.",
         cancelPaymentPlaceholder: "Example: customer cancelled the order.",
         cancelPaymentAction: "Cancel Payment",
         cancelPaymentLoading: "Cancelling...",
@@ -205,10 +212,13 @@ export const posTerminalEn = {
     },
     whatsappTemplate: {
       title: "WhatsApp template settings",
-      description: "Use #tags to inject receipt values into the WhatsApp message before sending it.",
+      description:
+        "Use #tags to inject receipt values into the WhatsApp message before sending it.",
       templateLabel: "Message template",
-      templatePlaceholder: "Type your WhatsApp message here and insert tags such as #customer_name or #total_amount.",
-      templateHelp: "The template is saved per outlet and can be reused on the next receipt.",
+      templatePlaceholder:
+        "Type your WhatsApp message here and insert tags such as #customer_name or #total_amount.",
+      templateHelp:
+        "The template is saved per outlet and can be reused on the next receipt.",
       availableTags: "Available tags",
       previewLabel: "Preview",
       restoreDefault: "Restore default",
@@ -251,7 +261,8 @@ export const posTerminalEn = {
       applySuccess: "Draft applied successfully.",
       applyFailed: "Failed to apply draft.",
       directDraftsLabel: "Saved Drafts",
-      applyTableSelect: "Select an empty table to apply transaction #{orderNumber}:",
+      applyTableSelect:
+        "Select an empty table to apply transaction #{orderNumber}:",
     },
   },
 } as const;

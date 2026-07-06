@@ -32,6 +32,7 @@ import { POSPaymentModal } from "./pos-payment-modal";
 import { POSReceiptDialog } from "./pos-receipt-dialog";
 import { VoidOrderDialog } from "./void-order-dialog";
 import { PosLoyaltyEnrollModal } from "@/features/loyalty/components/pos-loyalty-enroll-modal";
+import { usePosWs } from "../../fb/live-table/hooks/use-pos-ws";
 import type { CartItem, POSCatalogItem, PosOrderStatus, POSOrder } from "../types";
 import type { LoyaltyMember, LoyaltyMemberLookup, RewardConfig } from "@/features/loyalty/types";
 import type { AxiosError } from "axios";
@@ -129,6 +130,11 @@ export function POSTerminalContainer({
   const { data: orderData } = usePOSOrder(activeOrderId ?? "", {
     enabled: !!activeOrderId,
   });
+  const realtimeSuppressToastEvents = useMemo(
+    () => ["pos.new_customer_order", "pos.payment_confirmed", "pos.order_status_changed", "pos.order_deleted"],
+    []
+  );
+  usePosWs(outletId, { suppressToastEvents: realtimeSuppressToastEvents });
 
   const { data: catalogData } = usePOSCatalog(outletId, { enabled: !!outletId });
   const catalogItems = useMemo(() => catalogData?.data ?? [], [catalogData]);

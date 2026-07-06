@@ -10,7 +10,6 @@ export const POS_RECEIPT_WHATSAPP_TEMPLATE_TAGS = [
   "outlet_name",
   "order_date",
   "subtotal",
-  "tax_amount",
   "service_amount",
   "discount_amount",
   "total_amount",
@@ -27,7 +26,6 @@ export interface ReceiptWhatsAppTemplateValues {
   outlet_name: string;
   order_date: string;
   subtotal: string;
-  tax_amount: string;
   service_amount: string;
   discount_amount: string;
   total_amount: string;
@@ -62,6 +60,7 @@ export function renderReceiptWhatsAppTemplate(
   values: ReceiptWhatsAppTemplateValues,
 ): string {
   const rendered = template.replace(/#([A-Za-z0-9_]+)/g, (match, rawTag: string) => {
+    if (rawTag === "tax_amount") return "";
     const tag = rawTag as ReceiptWhatsAppTemplateTag;
     const replacement = values[tag as keyof ReceiptWhatsAppTemplateValues];
     return replacement ?? match;
@@ -91,7 +90,6 @@ export function usePOSReceiptWhatsAppTemplate({
       outlet_name: outletName?.trim() || "-",
       order_date: formatDateTime(order.created_at),
       subtotal: formatCurrency(order.subtotal),
-      tax_amount: formatCurrency(order.tax_amount),
       service_amount: formatCurrency(order.service_charge),
       discount_amount: formatCurrency(order.discount_amount),
       total_amount: formatCurrency(order.total_amount),
