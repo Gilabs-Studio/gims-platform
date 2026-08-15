@@ -8,17 +8,17 @@
  * These correspond to the --color-* definitions in globals.css
  */
 const COLOR_TEMPLATE_MAP: Record<string, string> = {
-  "var(--color-primary)": "#3B82F6",           // 221 83% 53% - Electric Blue
-  "var(--color-secondary)": "#E5E7EB",         // 220 14% 92%
-  "var(--color-destructive)": "#EF4444",       // 0 84.2% 60.2% - Red
-  "var(--color-accent)": "#E5E7EB",            // 220 14% 92%
-  "var(--color-success)": "#22C55E",           // 142 76% 36% - Green
-  "var(--color-warning)": "#F59E0B",           // 38 92% 50% - Amber
-  "var(--color-muted)": "#D1D5DB",             // 220 14% 92%
-  "var(--color-info)": "#0EA5E9",              // 187 100% 44% - Cyan (approximation)
-  "var(--color-purple)": "#A855F7",            // 262 83% 58% - Purple (light theme)
-  "var(--color-cyan)": "#06B6D4",              // 187 100% 44% - Cyan
-  "var(--color-rose)": "#F43F5E",              // 340 82% 57% - Rose
+  "var(--color-primary)": "#C32033",           // 353 72% 44% - MECCAYA Red
+  "var(--color-secondary)": "#EEEBEA",         // Warm Light Gray
+  "var(--color-destructive)": "#DC2626",       // Destructive Red
+  "var(--color-accent)": "#FDF7ED",            // Warm Gold Tinted Neutral
+  "var(--color-success)": "#16A34A",           // Green
+  "var(--color-warning)": "#EAA438",           // 36 80% 55% - MECCAYA Amber/Gold Accent
+  "var(--color-muted)": "#E4E0DE",             // Muted Warm Gray
+  "var(--color-info)": "#0EA5E9",              // Cyan
+  "var(--color-purple)": "#A855F7",            // Purple
+  "var(--color-cyan)": "#06B6D4",              // Cyan
+  "var(--color-rose)": "#C32033",              // Rose / Crimson Red
 };
 
 /**
@@ -30,7 +30,7 @@ const COLOR_TEMPLATE_MAP: Record<string, string> = {
  * @returns Normalized color value (hex string)
  */
 export function normalizeColorForAPI(color: string | null | undefined): string {
-  if (!color) return "#3B82F6"; // Default to primary blue
+  if (!color) return "#C32033"; // Default to MECCAYA primary red
 
   const trimmed = color.trim();
 
