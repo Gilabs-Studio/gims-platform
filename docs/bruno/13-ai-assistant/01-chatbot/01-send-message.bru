@@ -1,0 +1,42 @@
+meta {
+  name: Send Chatbot Message
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/v1/ai/chat
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "session_id": "session-uuid-here",
+    "message": "Summarize top selling products for this month"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Send query message to AI Assistant copilot.
+  Permission required: `ai_chatbot.view`
+}

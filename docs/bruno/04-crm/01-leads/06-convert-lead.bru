@@ -1,0 +1,42 @@
+meta {
+  name: Convert Lead to Deal
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/crm/leads/:id/convert
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "deal_name": "Deal - PT Jaya Abadi Enterprise",
+    "pipeline_stage_id": "stage-uuid-here"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Convert a qualified lead into an active pipeline deal.
+  Permission required: `crm_lead.convert`
+}

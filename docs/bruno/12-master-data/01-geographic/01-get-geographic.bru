@@ -1,0 +1,23 @@
+meta {
+  name: View Geographic Map
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/master-data/geographic
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  View geographic map data and region boundaries.
+  Permission required: `geographic.read`
+}

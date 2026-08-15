@@ -1,0 +1,46 @@
+meta {
+  name: Create Customer
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/master-data/customers
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "name": "PT Customer Sejahtera",
+    "code": "CUST-001",
+    "email": "purchasing@customersejahtera.com",
+    "phone": "+628123456780",
+    "customer_type_id": "customer-type-uuid-here",
+    "credit_limit": 100000000
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new customer master data record.
+  Permission required: `customer.create`
+}

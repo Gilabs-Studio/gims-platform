@@ -1,0 +1,43 @@
+meta {
+  name: Update Billing Details
+  type: http
+  seq: 13
+}
+
+put {
+  url: {{base_url}}/api/v1/settings/billing
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "billing_name": "PT Example Tech",
+    "tax_id": "01.234.567.8-901.000",
+    "billing_email": "billing@example.com"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update tenant billing and tax details.
+  Permission required: `billing.update`
+}

@@ -1,0 +1,36 @@
+meta {
+  name: Register Tenant
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "company_name": "PT Example SuperApp",
+    "admin_name": "Admin Test",
+    "admin_email": "admin@example.com",
+    "admin_password": "password123",
+    "plan_id": "plan-uuid-here"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Self-service tenant onboarding registration.
+}

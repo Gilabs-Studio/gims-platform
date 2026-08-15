@@ -1,0 +1,23 @@
+meta {
+  name: Export Product Analysis Report
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/api/v1/reports/product-analysis/export
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Export product performance analysis report to Excel/CSV.
+  Permission required: `report_product_analysis.export`
+}

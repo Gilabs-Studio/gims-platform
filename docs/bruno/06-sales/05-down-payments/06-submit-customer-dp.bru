@@ -1,0 +1,41 @@
+meta {
+  name: Submit Customer Down Payment
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/sales/customer-invoice-down-payments/:id/submit
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "notes": "Submitting down payment for approval"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Submit customer down payment for manager approval.
+  Permission required: `customer_invoice_dp.submit`
+}

@@ -1,0 +1,42 @@
+meta {
+  name: Approve Customer
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/api/v1/master-data/customers/:id/approve
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "status": "APPROVED",
+    "approval_notes": "Credit assessment passed"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Approve customer onboarding.
+  Permission required: `customer.approve`
+}

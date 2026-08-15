@@ -1,0 +1,45 @@
+meta {
+  name: Create Manual Attendance Entry
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/attendance/manual
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "employee_id": "employee-uuid-here",
+    "date": "2026-08-15",
+    "clock_in": "08:00",
+    "clock_out": "17:00",
+    "notes": "Manual correction by HR"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create manual attendance log entry.
+  Permission required: `attendance.create`
+}

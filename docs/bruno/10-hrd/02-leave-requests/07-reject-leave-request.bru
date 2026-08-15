@@ -1,0 +1,41 @@
+meta {
+  name: Reject Leave Request
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/leave-requests/:id/reject
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "rejection_reason": "High project workload during requested dates"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Reject an employee leave request.
+  Permission required: `leave_request.reject`
+}

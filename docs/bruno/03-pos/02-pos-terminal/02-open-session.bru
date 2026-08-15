@@ -1,0 +1,42 @@
+meta {
+  name: Open Register Session
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/pos/sessions
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "outlet_id": "outlet-uuid-here",
+    "opening_balance": 500000
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Open a new POS register shift session with initial float cash.
+  Permission required: `pos.order.create`
+}

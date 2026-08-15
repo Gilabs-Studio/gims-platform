@@ -1,0 +1,41 @@
+meta {
+  name: Approve Customer Down Payment
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/api/v1/sales/customer-invoice-down-payments/:id/approve
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "notes": "Approved"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Approve customer down payment.
+  Permission required: `customer_invoice_dp.approve`
+}

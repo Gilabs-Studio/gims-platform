@@ -1,0 +1,41 @@
+meta {
+  name: Approve Supplier Invoice Down Payment
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/api/v1/purchase/supplier-invoice-down-payments/:id/approve
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "notes": "Approved down payment"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Approve supplier invoice down payment.
+  Permission required: `supplier_invoice_dp.approve`
+}

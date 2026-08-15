@@ -1,0 +1,27 @@
+meta {
+  name: Get Sales Overview Analytics
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/reports/sales-overview?period=monthly
+  body: none
+  auth: none
+}
+
+params:query {
+  period: monthly
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Fetch executive sales overview KPIs and revenue breakdown.
+  Permission required: `report_sales_overview.read`
+}

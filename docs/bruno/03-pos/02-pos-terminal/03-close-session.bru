@@ -1,0 +1,46 @@
+meta {
+  name: Close Register Session
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/api/v1/pos/sessions/:id/close
+  body: json
+  auth: none
+}
+
+params:path {
+  id: session-uuid-here
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "actual_ending_balance": 1250000,
+    "notes": "Shift ended cleanly without discrepancies"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Close active POS register shift session with cash reconciliation.
+  Permission required: `pos.order.create`
+}

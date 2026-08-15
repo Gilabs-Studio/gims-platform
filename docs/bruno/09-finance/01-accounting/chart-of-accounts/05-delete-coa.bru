@@ -1,0 +1,34 @@
+meta {
+  name: Delete Account
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/api/v1/finance/accounting/coa/:id
+  body: none
+  auth: none
+}
+
+headers {
+  X-CSRF-Token: {{csrf_token}}
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Soft delete an unused account from Chart of Accounts.
+  Permission required: `coa.delete`
+}

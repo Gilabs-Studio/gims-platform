@@ -1,0 +1,28 @@
+meta {
+  name: Get General Ledger Report
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/finance/reports/general-ledger?start_date=2026-01-01&end_date=2026-12-31
+  body: none
+  auth: none
+}
+
+params:query {
+  start_date: 2026-01-01
+  end_date: 2026-12-31
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Generate General Ledger financial report breakdown by account and date range.
+  Permission required: `general_ledger_report.read`
+}

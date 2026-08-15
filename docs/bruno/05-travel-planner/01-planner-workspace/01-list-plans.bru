@@ -1,0 +1,28 @@
+meta {
+  name: List Travel Plans
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/travel-planner/plans?page=1&per_page=10
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  per_page: 10
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  List travel itinerary plans and workspace schedules.
+  Permission required: `travel_planner.read`
+}

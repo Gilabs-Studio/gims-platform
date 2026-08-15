@@ -1,0 +1,23 @@
+meta {
+  name: Export Geo Performance Report
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/api/v1/reports/geo-performance/export
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Export geographic performance report to Excel/CSV.
+  Permission required: `report_geo_performance.export`
+}

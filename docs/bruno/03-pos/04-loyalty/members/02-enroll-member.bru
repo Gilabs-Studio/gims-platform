@@ -1,0 +1,42 @@
+meta {
+  name: Enroll Loyalty Member
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/loyalty/members/enroll
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "customer_id": "customer-uuid-here",
+    "program_id": "program-uuid-here"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Enroll a customer into a loyalty program.
+  Permission required: `loyalty.read` / `loyalty.enroll`
+}

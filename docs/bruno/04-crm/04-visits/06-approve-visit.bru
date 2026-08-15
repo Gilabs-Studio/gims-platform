@@ -1,0 +1,42 @@
+meta {
+  name: Approve Visit Report
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/crm/visits/:id/approve
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "status": "APPROVED",
+    "approval_notes": "Visit verified and outcome approved"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Approve or reject a visit report.
+  Permission required: `crm_visit.approve`
+}

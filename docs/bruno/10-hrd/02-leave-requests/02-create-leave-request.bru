@@ -1,0 +1,44 @@
+meta {
+  name: Create Leave Request
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/leave-requests
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "leave_type_id": "leave-type-uuid-here",
+    "start_date": "2026-09-01",
+    "end_date": "2026-09-03",
+    "reason": "Annual family vacation"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Submit a new leave request.
+  Permission required: `leave_request.create`
+}

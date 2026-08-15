@@ -1,0 +1,23 @@
+meta {
+  name: Get Dashboard Layout
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/api/v1/general/dashboard/layout
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Fetch current user's saved dashboard grid widget layout.
+  Permission required: `dashboard.view`
+}

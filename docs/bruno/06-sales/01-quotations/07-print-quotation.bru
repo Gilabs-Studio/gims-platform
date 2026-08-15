@@ -1,0 +1,23 @@
+meta {
+  name: Print Sales Quotation PDF
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/api/v1/sales/sales-quotations/:id/print
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Generate printable PDF for sales quotation.
+  Permission required: `sales_quotation.print`
+}

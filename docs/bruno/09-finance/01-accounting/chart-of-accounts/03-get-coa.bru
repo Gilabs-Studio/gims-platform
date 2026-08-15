@@ -1,0 +1,23 @@
+meta {
+  name: Get Account by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/finance/accounting/coa/:id
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get detailed information of a Chart of Accounts account.
+  Permission required: `coa.read`
+}

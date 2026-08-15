@@ -1,0 +1,23 @@
+meta {
+  name: Get Attendance by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/hrd/attendance/:id
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get detailed information of an attendance record.
+  Permission required: `attendance.read`
+}

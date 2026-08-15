@@ -1,0 +1,23 @@
+meta {
+  name: Print Sales Order PDF
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{base_url}}/api/v1/sales/sales-orders/:id/print
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Generate printable PDF for sales order.
+  Permission required: `sales_order.print`
+}

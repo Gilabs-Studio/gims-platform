@@ -1,0 +1,50 @@
+meta {
+  name: Create Purchase Order
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/purchase/purchase-orders
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "supplier_id": "supplier-uuid-here",
+    "order_date": "2026-08-15",
+    "expected_delivery_date": "2026-08-25",
+    "items": [
+      {
+        "product_id": "product-uuid-here",
+        "quantity": 100,
+        "unit_price": 25000
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new purchase order document.
+  Permission required: `purchase_order.create`
+}

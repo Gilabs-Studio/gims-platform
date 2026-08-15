@@ -1,0 +1,45 @@
+meta {
+  name: Create Inventory Record
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/stock/inventory
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "product_id": "product-uuid-here",
+    "warehouse_id": "warehouse-uuid-here",
+    "initial_quantity": 100,
+    "minimum_stock": 10,
+    "maximum_stock": 500
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Initialize or create inventory tracking for a product in a warehouse.
+  Permission required: `inventory.create`
+}

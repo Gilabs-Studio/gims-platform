@@ -1,0 +1,41 @@
+meta {
+  name: Close Goods Receipt
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{base_url}}/api/v1/purchase/goods-receipt/:id/close
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "reason": "Completed receiving process"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Close goods receipt lifecycle.
+  Permission required: `goods_receipt.close`
+}

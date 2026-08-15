@@ -1,0 +1,23 @@
+meta {
+  name: Get Profile
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{base_url}}/api/v1/profile
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get current user profile details.
+  Permission required: `profile.read`
+}
