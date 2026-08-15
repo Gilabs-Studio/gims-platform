@@ -1,0 +1,42 @@
+meta {
+  name: Update Visit Report
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/crm/visits/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "purpose": "Final Price Negotiation",
+    "notes": "Agreed on 5% volume discount"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update visit report details.
+  Permission required: `crm_visit.update`
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Get Leave Request by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/hrd/leave-requests/:id
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get detailed information of a leave request.
+  Permission required: `leave_request.read`
+}

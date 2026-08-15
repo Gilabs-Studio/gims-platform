@@ -1,0 +1,45 @@
+meta {
+  name: Create Sales Payment
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/sales/payments
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "customer_invoice_id": "invoice-uuid-here",
+    "payment_date": "2026-08-15",
+    "amount": 25000000,
+    "payment_method": "BANK_TRANSFER",
+    "reference_number": "TRF-CUST-9921"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new customer payment receipt.
+  Permission required: `sales_payment.create`
+}

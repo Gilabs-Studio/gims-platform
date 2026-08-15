@@ -1,0 +1,23 @@
+meta {
+  name: Get Billing Details
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{base_url}}/api/v1/settings/billing
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  View billing details and subscription information.
+  Permission required: `billing.read`
+}

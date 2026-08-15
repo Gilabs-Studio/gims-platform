@@ -1,0 +1,27 @@
+meta {
+  name: Get Purchase Requisition Details
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/purchase/purchase-requisitions/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id: requisition-uuid-here
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Fetch details of a single purchase requisition document.
+  Permission required: `purchase_requisition.read`
+}

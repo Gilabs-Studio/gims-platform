@@ -1,0 +1,34 @@
+meta {
+  name: Delete Visit Report
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/api/v1/crm/visits/:id
+  body: none
+  auth: none
+}
+
+headers {
+  X-CSRF-Token: {{csrf_token}}
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Soft delete a visit report.
+  Permission required: `crm_visit.delete`
+}

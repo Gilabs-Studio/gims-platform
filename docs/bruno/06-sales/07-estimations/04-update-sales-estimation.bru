@@ -1,0 +1,42 @@
+meta {
+  name: Update Sales Estimation
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/sales/estimations/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "estimated_total": 48000000,
+    "notes": "Adjusted material cost estimate"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update sales estimation details.
+  Permission required: `sales_estimation.update`
+}

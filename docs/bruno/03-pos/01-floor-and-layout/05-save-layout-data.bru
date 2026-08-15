@@ -1,0 +1,56 @@
+meta {
+  name: Save Canvas Layout Objects
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{base_url}}/api/v1/pos/floor-plans/:id/layout
+  body: json
+  auth: none
+}
+
+params:path {
+  id: 1
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "objects": [
+      {
+        "id": "table-101",
+        "type": "table",
+        "name": "T-01",
+        "x": 100,
+        "y": 200,
+        "width": 120,
+        "height": 80,
+        "seats": 4
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Save layout canvas positioning, tables, and objects.
+  Permission required: `pos.layout.update`
+}

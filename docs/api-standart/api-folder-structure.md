@@ -11,7 +11,8 @@ Ringkasan:
 - Bahasa: Go (100%)
 - Eksekutables: API server (HTTP), worker background, seeder, generator.
 - Infrastruktur inti: konfigurasi, koneksi DB, migrasi & seeding, router, middleware.
-- Domain vertical slice: data (models, repositories, seeders), domain (dto, mapper, usecase), presentation (handler, router).
+- Domain vertical slice: data (models, repositories), domain (dto, mapper, usecase), presentation (handler, router).
+- Seed/demo/reference data: `apps/api/seeders`.
 - Orkestrasi: Dockerfile, docker-compose per lingkungan.
 - Migrasi: Atlas (berbasis SQL dengan timestamp).
 - Testing: unit dan e2e.
@@ -27,6 +28,7 @@ Komponen:
 - cmd/gen: Generator scaffolding (opsional).
 - internal/core: Concern lintas domain (config, database, router, middleware, utils, constants).
 - internal/<domain>: Vertical slice per domain (data → domain → presentation).
+- apps/api/seeders: Satu-satunya tempat untuk demo/reference seed data.
 
 Alur request (sederhana):
 ```
@@ -57,6 +59,8 @@ Prinsip:
 - Domain-first (entity dan usecase mandiri dari framework).
 - Dependency mengalir dari luar ke dalam (presentation → domain → data).
 - Cross-cutting (auth, config, logging) tersentral di core.
+- Runtime API path tidak boleh membuat seed/demo/reference data.
+- Business defaults harus berasal dari config, helper core, atau data yang sudah tersimpan.
 
 ---
 
@@ -85,8 +89,7 @@ Struktur direktori utama:
 │  └─ <domain>/
 │     ├─ data/
 │     │  ├─ models/
-│     │  ├─ repositories/
-│     │  └─ seeders/
+│     │  └─ repositories/
 │     ├─ domain/
 │     │  ├─ dto/
 │     │  ├─ mapper/
@@ -99,6 +102,7 @@ Struktur direktori utama:
 ├─ templates/               # scaffolding templates (dto/handler/repository/routers/usecase)
 ├─ test/
 │  └─ e2e/
+├─ apps/api/seeders/       # Demo/reference seed data
 ├─ .env.example
 ├─ Dockerfile(.dev/.test/.worker)
 ├─ docker-compose(.dev/.staging/.prod/.test).yml
@@ -117,10 +121,8 @@ internal/master-data/
 ├─ data/
 │  ├─ models/
 │  │  └─ product.go
-│  ├─ repositories/
-│  │  └─ product_repository.go
-│  └─ seeders/
-│     └─ product_seeder.go
+│  └─ repositories/
+│     └─ product_repository.go
 ├─ domain/
 │  ├─ dto/
 │  │  └─ product_dto.go
@@ -149,6 +151,14 @@ type CreateProductRequest struct {
     Description string  `json:"description"`
 }
 
+type ListProductsRequest struct {
+    Page     int      `form:"page" json:"page" binding:"omitempty,min=1"`
+    PerPage  int      `form:"per_page" json:"per_page" binding:"omitempty,min=1,max=20"`
+    Search   string   `form:"search" json:"search" binding:"omitempty,max=100"`
+    Status   string   `form:"status" json:"status" binding:"omitempty,oneof=active inactive"`
+    Include  []string `form:"include" json:"include" binding:"omitempty"`
+}
+
 type ProductResponse struct {
     ID         string  `json:"id"`
     Name       string  `json:"name"`
@@ -159,6 +169,13 @@ type ProductResponse struct {
     UpdatedAt  string  `json:"updated_at"`
 }
 ```
+
+DTO rules:
+- Request DTO hanya berisi field yang boleh diterima dari client.
+- Response DTO hanya berisi field yang dibutuhkan client; jangan kirim model database langsung.
+- List/search response harus memakai DTO ringkas; detail response boleh lebih lengkap jika memang diminta.
+- Field sensitif/internal seperti password hash, token, tenant secret, audit blob, dan soft-delete marker tidak boleh masuk response.
+- Relasi besar harus lewat `include` yang di-whitelist, bukan otomatis dikirim.
 
 ### 3.2 Contoh Model
 ```go
@@ -185,8 +202,10 @@ type Product struct {
 package mapper
 
 import (
-    "internal/master-data/data/models"
-    "internal/master-data/domain/dto"
+    "time"
+
+    "github.com/gilabs/gke/api/internal/master-data/data/models"
+    "github.com/gilabs/gke/api/internal/master-data/domain/dto"
 )
 
 func ToProductResponse(m *models.Product) dto.ProductResponse {
@@ -210,14 +229,15 @@ package repositories
 import (
     "context"
 
+    "github.com/gilabs/gke/api/internal/master-data/data/models"
+    "github.com/gilabs/gke/api/internal/master-data/domain/dto"
     "gorm.io/gorm"
-    "internal/master-data/data/models"
 )
 
 type ProductRepository interface {
     Create(ctx context.Context, p *models.Product) error
     FindByID(ctx context.Context, id string) (*models.Product, error)
-    List(ctx context.Context, limit, offset int, q string) ([]models.Product, int64, error)
+    List(ctx context.Context, req *dto.ListProductsRequest) ([]models.Product, int64, error)
     Update(ctx context.Context, p *models.Product) error
     Delete(ctx context.Context, id string) error
 }
@@ -241,13 +261,13 @@ package usecase
 import (
     "context"
     "errors"
-    "time"
 
+    "github.com/gilabs/gke/api/internal/core/apptime"
+    "github.com/gilabs/gke/api/internal/master-data/data/models"
+    "github.com/gilabs/gke/api/internal/master-data/data/repositories"
+    "github.com/gilabs/gke/api/internal/master-data/domain/dto"
+    "github.com/gilabs/gke/api/internal/master-data/domain/mapper"
     "github.com/google/uuid"
-    "internal/master-data/data/models"
-    "internal/master-data/data/repositories"
-    "internal/master-data/domain/dto"
-    "internal/master-data/domain/mapper"
 )
 
 type ProductUsecase interface {
@@ -274,8 +294,8 @@ func (u *productUsecase) Create(ctx context.Context, req dto.CreateProductReques
         CategoryID:  req.CategoryID,
         Price:       req.Price,
         Description: req.Description,
-        CreatedAt:   time.Now(),
-        UpdatedAt:   time.Now(),
+        CreatedAt:   apptime.Now(),
+        UpdatedAt:   apptime.Now(),
     }
     if err := u.repo.Create(ctx, m); err != nil {
         return dto.ProductResponse{}, err
@@ -292,9 +312,10 @@ package handler
 import (
     "net/http"
 
+    "github.com/gilabs/gke/api/internal/core/response"
+    "github.com/gilabs/gke/api/internal/master-data/domain/dto"
+    "github.com/gilabs/gke/api/internal/master-data/domain/usecase"
     "github.com/gin-gonic/gin"
-    "internal/master-data/domain/dto"
-    "internal/master-data/domain/usecase"
 )
 
 type ProductHandler struct {
@@ -308,15 +329,15 @@ func NewProductHandler(uc usecase.ProductUsecase) *ProductHandler {
 func (h *ProductHandler) Create(c *gin.Context) {
     var req dto.CreateProductRequest
     if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "detail": err.Error()})
+        response.ValidationErrorResponse(c, nil)
         return
     }
     res, err := h.uc.Create(c.Request.Context(), req)
     if err != nil {
-        c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+        response.ErrorResponse(c, http.StatusUnprocessableEntity, "PRODUCT_CREATE_FAILED", "products.error.create_failed", nil, nil)
         return
     }
-    c.JSON(http.StatusCreated, res)
+    response.SuccessResponseCreated(c, res, nil)
 }
 ```
 
@@ -326,14 +347,15 @@ func (h *ProductHandler) Create(c *gin.Context) {
 package router
 
 import (
+    "github.com/gilabs/gke/api/internal/master-data/presentation/handler"
     "github.com/gin-gonic/gin"
-    "internal/master-data/presentation/handler"
 )
 
 func RegisterProductRoutes(rg *gin.RouterGroup, h *handler.ProductHandler) {
     g := rg.Group("/products")
     g.POST("", h.Create)
     // g.GET("", h.List)
+    // g.Handle("QUERY", "/search", h.Query)
     // g.GET("/:id", h.GetByID)
     // g.PUT("/:id", h.Update)
     // g.DELETE("/:id", h.Delete)
@@ -346,13 +368,12 @@ func RegisterProductRoutes(rg *gin.RouterGroup, h *handler.ProductHandler) {
 package presentation
 
 import (
+    "github.com/gilabs/gke/api/internal/master-data/data/repositories"
+    "github.com/gilabs/gke/api/internal/master-data/domain/usecase"
+    "github.com/gilabs/gke/api/internal/master-data/presentation/handler"
+    "github.com/gilabs/gke/api/internal/master-data/presentation/router"
     "github.com/gin-gonic/gin"
     "gorm.io/gorm"
-
-    "internal/master-data/data/repositories"
-    "internal/master-data/domain/usecase"
-    "internal/master-data/presentation/handler"
-    "internal/master-data/presentation/router"
 )
 
 func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB) {
@@ -430,21 +451,17 @@ type Config struct {
 
 ## 6. Error Handling & Response
 
-Standar respons JSON mengikuti [API Response Standards](./api-response-standards.md).
+Standar respons JSON mengikuti [API Response Standards](./api-response-standards.md) dan helper `internal/core/response`.
 
 Contoh ringkas:
 ```json
-// Sukses (collection)
 {
+  "success": true,
   "data": [{ "id": "..." }],
-  "meta": { "page": 1, "size": 10, "total": 100 }
+  "meta": { "pagination": { "page": 1, "per_page": 20, "total": 100 } },
+  "timestamp": "2026-04-19T10:00:00+07:00",
+  "request_id": "req_..."
 }
-
-// Sukses (single)
-{ "data": { "id": "...", "name": "..." } }
-
-// Error
-{ "error": "validation_error", "detail": "field 'name' is required" }
 ```
 
 Pedoman:
@@ -453,6 +470,10 @@ Pedoman:
 - Not found → 404.
 - Internal error → 500.
 - Gunakan kode error yang konsisten untuk diobservasi/logging.
+- `message` error harus berupa translation key/stable key, bukan raw stack trace atau pesan database.
+- Jangan kirim model database langsung; selalu map ke response DTO.
+- Jangan kirim "trash data": field yang tidak diminta, relasi besar default, credential, token, password hash, stack trace, atau data tenant lain.
+- Gunakan `meta` untuk pagination/filter/sort/audit metadata, bukan dicampur ke `data`.
 
 ---
 
@@ -479,6 +500,7 @@ Pedoman:
 - Lifecycle:
   - Dev: jalankan otomatis saat startup (opsional).
   - Staging/Prod: jalankan langkah terkontrol di pipeline.
+- Production migration wajib backward-compatible, terukur, dan tidak mengunci tabel besar dalam waktu lama.
 
 Contoh:
 ```
@@ -488,13 +510,26 @@ migrations/
 └─ atlas.sum
 ```
 
+Production-safe migration rules:
+- Tambah kolom baru sebagai nullable atau dengan default yang tidak memicu rewrite tabel besar; backfill dilakukan bertahap.
+- Jangan drop/rename kolom/tabel pada deploy yang sama dengan perubahan kode yang masih membacanya.
+- Untuk rename, gunakan pola expand-migrate-contract: tambah kolom baru, dual-write/backfill, switch read, lalu drop di release berikutnya.
+- Buat index besar dengan mode non-blocking sesuai database engine, misalnya PostgreSQL `CREATE INDEX CONCURRENTLY`.
+- Pisahkan DDL berat, backfill data, dan cleanup ke migration/job yang berbeda.
+- Backfill harus chunked, idempotent, dan dapat dilanjutkan jika gagal.
+- Setiap migration memiliki rollback/forward-fix plan yang jelas sebelum production.
+- Validasi estimasi lock, durasi, dan dampak query dengan staging data yang representatif.
+- Jangan menjalankan seed/demo data sebagai bagian dari migration production.
+- Jangan memakai `AutoMigrate` sebagai mekanisme perubahan schema production; gunakan migration SQL yang direview.
+
 ---
 
 ## 9. Seeding
 
-- `seed.go`: data dasar (mis. role, permission).
-- `production_seed.go`: seeding aman untuk production (idempotent).
-- Domain-specific seeders di `internal/<domain>/data/seeders/`.
+- Semua seed/demo/reference data berada di `apps/api/seeders`.
+- Seeder harus idempotent.
+- Request-path API code tidak boleh membuat seed/demo/reference data.
+- Production seed harus eksplisit, aman, dan tidak dijalankan diam-diam dari usecase.
 
 ---
 
@@ -513,6 +548,9 @@ migrations/
 - Validasi input ketat (binding & custom validator).
 - CORS ketat sesuai origin.
 - Sanitasi output; hindari leak detail internal pada error.
+- Tenant/company/user ownership harus berasal dari auth context terpercaya dan diterapkan di service/repository untuk domain tenant-aware.
+- Query update/delete wajib memvalidasi ownership agar tidak terjadi IDOR.
+- Tidak ada hardcode secret, URL, role/status policy, timeout, limit, atau business rule di handler/usecase/repository.
 
 ---
 
@@ -522,6 +560,10 @@ migrations/
 - Indeks DB via migrasi untuk kolom pencarian/relasi.
 - Hindari N+1 (preload yang diperlukan).
 - Cache layer (opsional) untuk lookup statis (mis: Redis).
+- Select hanya kolom yang dibutuhkan response DTO.
+- Filter tenant/company/status/deleted_at diterapkan sedini mungkin di query.
+- Sort/filter dari client wajib di-whitelist dan index-aware.
+- Gunakan aggregation SQL untuk summary, bukan fetch semua lalu hitung di aplikasi.
 
 ---
 
@@ -583,14 +625,17 @@ make seed
 1) Model
 - [ ] Buat `internal/<domain>/data/models/<entity>.go`
 - [ ] Tambah migrasi: `migrations/YYYYMMDDhhmmss_add_<entity>.sql`
+- [ ] Migration aman untuk production dan memiliki index yang dibutuhkan query
 
 2) Repository
 - [ ] Buat `internal/<domain>/data/repositories/<entity>_repository.go`
 - [ ] Tambahkan method: Create, FindByID, List(pagination), Update, Delete
+- [ ] Semua query memakai context, parameterized filter, tenant/company scope bila berlaku, dan column selection secukupnya
 
 3) DTO & Mapper
 - [ ] `internal/<domain>/domain/dto/<entity>_dto.go`
 - [ ] `internal/<domain>/domain/mapper/<entity>_mapper.go`
+- [ ] Request/response DTO tidak membawa trash data atau field internal/sensitif
 
 4) Usecase
 - [ ] `internal/<domain>/domain/usecase/<entity>_usecase.go`
@@ -646,12 +691,15 @@ Generator `cmd/gen` dapat menggantikan placeholder dan menulis file ke path yang
 ## 20. Contoh Konvensi Routing (REST)
 
 - Collection:
-  - GET `/api/v1/<domain>/<entities>?page=1&size=10&q=foo`
+  - GET `/api/v1/<domain>/<entities>?page=1&per_page=20&search=foo`
+  - QUERY `/api/v1/<domain>/<entities>/search` untuk pencarian safe/idempotent dengan request body kompleks
   - POST `/api/v1/<domain>/<entities>`
 - Item:
   - GET `/api/v1/<domain>/<entities>/:id`
   - PUT `/api/v1/<domain>/<entities>/:id`
   - DELETE `/api/v1/<domain>/<entities>/:id`
+
+Gunakan `GET` untuk read sederhana tanpa body. Gunakan `QUERY` saat filter terlalu kompleks untuk query string, tetap tidak mengubah state, aman di-retry, idempotent, dan bisa di-cache. Gunakan `POST` hanya untuk create/action yang mengubah state.
 
 ---
 

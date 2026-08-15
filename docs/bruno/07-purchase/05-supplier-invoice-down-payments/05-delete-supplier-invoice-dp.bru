@@ -1,0 +1,34 @@
+meta {
+  name: Delete Supplier Invoice Down Payment
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/api/v1/purchase/supplier-invoice-down-payments/:id
+  body: none
+  auth: none
+}
+
+headers {
+  X-CSRF-Token: {{csrf_token}}
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Soft delete a draft supplier invoice down payment.
+  Permission required: `supplier_invoice_dp.delete`
+}

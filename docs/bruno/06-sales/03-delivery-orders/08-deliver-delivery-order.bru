@@ -1,0 +1,42 @@
+meta {
+  name: Deliver Delivery Order
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/api/v1/sales/delivery-orders/:id/deliver
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "delivered_at": "2026-08-16T14:00:00Z",
+    "received_by": "Security Officer"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Confirm delivery of order to customer.
+  Permission required: `delivery_order.deliver`
+}

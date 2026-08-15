@@ -1,0 +1,41 @@
+meta {
+  name: Approve Delivery Order
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/sales/delivery-orders/:id/approve
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "notes": "Approved for dispatch"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Approve delivery order for shipment.
+  Permission required: `delivery_order.approve`
+}

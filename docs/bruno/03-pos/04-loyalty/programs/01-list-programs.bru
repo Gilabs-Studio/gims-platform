@@ -1,0 +1,23 @@
+meta {
+  name: List Loyalty Programs
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/loyalty/programs
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Fetch all active loyalty reward programs.
+  Permission required: `loyalty.manage` / `loyalty.read`
+}

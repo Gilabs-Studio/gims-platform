@@ -1,0 +1,23 @@
+meta {
+  name: Get Employee by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/master-data/employees/:id
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get detailed information of an employee.
+  Permission required: `employee.read`
+}

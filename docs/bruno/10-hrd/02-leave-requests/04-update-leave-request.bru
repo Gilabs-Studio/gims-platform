@@ -1,0 +1,41 @@
+meta {
+  name: Update Leave Request
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/hrd/leave-requests/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "reason": "Updated vacation dates"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update a pending leave request.
+  Permission required: `leave_request.update`
+}

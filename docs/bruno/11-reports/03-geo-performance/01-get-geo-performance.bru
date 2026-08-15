@@ -1,0 +1,28 @@
+meta {
+  name: Get Geo Performance Report
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/reports/geo-performance?page=1&per_page=10
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  per_page: 10
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get sales performance breakdown by geographic areas.
+  Permission required: `report_geo_performance.read`
+}

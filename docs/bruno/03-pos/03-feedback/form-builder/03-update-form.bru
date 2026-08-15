@@ -1,0 +1,50 @@
+meta {
+  name: Update Feedback Form
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{base_url}}/api/v1/pos/feedback/forms/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "title": "Customer Satisfaction Survey 2026",
+    "description": "Please give us your valuable feedback",
+    "is_active": true,
+    "questions": [
+      {
+        "question_text": "How was your overall experience?",
+        "question_type": "RATING",
+        "is_required": true
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Edit existing feedback form template.
+  Permission required: `feedback.update`
+}

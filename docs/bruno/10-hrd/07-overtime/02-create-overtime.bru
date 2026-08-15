@@ -1,0 +1,45 @@
+meta {
+  name: Create Overtime Request
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/overtime
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "employee_id": "employee-uuid-here",
+    "overtime_date": "2026-08-15",
+    "start_time": "17:00",
+    "end_time": "20:00",
+    "reason": "System migration release deployment"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Submit an overtime request.
+  Permission required: `overtime.create`
+}

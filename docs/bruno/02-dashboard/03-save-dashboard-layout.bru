@@ -1,0 +1,50 @@
+meta {
+  name: Save Dashboard Layout
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{base_url}}/api/v1/general/dashboard/layout
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "widgets": [
+      {
+        "id": "widget-sales-chart",
+        "type": "chart",
+        "w": 6,
+        "h": 4,
+        "x": 0,
+        "y": 0
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Save updated dashboard grid layout configuration.
+  Permission required: `dashboard.view`
+}

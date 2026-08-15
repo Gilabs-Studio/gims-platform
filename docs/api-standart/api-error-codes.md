@@ -13,7 +13,7 @@ All error responses use consistent error codes to ensure:
 - **Consistency**: Predictable error handling
 - **Type Safety**: Frontend can handle errors in a type-safe manner
 - **Debugging**: Error codes help with tracking and debugging
-- **User Experience**: Clear and actionable error messages
+- **User Experience**: Clear and actionable messages after client-side translation
 
 ---
 
@@ -26,7 +26,7 @@ All error responses use consistent error codes to ensure:
   "success": false,
   "error": {
     "code": "ERROR_CODE",
-    "message": "Human readable error message",
+    "message": "domain.error.translation_key",
     "details": {
       "additional_info": "value"
     }
@@ -41,12 +41,12 @@ All error responses use consistent error codes to ensure:
   "success": false,
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Invalid request data",
+    "message": "validation.error.invalid_request",
     "field_errors": [
       {
         "field": "field_name",
         "code": "ERROR_CODE",
-        "message": "Field-specific error message",
+        "message": "validation.field.error.translation_key",
         "constraint": {
           "min": 0
         }
@@ -207,7 +207,7 @@ All error responses use consistent error codes to ensure:
 var ErrorCodeMap = map[string]ErrorInfo{
     "ERROR_CODE": {
         HTTPStatus: http.StatusXXX,
-        Message:    "Default error message",
+        Message:    "domain.error.translation_key",
     },
 }
 ```
@@ -233,10 +233,11 @@ type ErrorInfo struct {
 
 ### 2. Error Messages
 
-- Use user-friendly language for user-facing messages
+- Use translation keys/stable keys for client-facing messages
 - Include error code for programmatic handling
 - Provide sufficient context in `details`
-- Do not expose sensitive information
+- Do not expose sensitive information, stack traces, SQL errors, credentials, tokens, or cross-tenant data
+- Raw internal errors may be logged server-side with request ID, but must not be returned to the client in production
 
 ### 3. Field Errors
 
@@ -271,7 +272,7 @@ type ErrorInfo struct {
 
 - [ ] Error code follows naming convention
 - [ ] HTTP status code appropriate for error category
-- [ ] Error message clear and actionable
+- [ ] Error message is a translation key/stable key
 - [ ] Documentation updated
 - [ ] Error code added to ErrorCodeMap
 - [ ] Test cases for error scenario

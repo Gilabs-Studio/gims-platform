@@ -1,0 +1,28 @@
+meta {
+  name: Get Product Analysis Report
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/reports/product-analysis/performance?page=1&per_page=10
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  per_page: 10
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get product sales performance, top sellers, and margin analysis.
+  Permission required: `report_product_analysis.read`
+}

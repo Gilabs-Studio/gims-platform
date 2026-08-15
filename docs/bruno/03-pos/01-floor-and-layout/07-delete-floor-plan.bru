@@ -1,0 +1,38 @@
+meta {
+  name: Delete Floor Plan
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{base_url}}/api/v1/pos/floor-plans/:id
+  body: none
+  auth: none
+}
+
+params:path {
+  id: 1
+}
+
+headers {
+  X-CSRF-Token: {{csrf_token}}
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Delete a floor plan layout.
+  Permission required: `pos.layout.delete`
+}

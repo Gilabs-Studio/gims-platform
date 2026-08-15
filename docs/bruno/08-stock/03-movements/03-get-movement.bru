@@ -1,0 +1,23 @@
+meta {
+  name: Get Stock Movement by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/stock/movements/:id
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get detailed information of a stock movement.
+  Permission required: `stock_movement.read`
+}

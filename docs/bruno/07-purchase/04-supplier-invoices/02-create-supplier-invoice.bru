@@ -1,0 +1,48 @@
+meta {
+  name: Create Supplier Invoice
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/purchase/supplier-invoices
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "supplier_id": "supplier-uuid-here",
+    "invoice_number": "INV-SUPP-2026-001",
+    "invoice_date": "2026-08-15",
+    "due_date": "2026-09-14",
+    "goods_receipt_id": "gr-uuid-here",
+    "subtotal": 15000000,
+    "tax_amount": 1650000,
+    "total_amount": 16650000
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new supplier invoice.
+  Permission required: `supplier_invoice.create`
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Get Outlet Catalog
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/pos/catalog/outlet/:outletID
+  body: none
+  auth: none
+}
+
+params:path {
+  outletID: outlet-uuid-here
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Fetch product catalog, categories, and inventory stock for POS terminal UI.
+  Permission required: `pos.order.create`
+}
