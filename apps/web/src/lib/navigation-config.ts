@@ -695,11 +695,12 @@ export const navigationConfig: NavItem[] = [
         permission: "salary.read",
       },
       {
+        // TODO GANTI
         name: "Payroll",
         i18nKey: "payroll",
         url: "/hrd/payroll",
         icon: "banknote",
-        permission: "payroll.read",
+        permission: "recruitment.read",
       },
     ],
   },
