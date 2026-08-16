@@ -1,18 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { MoreHorizontal, FileSpreadsheet, Download, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type Column } from "@/components/ui/data-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,107 +23,131 @@ interface PayrollRunTableProps {
 export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
   const t = useTranslations("payroll");
 
-  return (
-    <Card className="h-full">
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-base font-bold text-foreground">
-          {t("list.title")}
-        </CardTitle>
-        <Button
-          variant="outline"
-          size="sm"
-          className="cursor-pointer h-8 text-xs"
-        >
-          {t("actions.viewAll")}
-        </Button>
-      </CardHeader>
+  const columns: Column<PayrollRunRecord>[] = useMemo(
+    () => [
+      {
+        id: "period",
+        header: t("list.columns.period"),
+        className: "ps-6",
+        accessor: (row) => (
+          <button
+            type="button"
+            onClick={() => onSelectRun(row)}
+            className="font-bold text-foreground text-xs hover:underline cursor-pointer text-left"
+          >
+            {row.period}
+          </button>
+        ),
+      },
+      {
+        id: "processedDate",
+        header: t("list.columns.processedDate"),
+        accessor: (row) => (
+          <span className="text-muted-foreground text-xs font-medium">{row.processedDate}</span>
+        ),
+      },
+      {
+        id: "totalEmployees",
+        header: t("list.columns.totalEmployees"),
+        accessor: (row) => (
+          <span className="font-semibold text-foreground text-xs">{row.totalEmployees}</span>
+        ),
+      },
+      {
+        id: "totalPayroll",
+        header: t("list.columns.totalPayroll"),
+        accessor: (row) => (
+          <span className="font-bold text-foreground text-xs tabular-nums">
+            {formatCurrency(row.totalPayroll)}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        header: t("list.columns.status"),
+        accessor: (row) =>
+          row.status === "In Progress" ? (
+            <span className="inline-flex items-center rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning tabular-nums">
+              {t("status.inProgress")}
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-md bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success tabular-nums">
+              {t("status.completed")}
+            </span>
+          ),
+      },
+      {
+        id: "processedBy",
+        header: t("list.columns.processedBy"),
+        accessor: (row) => (
+          <span className="text-muted-foreground text-xs">{row.processedBy}</span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        className: "pe-6 text-right",
+        accessor: (row) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                className="cursor-pointer gap-2 text-xs"
+                onClick={() => onSelectRun(row)}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {t("actions.viewDetail")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2 text-xs">
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                {t("actions.exportCsv")}
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer gap-2 text-xs">
+                <Download className="h-3.5 w-3.5 text-primary" />
+                {t("actions.exportBank")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    [t, onSelectRun],
+  );
 
-      <CardContent className="p-0">
-        <div className="overflow-x-auto border-t border-border">
-          <Table>
-            <TableHeader className="bg-muted/40">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-xs font-semibold">{t("list.columns.period")}</TableHead>
-                <TableHead className="text-xs font-semibold">{t("list.columns.processedDate")}</TableHead>
-                <TableHead className="text-xs font-semibold">{t("list.columns.totalEmployees")}</TableHead>
-                <TableHead className="text-xs font-semibold">{t("list.columns.totalPayroll")}</TableHead>
-                <TableHead className="text-xs font-semibold">{t("list.columns.status")}</TableHead>
-                <TableHead className="text-xs font-semibold">{t("list.columns.processedBy")}</TableHead>
-                <TableHead className="w-[50px] text-xs font-semibold"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {runs.map((run) => {
-                const isInProgress = run.status === "In Progress";
-                return (
-                  <TableRow
-                    key={run.id}
-                    className="cursor-pointer transition-colors hover:bg-muted/30"
-                    onClick={() => onSelectRun(run)}
-                  >
-                    <TableCell className="font-semibold text-foreground text-xs">
-                      {run.period}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {run.processedDate}
-                    </TableCell>
-                    <TableCell className="text-foreground text-xs font-medium">
-                      {run.totalEmployees}
-                    </TableCell>
-                    <TableCell className="font-semibold text-foreground text-xs">
-                      {formatCurrency(run.totalPayroll)}
-                    </TableCell>
-                    <TableCell>
-                      {isInProgress ? (
-                        <Badge variant="info">
-                          {t("status.inProgress")}
-                        </Badge>
-                      ) : (
-                        <Badge variant="success">
-                          {t("status.completed")}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {run.processedBy}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 cursor-pointer text-muted-foreground hover:text-foreground"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem
-                            className="cursor-pointer gap-2 text-xs"
-                            onClick={() => onSelectRun(run)}
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            {t("actions.viewDetail")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer gap-2 text-xs">
-                            <FileSpreadsheet className="h-3.5 w-3.5" />
-                            {t("actions.exportCsv")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer gap-2 text-xs">
-                            <Download className="h-3.5 w-3.5 text-primary" />
-                            {t("actions.exportBank")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
+  return (
+    <Card className="h-full flex flex-col justify-between">
+      <div>
+        <CardHeader className="flex flex-row items-center justify-between px-6 pb-3">
+          <CardTitle className="text-base font-bold text-foreground">
+            {t("list.title")}
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            className="cursor-pointer h-8 text-xs"
+          >
+            {t("actions.viewAll")}
+          </Button>
+        </CardHeader>
+
+        <CardContent className="p-0 pb-3">
+          <DataTable
+            columns={columns}
+            data={runs}
+            isLoading={false}
+            emptyMessage={t("list.empty") ?? "No payroll runs found"}
+            outerClassName="border-0 rounded-none shadow-none"
+          />
+        </CardContent>
+      </div>
     </Card>
   );
 }

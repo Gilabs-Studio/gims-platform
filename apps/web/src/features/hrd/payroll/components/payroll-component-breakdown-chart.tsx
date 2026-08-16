@@ -6,17 +6,39 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import type { PayrollComponentItem } from "../types/payroll.types";
 
+import { Button } from "@/components/ui/button";
+
 interface PayrollComponentBreakdownChartProps {
   components: PayrollComponentItem[];
   totalAmount: number;
 }
 
-const THEME_SLICE_COLORS: Record<string, { fill: string; dotClass: string }> = {
-  basic: { fill: "hsl(var(--primary))", dotClass: "bg-primary" },
-  allowances: { fill: "hsl(var(--success))", dotClass: "bg-success" },
-  overtime: { fill: "hsl(var(--warning))", dotClass: "bg-warning" },
-  bonus: { fill: "hsl(var(--purple))", dotClass: "bg-purple" },
-  deductions: { fill: "hsl(var(--rose))", dotClass: "bg-rose" },
+const THEME_SLICE_COLORS: Record<string, { fill: string; dotClass: string; bgBadge: string }> = {
+  basic: {
+    fill: "#E11D48",
+    dotClass: "bg-[#E11D48]",
+    bgBadge: "bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold",
+  },
+  allowances: {
+    fill: "#10B981",
+    dotClass: "bg-[#10B981]",
+    bgBadge: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold",
+  },
+  overtime: {
+    fill: "#F59E0B",
+    dotClass: "bg-[#F59E0B]",
+    bgBadge: "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold",
+  },
+  bonus: {
+    fill: "#8B5CF6",
+    dotClass: "bg-[#8B5CF6]",
+    bgBadge: "bg-purple-500/15 text-purple-600 dark:text-purple-400 font-semibold",
+  },
+  deductions: {
+    fill: "#1E293B",
+    dotClass: "bg-[#1E293B] dark:bg-slate-200",
+    bgBadge: "bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold",
+  },
 };
 
 export function PayrollComponentBreakdownChart({
@@ -26,26 +48,29 @@ export function PayrollComponentBreakdownChart({
   const t = useTranslations("payroll");
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
+    <Card className="h-full flex flex-col justify-between">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-bold text-foreground">
           {t("charts.breakdownTitle")}{" "}
           <span className="text-xs font-normal text-muted-foreground">(Jun 2026)</span>
         </CardTitle>
+        <Button variant="outline" size="sm" className="h-8 text-xs cursor-pointer">
+          {t("actions.viewDetail")}
+        </Button>
       </CardHeader>
 
-      <CardContent>
-        <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-12">
-          {/* Donut Chart with central text */}
-          <div className="relative flex h-[210px] w-full min-w-0 items-center justify-center sm:col-span-6">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={210}>
+      <CardContent className="flex-1 flex flex-col justify-center">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center w-full">
+          {/* Left Column: Donut Chart with central text */}
+          <div className="relative flex h-[190px] w-full min-w-0 items-center justify-center md:col-span-5">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={190}>
               <PieChart>
                 <Pie
                   data={components}
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
+                  innerRadius={52}
+                  outerRadius={75}
                   paddingAngle={3}
                   dataKey="value"
                 >
@@ -66,32 +91,43 @@ export function PayrollComponentBreakdownChart({
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-              <p className="text-xs font-bold text-foreground sm:text-sm">
-                {formatCurrency(totalAmount)}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-2">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 {t("charts.total")}
+              </p>
+              <p className="text-xs sm:text-sm font-extrabold tracking-tight text-foreground tabular-nums truncate max-w-[130px]">
+                {formatCurrency(totalAmount)}
               </p>
             </div>
           </div>
 
-          {/* Right Custom Legend List */}
-          <div className="space-y-2.5 sm:col-span-6">
+          {/* Right Column: Tabular Legend List */}
+          <div className="space-y-2 md:col-span-7">
             {components.map((item) => {
-              const dotClass = THEME_SLICE_COLORS[item.key]?.dotClass ?? "bg-primary";
+              const config = THEME_SLICE_COLORS[item.key] ?? {
+                dotClass: "bg-primary",
+                bgBadge: "bg-primary/15 text-primary font-semibold",
+              };
               return (
-                <div key={item.key} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${dotClass}`} />
-                    <span className="text-muted-foreground font-medium">{item.name}</span>
-                  </div>
-                  <span className="font-semibold text-foreground">
-                    {formatCurrency(item.value)}{" "}
-                    <span className="text-[11px] font-normal text-muted-foreground">
-                      ({item.pct}%)
+                <div
+                  key={item.key}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs transition-colors hover:bg-muted/40"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${config.dotClass}`} />
+                    <span className="font-semibold text-foreground truncate text-xs" title={item.name}>
+                      {item.name}
                     </span>
-                  </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="font-bold text-foreground tabular-nums text-xs">
+                      {formatCurrency(item.value)}
+                    </span>
+                    <span className={`rounded-md px-1.5 py-0.5 text-[10px] tabular-nums ${config.bgBadge}`}>
+                      {item.pct}%
+                    </span>
+                  </div>
                 </div>
               );
             })}

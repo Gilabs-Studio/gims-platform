@@ -54,6 +54,7 @@ export const payrollEn = {
 
     list: {
       title: "Payroll Run List",
+      empty: "No payroll runs found",
       columns: {
         period: "Period",
         processedDate: "Processed Date",
@@ -73,6 +74,7 @@ export const payrollEn = {
       bpjsHealthSubtitle: "Company & employee contribution",
       bpjsEmploymentTitle: "BPJS Employment",
       bpjsEmploymentSubtitle: "Company & employee contribution",
+      viewAllCompliance: "View All Compliance",
     },
 
     status: {

@@ -77,17 +77,17 @@ export function PayrollTrendChart({ data, filterPeriod, onFilterChange }: Payrol
               />
               <Bar
                 dataKey="totalPayroll"
-                fill="hsl(var(--primary))"
+                fill="#E11D48"
                 radius={[4, 4, 0, 0]}
-                maxBarSize={48}
+                maxBarSize={44}
               />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div className="mt-4 flex items-center justify-center gap-2">
-          <div className="h-3 w-3 rounded-xs bg-primary" />
-          <span className="text-xs text-muted-foreground font-medium">
+          <div className="h-3 w-3 rounded-xs bg-[#E11D48]" />
+          <span className="text-xs text-muted-foreground font-semibold">
             {t("charts.totalPayrollRp")}
           </span>
         </div>

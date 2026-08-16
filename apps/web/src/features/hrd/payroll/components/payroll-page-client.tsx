@@ -5,7 +5,6 @@ import { PayrollHeader } from "./payroll-header";
 import { PayrollSummaryCards } from "./payroll-summary-cards";
 import { PayrollTrendChart } from "./payroll-trend-chart";
 import { PayrollComponentBreakdownChart } from "./payroll-component-breakdown-chart";
-import { PayrollLastRunCard } from "./payroll-last-run-card";
 import { PayrollRunTable } from "./payroll-run-table";
 import { PayrollComplianceCard } from "./payroll-compliance-card";
 import { PayrollRunModal } from "./payroll-run-modal";
@@ -20,7 +19,6 @@ export default function PayrollPageClient() {
     isLoadingMetrics,
     trend,
     components,
-    lastRun,
     payrollRuns,
     complianceTaxes,
     settings,
@@ -48,9 +46,8 @@ export default function PayrollPageClient() {
           ))}
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          <Skeleton className="h-72 lg:col-span-7 rounded-lg" />
           <Skeleton className="h-72 lg:col-span-5 rounded-lg" />
-          <Skeleton className="h-72 lg:col-span-4 rounded-lg" />
-          <Skeleton className="h-72 lg:col-span-3 rounded-lg" />
         </div>
       </div>
     );
@@ -67,9 +64,9 @@ export default function PayrollPageClient() {
       {/* 2. Top Summary Metric Cards */}
       <PayrollSummaryCards metrics={metrics} />
 
-      {/* 3. Middle Section: Trend, Breakdown, Last Run */}
+      {/* 3. Middle Section: Trend Chart & Component Breakdown */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-6 xl:col-span-5">
+        <div className="lg:col-span-7 xl:col-span-7">
           <PayrollTrendChart
             data={trend}
             filterPeriod={trendFilterPeriod}
@@ -77,31 +74,24 @@ export default function PayrollPageClient() {
           />
         </div>
 
-        <div className="lg:col-span-6 xl:col-span-4">
+        <div className="lg:col-span-5 xl:col-span-5">
           <PayrollComponentBreakdownChart
             components={components}
             totalAmount={metrics?.totalPayrollThisMonth ?? 1256780000}
           />
         </div>
-
-        <div className="lg:col-span-12 xl:col-span-3">
-          <PayrollLastRunCard
-            lastRun={lastRun}
-            onViewDetail={(run) => setSelectedRunRecord(run)}
-          />
-        </div>
       </div>
 
       {/* 4. Bottom Section: Run List Table & Compliance/Tax */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-7 xl:col-span-8">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-7 xl:col-span-7">
           <PayrollRunTable
             runs={payrollRuns}
             onSelectRun={(run) => setSelectedRunRecord(run)}
           />
         </div>
 
-        <div className="lg:col-span-5 xl:col-span-4">
+        <div className="lg:col-span-5 xl:col-span-5">
           <PayrollComplianceCard items={complianceTaxes} />
         </div>
       </div>

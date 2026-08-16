@@ -21,14 +21,13 @@ export default function PayrollLoading() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Skeleton className="h-72 lg:col-span-6 xl:col-span-5 rounded-lg" />
-        <Skeleton className="h-72 lg:col-span-6 xl:col-span-4 rounded-lg" />
-        <Skeleton className="h-72 lg:col-span-12 xl:col-span-3 rounded-lg" />
+        <Skeleton className="h-72 lg:col-span-7 rounded-lg" />
+        <Skeleton className="h-72 lg:col-span-5 rounded-lg" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Skeleton className="h-64 lg:col-span-7 xl:col-span-8 rounded-lg" />
-        <Skeleton className="h-64 lg:col-span-5 xl:col-span-4 rounded-lg" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <Skeleton className="h-64 lg:col-span-7 xl:col-span-7 rounded-lg" />
+        <Skeleton className="h-64 lg:col-span-5 xl:col-span-5 rounded-lg" />
       </div>
     </div>
   );
