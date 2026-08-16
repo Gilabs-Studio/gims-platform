@@ -1,0 +1,106 @@
+export const payrollEn = {
+  payroll: {
+    title: "Payroll",
+    description: "Manage employee payroll and company payroll processing.",
+
+    actions: {
+      payrollRun: "Payroll Run",
+      payrollSettings: "Payroll Settings",
+      viewDetail: "View Detail",
+      viewAll: "View All",
+      process: "Process Payroll",
+      cancel: "Cancel",
+      saveSettings: "Save Settings",
+      exportCsv: "Export CSV",
+      exportBank: "Export Bank File",
+      filter6Months: "Last 6 Months",
+      filter12Months: "Last 12 Months",
+      filterThisYear: "This Year",
+    },
+
+    metrics: {
+      totalPayroll: "Total Payroll This Month",
+      totalEmployees: "Total Employees",
+      basicSalary: "Basic Salary",
+      allowances: "Allowances",
+      deductions: "Deductions",
+      netPay: "Net Pay",
+      comparedToLastMonth: "compared to last month",
+      activePerDate: "Active as of {date}",
+      pctOfTotal: "{pct}% of total payroll",
+    },
+
+    charts: {
+      trendTitle: "Total Payroll Trend",
+      breakdownTitle: "Payroll Component Breakdown",
+      total: "Total",
+      totalPayrollRp: "Total Payroll (Rp)",
+      basicSalary: "Basic Salary",
+      allowances: "Allowances",
+      overtime: "Overtime",
+      bonusIncentive: "Bonus / Incentive",
+      deductions: "Deductions",
+    },
+
+    lastRun: {
+      title: "Last Payroll Run",
+      period: "Period",
+      processedDate: "Processed Date",
+      processedBy: "Processed By",
+      totalEmployees: "Total Employees",
+      totalPayroll: "Total Payroll",
+      status: "Status",
+    },
+
+    list: {
+      title: "Payroll Run List",
+      columns: {
+        period: "Period",
+        processedDate: "Processed Date",
+        totalEmployees: "Total Employees",
+        totalPayroll: "Total Payroll",
+        status: "Status",
+        processedBy: "Processed By",
+        actions: "Actions",
+      },
+    },
+
+    compliance: {
+      title: "Compliance & Tax",
+      pph21Title: "PPh 21 This Month",
+      pph21Subtitle: "Total tax liability",
+      bpjsHealthTitle: "BPJS Health",
+      bpjsHealthSubtitle: "Company & employee contribution",
+      bpjsEmploymentTitle: "BPJS Employment",
+      bpjsEmploymentSubtitle: "Company & employee contribution",
+    },
+
+    status: {
+      completed: "Completed",
+      inProgress: "In Progress",
+      draft: "Draft",
+      underReview: "Under Review",
+      approved: "Approved",
+    },
+
+    modal: {
+      payrollRunTitle: "Process Payroll Run",
+      payrollRunDesc: "Select payroll period and target scope to calculate employee salaries.",
+      periodLabel: "Payroll Period",
+      cutoffLabel: "Cutoff Period",
+      scopeLabel: "Employee Scope",
+      allEmployees: "All Active Employees (245)",
+      byDivision: "Filter by Division",
+      previewSummary: "Preview Summary",
+      estTotalPayroll: "Estimated Total Payroll",
+      estEmployees: "Eligible Employees",
+      confirmRun: "Start Payroll Calculation",
+      settingsTitle: "Payroll Settings",
+      settingsDesc: "Configure default rules for PPh 21 TER, BPJS caps, and payment schedules.",
+      cutoffDay: "Monthly Cutoff Day",
+      paymentDay: "Payment Date",
+      enablePph21Ter: "Enable PPh 21 TER (2024)",
+      bpjsHealthCap: "BPJS Health Maximum Cap (Rp)",
+    },
+  },
+};

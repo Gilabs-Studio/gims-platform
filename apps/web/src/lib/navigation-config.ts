@@ -694,6 +694,13 @@ export const navigationConfig: NavItem[] = [
         icon: "wallet",
         permission: "salary.read",
       },
+      {
+        name: "Payroll",
+        i18nKey: "payroll",
+        url: "/hrd/payroll",
+        icon: "banknote",
+        permission: "payroll.read",
+      },
     ],
   },
   {

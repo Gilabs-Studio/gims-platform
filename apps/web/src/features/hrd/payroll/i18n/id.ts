@@ -1,0 +1,106 @@
+export const payrollId = {
+  payroll: {
+    title: "Payroll",
+    description: "Kelola penggajian karyawan dan proses payroll perusahaan.",
+
+    actions: {
+      payrollRun: "Payroll Run",
+      payrollSettings: "Payroll Settings",
+      viewDetail: "Lihat Detail",
+      viewAll: "Lihat Semua",
+      process: "Proses Payroll",
+      cancel: "Batal",
+      saveSettings: "Simpan Pengaturan",
+      exportCsv: "Ekspor CSV",
+      exportBank: "Ekspor File Bank",
+      filter6Months: "6 Bulan Terakhir",
+      filter12Months: "12 Bulan Terakhir",
+      filterThisYear: "Tahun Ini",
+    },
+
+    metrics: {
+      totalPayroll: "Total Payroll Bulan Ini",
+      totalEmployees: "Total Karyawan",
+      basicSalary: "Gaji Pokok",
+      allowances: "Tunjangan",
+      deductions: "Potongan",
+      netPay: "Net Pay",
+      comparedToLastMonth: "dibanding bulan lalu",
+      activePerDate: "Aktif per {date}",
+      pctOfTotal: "{pct}% dari total payroll",
+    },
+
+    charts: {
+      trendTitle: "Tren Total Payroll",
+      breakdownTitle: "Rincian Komponen Payroll",
+      total: "Total",
+      totalPayrollRp: "Total Payroll (Rp)",
+      basicSalary: "Gaji Pokok",
+      allowances: "Tunjangan",
+      overtime: "Lembur",
+      bonusIncentive: "Bonus / Insentif",
+      deductions: "Potongan",
+    },
+
+    lastRun: {
+      title: "Payroll Run Terakhir",
+      period: "Periode",
+      processedDate: "Tanggal Proses",
+      processedBy: "Diproses oleh",
+      totalEmployees: "Total Karyawan",
+      totalPayroll: "Total Payroll",
+      status: "Status",
+    },
+
+    list: {
+      title: "Daftar Payroll Run",
+      columns: {
+        period: "Periode",
+        processedDate: "Tanggal Proses",
+        totalEmployees: "Total Karyawan",
+        totalPayroll: "Total Payroll",
+        status: "Status",
+        processedBy: "Diproses oleh",
+        actions: "Aksi",
+      },
+    },
+
+    compliance: {
+      title: "Kepatuhan & Pajak",
+      pph21Title: "PPh 21 Bulan Ini",
+      pph21Subtitle: "Total kewajiban pajak",
+      bpjsHealthTitle: "BPJS Kesehatan",
+      bpjsHealthSubtitle: "Iuran perusahaan & karyawan",
+      bpjsEmploymentTitle: "BPJS Ketenagakerjaan",
+      bpjsEmploymentSubtitle: "Iuran perusahaan & karyawan",
+    },
+
+    status: {
+      completed: "Completed",
+      inProgress: "In Progress",
+      draft: "Draft",
+      underReview: "Under Review",
+      approved: "Approved",
+    },
+
+    modal: {
+      payrollRunTitle: "Proses Payroll Run",
+      payrollRunDesc: "Pilih periode payroll dan cakupan karyawan untuk kalkulasi gaji.",
+      periodLabel: "Periode Payroll",
+      cutoffLabel: "Periode Cutoff",
+      scopeLabel: "Cakupan Karyawan",
+      allEmployees: "Semua Karyawan Aktif (245)",
+      byDivision: "Filter per Divisi",
+      previewSummary: "Ringkasan Ringkas",
+      estTotalPayroll: "Estimasi Total Payroll",
+      estEmployees: "Karyawan Berhak",
+      confirmRun: "Mulai Perhitungan Payroll",
+      settingsTitle: "Pengaturan Payroll",
+      settingsDesc: "Konfigurasi aturan PPh 21 TER, batas BPJS, dan jadwal pembayaran.",
+      cutoffDay: "Tanggal Cutoff Bulanan",
+      paymentDay: "Tanggal Pembayaran",
+      enablePph21Ter: "Aktifkan PPh 21 TER (2024)",
+      bpjsHealthCap: "Batas Max BPJS Kesehatan (Rp)",
+    },
+  },
+};
