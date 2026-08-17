@@ -114,10 +114,23 @@ func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, pe
 		page = 1
 	}
 
+	statusPriorityOrder := `
+		CASE recruitment_requests.status
+			WHEN 'OPEN' THEN 1
+			WHEN 'APPROVED' THEN 2
+			WHEN 'PENDING' THEN 3
+			WHEN 'DRAFT' THEN 4
+			WHEN 'CLOSED' THEN 5
+			WHEN 'REJECTED' THEN 6
+			WHEN 'CANCELLED' THEN 7
+			ELSE 8
+		END ASC, recruitment_requests.created_at DESC
+	`
+
 	offset := (page - 1) * perPage
 	query = query.Select("recruitment_requests.*").
 		Offset(offset).Limit(perPage).
-		Order("recruitment_requests.created_at DESC")
+		Order(statusPriorityOrder)
 
 	if err := query.Find(&requests).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to find recruitment requests: %w", err)
