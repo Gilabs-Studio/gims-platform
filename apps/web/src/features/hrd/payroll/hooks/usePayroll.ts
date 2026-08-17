@@ -6,7 +6,7 @@ import type { PayrollRunFormValues } from "../schemas/payroll.schema";
 export const PAYROLL_QUERY_KEYS = {
   all: ["payroll"] as const,
   metrics: () => [...PAYROLL_QUERY_KEYS.all, "metrics"] as const,
-  trend: () => [...PAYROLL_QUERY_KEYS.all, "trend"] as const,
+  trend: (filterPeriod?: string) => [...PAYROLL_QUERY_KEYS.all, "trend", filterPeriod] as const,
   components: () => [...PAYROLL_QUERY_KEYS.all, "components"] as const,
   lastRun: () => [...PAYROLL_QUERY_KEYS.all, "lastRun"] as const,
   runs: () => [...PAYROLL_QUERY_KEYS.all, "runs"] as const,
@@ -44,8 +44,8 @@ export function usePayroll() {
   const store = usePayrollStore();
 
   const trendQuery = useQuery({
-    queryKey: PAYROLL_QUERY_KEYS.trend(),
-    queryFn: () => PayrollService.getTrend(),
+    queryKey: PAYROLL_QUERY_KEYS.trend(store.trendFilterPeriod),
+    queryFn: () => PayrollService.getTrend(store.trendFilterPeriod),
   });
 
   const componentsQuery = useQuery({

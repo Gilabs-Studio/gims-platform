@@ -26,7 +26,7 @@ interface PayrollUIState {
 export const usePayrollStore = create<PayrollUIState>((set) => ({
   isRunModalOpen: false,
   isSettingsModalOpen: false,
-  trendFilterPeriod: "6_months",
+  trendFilterPeriod: "this_year",
 
   runs: mockPayrollRuns,
   settings: mockPayrollSettings,

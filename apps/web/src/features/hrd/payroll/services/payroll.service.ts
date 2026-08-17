@@ -26,14 +26,46 @@ export const mockPayrollMetrics: PayrollMetricSummary = {
   netPayPct: 89.8,
 };
 
-export const mockPayrollTrend: PayrollTrendItem[] = [
+export const mockPayrollTrendThisYear: PayrollTrendItem[] = [
   { period: "Jan 2026", totalPayroll: 980000000 },
   { period: "Feb 2026", totalPayroll: 1040000000 },
   { period: "Mar 2026", totalPayroll: 1045230000 },
   { period: "Apr 2026", totalPayroll: 1098670000 },
   { period: "Mei 2026", totalPayroll: 1163245000 },
   { period: "Jun 2026", totalPayroll: 1256780000 },
+  { period: "Jul 2026", totalPayroll: 1285000000 },
+  { period: "Ags 2026", totalPayroll: 1310000000 },
+  { period: "Sep 2026", totalPayroll: 0 },
+  { period: "Okt 2026", totalPayroll: 0 },
+  { period: "Nov 2026", totalPayroll: 0 },
+  { period: "Des 2026", totalPayroll: 0 },
 ];
+
+export const mockPayrollTrend12Months: PayrollTrendItem[] = [
+  { period: "Sep 2025", totalPayroll: 850000000 },
+  { period: "Okt 2025", totalPayroll: 875000000 },
+  { period: "Nov 2025", totalPayroll: 910000000 },
+  { period: "Des 2025", totalPayroll: 950000000 },
+  { period: "Jan 2026", totalPayroll: 980000000 },
+  { period: "Feb 2026", totalPayroll: 1040000000 },
+  { period: "Mar 2026", totalPayroll: 1045230000 },
+  { period: "Apr 2026", totalPayroll: 1098670000 },
+  { period: "Mei 2026", totalPayroll: 1163245000 },
+  { period: "Jun 2026", totalPayroll: 1256780000 },
+  { period: "Jul 2026", totalPayroll: 1285000000 },
+  { period: "Ags 2026", totalPayroll: 1310000000 },
+];
+
+export const mockPayrollTrend6Months: PayrollTrendItem[] = [
+  { period: "Mar 2026", totalPayroll: 1045230000 },
+  { period: "Apr 2026", totalPayroll: 1098670000 },
+  { period: "Mei 2026", totalPayroll: 1163245000 },
+  { period: "Jun 2026", totalPayroll: 1256780000 },
+  { period: "Jul 2026", totalPayroll: 1285000000 },
+  { period: "Ags 2026", totalPayroll: 1310000000 },
+];
+
+export const mockPayrollTrend = mockPayrollTrendThisYear;
 
 export const mockPayrollComponents: PayrollComponentItem[] = [
   { name: "Gaji Pokok", key: "basic", value: 895450000, pct: 71.2, color: "#2563eb" },
@@ -259,9 +291,15 @@ export class PayrollService {
     return mockPayrollMetrics;
   }
 
-  static async getTrend(): Promise<PayrollTrendItem[]> {
-    // TODO: Replace mock with actual API call GET /api/v1/hrd/payroll/trend
-    return mockPayrollTrend;
+  static async getTrend(periodFilter: string = "this_year"): Promise<PayrollTrendItem[]> {
+    // TODO: Replace mock with actual API call GET /api/v1/hrd/payroll/trend?period=...
+    if (periodFilter === "6_months") {
+      return mockPayrollTrend6Months;
+    }
+    if (periodFilter === "12_months") {
+      return mockPayrollTrend12Months;
+    }
+    return mockPayrollTrendThisYear;
   }
 
   static async getComponents(): Promise<PayrollComponentItem[]> {

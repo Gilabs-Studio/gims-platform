@@ -2,7 +2,13 @@
 
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { PieChart, Pie, Cell } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import type { PayrollComponentItem } from "../types/payroll.types";
 
@@ -13,6 +19,14 @@ interface PayrollComponentBreakdownChartProps {
   totalAmount: number;
   onViewDetail?: () => void;
 }
+
+const componentChartConfig = {
+  basic: { label: "Gaji Pokok", color: "#E11D48" },
+  allowances: { label: "Tunjangan", color: "#10B981" },
+  overtime: { label: "Lembur", color: "#F59E0B" },
+  bonus: { label: "Bonus / Insentif", color: "#8B5CF6" },
+  deductions: { label: "Potongan", color: "#1E293B" },
+} satisfies ChartConfig;
 
 const THEME_SLICE_COLORS: Record<string, { fill: string; dotClass: string; bgBadge: string }> = {
   basic: {
@@ -69,15 +83,15 @@ export function PayrollComponentBreakdownChart({
       <CardContent className="flex-1 flex flex-col justify-center">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center w-full">
           {/* Left Column: Donut Chart with central text */}
-          <div className="relative flex h-[190px] w-full min-w-0 items-center justify-center md:col-span-5">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={190}>
+          <div className="relative flex h-[240px] w-full min-w-0 items-center justify-center md:col-span-5">
+            <ChartContainer config={componentChartConfig} className="h-full w-full">
               <PieChart>
                 <Pie
                   data={components}
                   cx="50%"
                   cy="50%"
-                  innerRadius={52}
-                  outerRadius={75}
+                  innerRadius={68}
+                  outerRadius={96}
                   paddingAngle={3}
                   dataKey="value"
                 >
@@ -86,23 +100,20 @@ export function PayrollComponentBreakdownChart({
                     return <Cell key={`cell-${index}`} fill={themeColor} stroke="none" />;
                   })}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "var(--radius)",
-                    border: "1px solid hsl(var(--border))",
-                    backgroundColor: "hsl(var(--popover))",
-                    color: "hsl(var(--popover-foreground))",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value: number) => [formatCurrency(value), "Nominal"]}
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value) => formatCurrency(Number(value))}
+                    />
+                  }
                 />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-2">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 {t("charts.total")}
               </p>
-              <p className="text-xs sm:text-sm font-extrabold tracking-tight text-foreground tabular-nums truncate max-w-[130px]">
+              <p className="text-xs sm:text-base font-extrabold tracking-tight text-foreground tabular-nums truncate max-w-[130px]">
                 {formatCurrency(totalAmount)}
               </p>
             </div>
