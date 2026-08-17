@@ -19,7 +19,7 @@ import type { PayrollRunRecord } from "../types/payroll.types";
 
 interface PayrollRunTableProps {
   runs: PayrollRunRecord[];
-  onSelectRun: (run: PayrollRunRecord) => void;
+  onSelectRun?: (run: PayrollRunRecord) => void;
 }
 
 export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
@@ -112,7 +112,7 @@ export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
               <DropdownMenuItem
                 className="cursor-pointer gap-2 text-xs"
                 onClick={() => {
-                  onSelectRun(row);
+                  onSelectRun?.(row);
                   router.push(`/hrd/payroll/${row.id}`);
                 }}
               >

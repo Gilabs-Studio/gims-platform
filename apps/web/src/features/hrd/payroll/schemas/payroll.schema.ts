@@ -14,6 +14,8 @@ export const payrollSettingsSchema = z.object({
   paymentDay: z.number().min(1).max(31),
   enablePph21Ter: z.boolean(),
   bpjsHealthCap: z.number().min(0),
+  syncAttendance: z.boolean().optional(),
+  syncWorkScheduleHolidays: z.boolean().optional(),
 });
 
 export type PayrollSettingsFormValues = z.infer<typeof payrollSettingsSchema>;

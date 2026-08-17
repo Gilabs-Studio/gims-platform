@@ -9,7 +9,6 @@ import { PayrollRunTable } from "./payroll-run-table";
 import { PayrollComplianceCard } from "./payroll-compliance-card";
 import { PayrollRunModal } from "./payroll-run-modal";
 import { PayrollSettingsModal } from "./payroll-settings-modal";
-import { PayrollDetailSheet } from "./payroll-detail-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageMotion } from "@/components/motion";
 
@@ -28,8 +27,6 @@ export default function PayrollPageClient() {
     isSettingsModalOpen,
     openSettingsModal,
     closeSettingsModal,
-    selectedRunRecord,
-    setSelectedRunRecord,
     trendFilterPeriod,
     setTrendFilterPeriod,
     runPayroll,
@@ -87,7 +84,6 @@ export default function PayrollPageClient() {
         <div className="lg:col-span-7 xl:col-span-7">
           <PayrollRunTable
             runs={payrollRuns}
-            onSelectRun={(run) => setSelectedRunRecord(run)}
           />
         </div>
 
@@ -96,7 +92,7 @@ export default function PayrollPageClient() {
         </div>
       </div>
 
-      {/* Interactive Dialogs & Drawers */}
+      {/* Interactive Dialog Modals */}
       <PayrollRunModal
         isOpen={isRunModalOpen}
         onClose={closeRunModal}
@@ -108,11 +104,6 @@ export default function PayrollPageClient() {
         isOpen={isSettingsModalOpen}
         onClose={closeSettingsModal}
         initialValues={settings}
-      />
-
-      <PayrollDetailSheet
-        run={selectedRunRecord}
-        onClose={() => setSelectedRunRecord(null)}
       />
     </PageMotion>
   );

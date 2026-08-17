@@ -52,6 +52,8 @@ export interface PayrollSettings {
   paymentDay: number;
   enablePph21Ter: boolean;
   bpjsHealthCap: number;
+  syncAttendance?: boolean;
+  syncWorkScheduleHolidays?: boolean;
 }
 
 export interface EmployeePayslipItem {

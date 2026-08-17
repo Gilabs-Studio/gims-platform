@@ -16,14 +16,23 @@ export const PAYROLL_QUERY_KEYS = {
 };
 
 export function usePayrollRunDetail(id: string) {
+  const customStatus = usePayrollStore((s) => s.customStatuses[id]);
+
   const detailQuery = useQuery({
     queryKey: PAYROLL_QUERY_KEYS.detail(id),
     queryFn: () => PayrollService.getPayrollRunDetail(id),
     enabled: !!id,
   });
 
+  const detail = detailQuery.data
+    ? {
+        ...detailQuery.data,
+        status: customStatus ?? detailQuery.data.status,
+      }
+    : undefined;
+
   return {
-    detail: detailQuery.data,
+    detail,
     isLoading: detailQuery.isLoading,
     isError: detailQuery.isError,
     refetch: detailQuery.refetch,
@@ -33,11 +42,6 @@ export function usePayrollRunDetail(id: string) {
 export function usePayroll() {
   const queryClient = useQueryClient();
   const store = usePayrollStore();
-
-  const metricsQuery = useQuery({
-    queryKey: PAYROLL_QUERY_KEYS.metrics(),
-    queryFn: () => PayrollService.getMetrics(),
-  });
 
   const trendQuery = useQuery({
     queryKey: PAYROLL_QUERY_KEYS.trend(),
@@ -54,25 +58,24 @@ export function usePayroll() {
     queryFn: () => PayrollService.getLastRun(),
   });
 
-  const runsQuery = useQuery({
-    queryKey: PAYROLL_QUERY_KEYS.runs(),
-    queryFn: () => PayrollService.getPayrollRuns(),
-  });
-
   const complianceQuery = useQuery({
     queryKey: PAYROLL_QUERY_KEYS.compliance(),
     queryFn: () => PayrollService.getComplianceTaxes(),
   });
 
-  const settingsQuery = useQuery({
-    queryKey: PAYROLL_QUERY_KEYS.settings(),
-    queryFn: () => PayrollService.getSettings(),
-  });
-
   const runPayrollMutation = useMutation({
     mutationFn: async (values: PayrollRunFormValues) => {
-      // TODO: Replace with actual POST /api/v1/hrd/payroll/run API call
-      console.log("Triggering payroll run with values:", values);
+      // Simulate adding a new payroll run record in state
+      const newRunId = `pr-00${store.runs.length + 1}`;
+      store.addRunRecord({
+        id: newRunId,
+        period: values.period ?? "Jul 2026",
+        processedDate: "Hari ini, 12:00",
+        totalEmployees: 245,
+        totalPayroll: 1285000000,
+        status: "In Progress",
+        processedBy: "Admin User",
+      });
       return { success: true };
     },
     onSuccess: () => {
@@ -82,9 +85,11 @@ export function usePayroll() {
   });
 
   return {
-    // Data states
-    metrics: metricsQuery.data,
-    isLoadingMetrics: metricsQuery.isLoading,
+    // Store state & methods
+    ...store,
+
+    // Data & Query states
+    isLoadingMetrics: false,
 
     trend: trendQuery.data ?? [],
     isLoadingTrend: trendQuery.isLoading,
@@ -95,21 +100,15 @@ export function usePayroll() {
     lastRun: lastRunQuery.data,
     isLoadingLastRun: lastRunQuery.isLoading,
 
-    payrollRuns: runsQuery.data ?? [],
-    isLoadingRuns: runsQuery.isLoading,
-
     complianceTaxes: complianceQuery.data ?? [],
     isLoadingCompliance: complianceQuery.isLoading,
 
-    settings: settingsQuery.data,
-    isLoadingSettings: settingsQuery.isLoading,
-
-    // Store state & methods
-    ...store,
+    payrollRuns: store.runs,
+    isLoadingRuns: false,
+    isLoadingSettings: false,
 
     // Actions
     runPayroll: runPayrollMutation.mutate,
     isSubmittingRun: runPayrollMutation.isPending,
   };
 }
-

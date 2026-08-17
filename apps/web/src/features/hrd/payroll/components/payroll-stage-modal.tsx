@@ -128,7 +128,7 @@ export function PayrollStageModal({
           })}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t">
+        <DialogFooter className="flex flex-row items-center justify-end gap-3 pt-3 border-t">
           <Button
             type="button"
             variant="outline"

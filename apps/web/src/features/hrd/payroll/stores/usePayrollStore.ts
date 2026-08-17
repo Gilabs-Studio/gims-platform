@@ -1,30 +1,67 @@
 import { create } from "zustand";
-import type { PayrollRunRecord } from "../types/payroll.types";
+import type { PayrollRunRecord, PayrollStatus, PayrollSettings, PayrollMetricSummary } from "../types/payroll.types";
+import { mockPayrollRuns, mockPayrollSettings, mockPayrollMetrics } from "../services/payroll.service";
 
 interface PayrollUIState {
   isRunModalOpen: boolean;
   isSettingsModalOpen: boolean;
-  selectedRunRecord: PayrollRunRecord | null;
   trendFilterPeriod: string;
+
+  runs: PayrollRunRecord[];
+  settings: PayrollSettings;
+  metrics: PayrollMetricSummary;
+  customStatuses: Record<string, PayrollStatus>;
 
   openRunModal: () => void;
   closeRunModal: () => void;
   openSettingsModal: () => void;
   closeSettingsModal: () => void;
-  setSelectedRunRecord: (record: PayrollRunRecord | null) => void;
   setTrendFilterPeriod: (period: string) => void;
+
+  updateRunStage: (runId: string, newStatus: PayrollStatus) => void;
+  addRunRecord: (run: PayrollRunRecord) => void;
+  saveSettings: (newSettings: Partial<PayrollSettings>) => void;
 }
 
 export const usePayrollStore = create<PayrollUIState>((set) => ({
   isRunModalOpen: false,
   isSettingsModalOpen: false,
-  selectedRunRecord: null,
   trendFilterPeriod: "6_months",
+
+  runs: mockPayrollRuns,
+  settings: mockPayrollSettings,
+  metrics: mockPayrollMetrics,
+  customStatuses: {},
 
   openRunModal: () => set({ isRunModalOpen: true }),
   closeRunModal: () => set({ isRunModalOpen: false }),
   openSettingsModal: () => set({ isSettingsModalOpen: true }),
   closeSettingsModal: () => set({ isSettingsModalOpen: false }),
-  setSelectedRunRecord: (record) => set({ selectedRunRecord: record }),
   setTrendFilterPeriod: (period) => set({ trendFilterPeriod: period }),
+
+  updateRunStage: (runId, newStatus) =>
+    set((state) => ({
+      runs: state.runs.map((r) =>
+        r.id === runId || r.period.toLowerCase() === runId.toLowerCase()
+          ? { ...r, status: newStatus }
+          : r
+      ),
+      customStatuses: { ...state.customStatuses, [runId]: newStatus },
+    })),
+
+  addRunRecord: (newRun) =>
+    set((state) => ({
+      runs: [newRun, ...state.runs],
+      metrics: {
+        ...state.metrics,
+        totalPayrollThisMonth: newRun.totalPayroll,
+        totalEmployees: newRun.totalEmployees,
+        netPay: Math.round(newRun.totalPayroll * 0.898),
+      },
+    })),
+
+  saveSettings: (newSettings) =>
+    set((state) => ({
+      settings: { ...state.settings, ...newSettings },
+    })),
 }));
