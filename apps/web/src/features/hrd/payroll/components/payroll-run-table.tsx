@@ -20,9 +20,10 @@ import type { PayrollRunRecord } from "../types/payroll.types";
 interface PayrollRunTableProps {
   runs: PayrollRunRecord[];
   onSelectRun?: (run: PayrollRunRecord) => void;
+  onOpenFullList?: () => void;
 }
 
-export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
+export function PayrollRunTable({ runs, onSelectRun, onOpenFullList }: PayrollRunTableProps) {
   const t = useTranslations("payroll");
   const router = useRouter();
 
@@ -151,7 +152,7 @@ export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => toast.info("Menampilkan seluruh riwayat penggajian payroll.")}
+            onClick={onOpenFullList}
             className="cursor-pointer h-8 text-xs"
           >
             {t("actions.viewAll")}
@@ -163,6 +164,7 @@ export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
             columns={columns}
             data={runs}
             isLoading={false}
+            onRowClick={(row) => router.push(`/hrd/payroll/${row.id}`)}
             emptyMessage={t("list.empty") ?? "No payroll runs found"}
             outerClassName="border-0 rounded-none shadow-none"
           />

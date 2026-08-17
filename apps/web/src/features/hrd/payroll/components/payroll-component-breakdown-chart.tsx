@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 interface PayrollComponentBreakdownChartProps {
   components: PayrollComponentItem[];
   totalAmount: number;
+  onViewDetail?: () => void;
 }
 
 const THEME_SLICE_COLORS: Record<string, { fill: string; dotClass: string; bgBadge: string }> = {
@@ -44,6 +45,7 @@ const THEME_SLICE_COLORS: Record<string, { fill: string; dotClass: string; bgBad
 export function PayrollComponentBreakdownChart({
   components,
   totalAmount,
+  onViewDetail,
 }: PayrollComponentBreakdownChartProps) {
   const t = useTranslations("payroll");
 
@@ -54,7 +56,12 @@ export function PayrollComponentBreakdownChart({
           {t("charts.breakdownTitle")}{" "}
           <span className="text-xs font-normal text-muted-foreground">(Jun 2026)</span>
         </CardTitle>
-        <Button variant="outline" size="sm" className="h-8 text-xs cursor-pointer">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onViewDetail}
+          className="h-8 text-xs cursor-pointer"
+        >
           {t("actions.viewDetail")}
         </Button>
       </CardHeader>

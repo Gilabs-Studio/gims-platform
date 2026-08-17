@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePayroll } from "../hooks/usePayroll";
 import { PayrollHeader } from "./payroll-header";
 import { PayrollSummaryCards } from "./payroll-summary-cards";
@@ -9,8 +10,12 @@ import { PayrollRunTable } from "./payroll-run-table";
 import { PayrollComplianceCard } from "./payroll-compliance-card";
 import { PayrollRunModal } from "./payroll-run-modal";
 import { PayrollSettingsModal } from "./payroll-settings-modal";
+import { PayrollComponentModal } from "./payroll-component-modal";
+import { PayrollComplianceDetailModal } from "./payroll-compliance-detail-modal";
+import { PayrollRunListModal } from "./payroll-run-list-modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageMotion } from "@/components/motion";
+import type { ComplianceTaxItem } from "../types/payroll.types";
 
 export default function PayrollPageClient() {
   const {
@@ -32,6 +37,10 @@ export default function PayrollPageClient() {
     runPayroll,
     isSubmittingRun,
   } = usePayroll();
+
+  const [isComponentModalOpen, setIsComponentModalOpen] = useState(false);
+  const [selectedComplianceItem, setSelectedComplianceItem] = useState<ComplianceTaxItem | null>(null);
+  const [isRunListModalOpen, setIsRunListModalOpen] = useState(false);
 
   if (isLoadingMetrics) {
     return (
@@ -75,6 +84,7 @@ export default function PayrollPageClient() {
           <PayrollComponentBreakdownChart
             components={components}
             totalAmount={metrics?.totalPayrollThisMonth ?? 1256780000}
+            onViewDetail={() => setIsComponentModalOpen(true)}
           />
         </div>
       </div>
@@ -84,11 +94,15 @@ export default function PayrollPageClient() {
         <div className="lg:col-span-7 xl:col-span-7">
           <PayrollRunTable
             runs={payrollRuns}
+            onOpenFullList={() => setIsRunListModalOpen(true)}
           />
         </div>
 
         <div className="lg:col-span-5 xl:col-span-5">
-          <PayrollComplianceCard items={complianceTaxes} />
+          <PayrollComplianceCard
+            items={complianceTaxes}
+            onSelectComplianceItem={(item) => setSelectedComplianceItem(item)}
+          />
         </div>
       </div>
 
@@ -104,6 +118,26 @@ export default function PayrollPageClient() {
         isOpen={isSettingsModalOpen}
         onClose={closeSettingsModal}
         initialValues={settings}
+      />
+
+      <PayrollComponentModal
+        isOpen={isComponentModalOpen}
+        onClose={() => setIsComponentModalOpen(false)}
+        components={components}
+        totalAmount={metrics?.totalPayrollThisMonth ?? 1256780000}
+      />
+
+      <PayrollComplianceDetailModal
+        item={selectedComplianceItem}
+        isOpen={!!selectedComplianceItem}
+        onClose={() => setSelectedComplianceItem(null)}
+      />
+
+      <PayrollRunListModal
+        isOpen={isRunListModalOpen}
+        onClose={() => setIsRunListModalOpen(false)}
+        runs={payrollRuns}
+        onOpenRunModal={openRunModal}
       />
     </PageMotion>
   );
