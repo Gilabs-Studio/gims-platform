@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { Link, useRouter } from "@/i18n/routing";
 import { MoreHorizontal, FileSpreadsheet, Download, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 import type { PayrollRunRecord } from "../types/payroll.types";
 
 interface PayrollRunTableProps {
@@ -22,6 +24,15 @@ interface PayrollRunTableProps {
 
 export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
   const t = useTranslations("payroll");
+  const router = useRouter();
+
+  const handleExportCsv = (period: string) => {
+    toast.success(`Ekspor data payroll CSV periode ${period} berhasil.`);
+  };
+
+  const handleExportBank = (period: string) => {
+    toast.success(`File transfer bank periode ${period} berhasil diunduh.`);
+  };
 
   const columns: Column<PayrollRunRecord>[] = useMemo(
     () => [
@@ -30,13 +41,12 @@ export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
         header: t("list.columns.period"),
         className: "ps-6",
         accessor: (row) => (
-          <button
-            type="button"
-            onClick={() => onSelectRun(row)}
-            className="font-bold text-foreground text-xs hover:underline cursor-pointer text-left"
+          <Link
+            href={`/hrd/payroll/${row.id}`}
+            className="font-bold text-foreground text-xs hover:underline cursor-pointer text-left block"
           >
             {row.period}
-          </button>
+          </Link>
         ),
       },
       {
@@ -101,16 +111,25 @@ export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem
                 className="cursor-pointer gap-2 text-xs"
-                onClick={() => onSelectRun(row)}
+                onClick={() => {
+                  onSelectRun(row);
+                  router.push(`/hrd/payroll/${row.id}`);
+                }}
               >
                 <Eye className="h-3.5 w-3.5" />
                 {t("actions.viewDetail")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer gap-2 text-xs">
+              <DropdownMenuItem
+                className="cursor-pointer gap-2 text-xs"
+                onClick={() => handleExportCsv(row.period)}
+              >
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 {t("actions.exportCsv")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer gap-2 text-xs">
+              <DropdownMenuItem
+                className="cursor-pointer gap-2 text-xs"
+                onClick={() => handleExportBank(row.period)}
+              >
                 <Download className="h-3.5 w-3.5 text-primary" />
                 {t("actions.exportBank")}
               </DropdownMenuItem>
@@ -119,7 +138,7 @@ export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
         ),
       },
     ],
-    [t, onSelectRun],
+    [t, router, onSelectRun],
   );
 
   return (
@@ -132,6 +151,7 @@ export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => toast.info("Menampilkan seluruh riwayat penggajian payroll.")}
             className="cursor-pointer h-8 text-xs"
           >
             {t("actions.viewAll")}
@@ -151,3 +171,4 @@ export function PayrollRunTable({ runs, onSelectRun }: PayrollRunTableProps) {
     </Card>
   );
 }
+

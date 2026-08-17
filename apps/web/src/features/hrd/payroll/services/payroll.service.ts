@@ -5,6 +5,10 @@ import type {
   PayrollRunRecord,
   ComplianceTaxItem,
   PayrollSettings,
+  EmployeePayslipItem,
+  PayrollAuditLog,
+  PayrollBankTransferBatch,
+  PayrollRunDetail,
 } from "../types/payroll.types";
 
 export const mockPayrollMetrics: PayrollMetricSummary = {
@@ -119,6 +123,136 @@ export const mockPayrollSettings: PayrollSettings = {
   bpjsHealthCap: 12000000,
 };
 
+export const mockEmployeePayslips: EmployeePayslipItem[] = [
+  {
+    id: "slip-001",
+    employeeId: "emp-001",
+    employeeName: "Budi Santoso",
+    nip: "EMP-2024-001",
+    department: "Technology",
+    position: "Senior Software Engineer",
+    basicSalary: 18500000,
+    allowances: 4200000,
+    overtime: 1500000,
+    deductions: 2100000,
+    taxPph21: 1450000,
+    bpjsEmployee: 650000,
+    netPay: 22100000,
+    bankName: "Bank Central Asia (BCA)",
+    bankAccountNumber: "8492049182",
+    status: "Paid",
+  },
+  {
+    id: "slip-002",
+    employeeId: "emp-002",
+    employeeName: "Dewi Lestari",
+    nip: "EMP-2024-002",
+    department: "Human Resources",
+    position: "HR Operations Manager",
+    basicSalary: 16000000,
+    allowances: 3500000,
+    overtime: 800000,
+    deductions: 1800000,
+    taxPph21: 1200000,
+    bpjsEmployee: 600000,
+    netPay: 18500000,
+    bankName: "Bank Mandiri",
+    bankAccountNumber: "1370019284102",
+    status: "Paid",
+  },
+  {
+    id: "slip-003",
+    employeeId: "emp-003",
+    employeeName: "Ahmad Rizky",
+    nip: "EMP-2024-003",
+    department: "Product Design",
+    position: "Lead UX Designer",
+    basicSalary: 14500000,
+    allowances: 2800000,
+    overtime: 600000,
+    deductions: 1500000,
+    taxPph21: 980000,
+    bpjsEmployee: 520000,
+    netPay: 16400000,
+    bankName: "Bank Central Asia (BCA)",
+    bankAccountNumber: "0829104829",
+    status: "Paid",
+  },
+  {
+    id: "slip-004",
+    employeeId: "emp-004",
+    employeeName: "Siti Rahma",
+    nip: "EMP-2024-004",
+    department: "Sales & Marketing",
+    position: "Senior Account Executive",
+    basicSalary: 12000000,
+    allowances: 5500000,
+    overtime: 2200000,
+    deductions: 1400000,
+    taxPph21: 950000,
+    bpjsEmployee: 450000,
+    netPay: 18300000,
+    bankName: "Bank Negara Indonesia (BNI)",
+    bankAccountNumber: "4920194829",
+    status: "Paid",
+  },
+  {
+    id: "slip-005",
+    employeeId: "emp-005",
+    employeeName: "Kevin Pratama",
+    nip: "EMP-2024-005",
+    department: "Finance & Accounting",
+    position: "Finance Lead",
+    basicSalary: 17000000,
+    allowances: 3800000,
+    overtime: 1000000,
+    deductions: 1900000,
+    taxPph21: 1300000,
+    bpjsEmployee: 600000,
+    netPay: 19900000,
+    bankName: "Bank Central Asia (BCA)",
+    bankAccountNumber: "2948201928",
+    status: "Paid",
+  },
+];
+
+export const mockAuditLogs: PayrollAuditLog[] = [
+  {
+    id: "audit-01",
+    timestamp: "30 Jun 2026, 14:20",
+    user: "Dewi Lestari",
+    role: "HR Operations",
+    action: "Memulai kalkulasi penggajian otomatis untuk 245 karyawan",
+    notes: "Pengaturan PPh 21 TER 2024 dan batas BPJS diaktifkan.",
+  },
+  {
+    id: "audit-02",
+    timestamp: "30 Jun 2026, 15:10",
+    user: "Kevin Pratama",
+    role: "Finance Lead",
+    action: "Melakukan peninjauan awal & verifikasi komponen lembur",
+    notes: "Verifikasi 12 lembur divisi sales disetujui.",
+  },
+  {
+    id: "audit-03",
+    timestamp: "30 Jun 2026, 16:45",
+    user: "Manager HRD",
+    role: "Payroll Approver",
+    action: "Persetujuan final penggajian periode Jun 2026",
+    notes: "Status disetujui untuk pemrosesan file transfer bank.",
+  },
+];
+
+export const mockBankBatch: PayrollBankTransferBatch = {
+  bankName: "Bank Central Asia (BCA) Corporate Giro",
+  accountNumber: "0083920192",
+  accountHolder: "PT GILABS DIGITAL NUSANTARA",
+  batchReference: "BATCH-PAY-202606-BCA01",
+  totalRecords: 245,
+  totalAmount: 1256780000,
+  status: "Verified",
+};
+
 export class PayrollService {
   static async getMetrics(): Promise<PayrollMetricSummary> {
     // TODO: Replace mock with actual API call GET /api/v1/hrd/payroll/metrics
@@ -154,4 +288,37 @@ export class PayrollService {
     // TODO: Replace mock with actual API call GET /api/v1/hrd/payroll/settings
     return mockPayrollSettings;
   }
+
+  static async getPayrollRunDetail(id: string): Promise<PayrollRunDetail> {
+    // Return matching run or default fallback for mock
+    const run = mockPayrollRuns.find((r) => r.id === id || r.period.toLowerCase() === id.toLowerCase()) || {
+      id: id,
+      period: "Jun 2026",
+      processedDate: "30 Jun 2026, 10:15",
+      totalEmployees: 245,
+      totalPayroll: 1256780000,
+      status: "In Progress" as const,
+      processedBy: "Admin User",
+    };
+
+    return {
+      ...run,
+      cutoffPeriod: "26 Mei 2026 - 25 Jun 2026",
+      paymentDate: "28 Jun 2026",
+      notes: "Penggajian rutin bulanan periode " + run.period + " mencakup 245 karyawan aktif dengan kalkulasi PPh 21 TER 2024.",
+      grossPayroll: 1384880000,
+      totalTax: 126450000,
+      totalBpjsCompany: 67890000,
+      totalBpjsEmployee: 45230000,
+      netPayroll: run.totalPayroll,
+      reviewedBy: "Kevin Pratama (Finance)",
+      reviewedAt: "30 Jun 2026, 15:10",
+      approvedBy: "Dewi Lestari (HR Manager)",
+      approvedAt: "30 Jun 2026, 16:45",
+      payslips: mockEmployeePayslips,
+      auditLogs: mockAuditLogs,
+      bankBatch: mockBankBatch,
+    };
+  }
 }
+

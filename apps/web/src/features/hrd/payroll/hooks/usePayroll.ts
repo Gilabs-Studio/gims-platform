@@ -12,7 +12,23 @@ export const PAYROLL_QUERY_KEYS = {
   runs: () => [...PAYROLL_QUERY_KEYS.all, "runs"] as const,
   compliance: () => [...PAYROLL_QUERY_KEYS.all, "compliance"] as const,
   settings: () => [...PAYROLL_QUERY_KEYS.all, "settings"] as const,
+  detail: (id: string) => [...PAYROLL_QUERY_KEYS.all, "detail", id] as const,
 };
+
+export function usePayrollRunDetail(id: string) {
+  const detailQuery = useQuery({
+    queryKey: PAYROLL_QUERY_KEYS.detail(id),
+    queryFn: () => PayrollService.getPayrollRunDetail(id),
+    enabled: !!id,
+  });
+
+  return {
+    detail: detailQuery.data,
+    isLoading: detailQuery.isLoading,
+    isError: detailQuery.isError,
+    refetch: detailQuery.refetch,
+  };
+}
 
 export function usePayroll() {
   const queryClient = useQueryClient();
@@ -96,3 +112,4 @@ export function usePayroll() {
     isSubmittingRun: runPayrollMutation.isPending,
   };
 }
+

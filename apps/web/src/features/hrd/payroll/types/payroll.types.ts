@@ -53,3 +53,61 @@ export interface PayrollSettings {
   enablePph21Ter: boolean;
   bpjsHealthCap: number;
 }
+
+export interface EmployeePayslipItem {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeAvatar?: string;
+  nip: string;
+  department: string;
+  position: string;
+  basicSalary: number;
+  allowances: number;
+  overtime: number;
+  deductions: number;
+  taxPph21: number;
+  bpjsEmployee: number;
+  netPay: number;
+  bankName: string;
+  bankAccountNumber: string;
+  status: "Paid" | "Pending" | "Processing";
+}
+
+export interface PayrollAuditLog {
+  id: string;
+  timestamp: string;
+  user: string;
+  role: string;
+  action: string;
+  notes?: string;
+}
+
+export interface PayrollBankTransferBatch {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  batchReference: string;
+  totalRecords: number;
+  totalAmount: number;
+  status: "Verified" | "Transferred" | "Pending Verification";
+}
+
+export interface PayrollRunDetail extends PayrollRunRecord {
+  cutoffPeriod: string;
+  paymentDate: string;
+  notes: string;
+  grossPayroll: number;
+  totalTax: number;
+  totalBpjsCompany: number;
+  totalBpjsEmployee: number;
+  netPayroll: number;
+  approvedBy?: string;
+  approvedAt?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  payslips: EmployeePayslipItem[];
+  auditLogs: PayrollAuditLog[];
+  bankBatch: PayrollBankTransferBatch;
+}
+

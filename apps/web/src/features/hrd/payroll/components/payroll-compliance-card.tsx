@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { FileText, ShieldCheck, Clock, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 import type { ComplianceTaxItem } from "../types/payroll.types";
 
 interface PayrollComplianceCardProps {
@@ -12,6 +13,10 @@ interface PayrollComplianceCardProps {
 
 export function PayrollComplianceCard({ items }: PayrollComplianceCardProps) {
   const t = useTranslations("payroll");
+
+  const handleItemClick = (title: string, amount: number) => {
+    toast.info(`Kepatuhan: ${title} (${formatCurrency(amount)}) - Terdaftar dalam laporan pajak & BPJS.`);
+  };
 
   const getItemStyle = (type: ComplianceTaxItem["type"]) => {
     switch (type) {
@@ -53,6 +58,7 @@ export function PayrollComplianceCard({ items }: PayrollComplianceCardProps) {
             return (
               <div
                 key={item.id}
+                onClick={() => handleItemClick(item.title, item.amount)}
                 className="group flex cursor-pointer items-center justify-between rounded-xl border border-border/60 bg-card p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-xs"
               >
                 <div className="flex items-center gap-3">
@@ -84,6 +90,7 @@ export function PayrollComplianceCard({ items }: PayrollComplianceCardProps) {
       <div className="px-6 pb-4 pt-1">
         <button
           type="button"
+          onClick={() => toast.info("Menampilkan ringkasan lengkap kepatuhan pajak & iuran BPJS.")}
           className="inline-flex items-center gap-1 text-xs font-semibold text-rose hover:underline cursor-pointer"
         >
           {t("compliance.viewAllCompliance")} &gt;
@@ -92,3 +99,4 @@ export function PayrollComplianceCard({ items }: PayrollComplianceCardProps) {
     </Card>
   );
 }
+

@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Download, FileSpreadsheet, Calendar, Users, DollarSign, UserCheck } from "lucide-react";
+import { useRouter } from "@/i18n/routing";
+import { Download, FileSpreadsheet, Calendar, Users, DollarSign, UserCheck, ExternalLink } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
+import { toast } from "sonner";
 import type { PayrollRunRecord } from "../types/payroll.types";
 
 interface PayrollDetailSheetProps {
@@ -21,10 +23,24 @@ interface PayrollDetailSheetProps {
 
 export function PayrollDetailSheet({ run, onClose }: PayrollDetailSheetProps) {
   const t = useTranslations("payroll");
+  const router = useRouter();
 
   if (!run) return null;
 
   const isInProgress = run.status === "In Progress";
+
+  const handleExportCsv = () => {
+    toast.success(`Ekspor data payroll CSV periode ${run.period} berhasil.`);
+  };
+
+  const handleExportBank = () => {
+    toast.success(`File transfer bank periode ${run.period} berhasil diunduh.`);
+  };
+
+  const handleViewFullDetail = () => {
+    onClose();
+    router.push(`/hrd/payroll/${run.id}`);
+  };
 
   return (
     <Sheet open={!!run} onOpenChange={() => onClose()}>
@@ -32,7 +48,7 @@ export function PayrollDetailSheet({ run, onClose }: PayrollDetailSheetProps) {
         <SheetHeader>
           <div className="flex items-center justify-between">
             <SheetTitle className="text-xl font-bold">
-              {t("payroll.title")} - {run.period}
+              {t("title")} - {run.period}
             </SheetTitle>
             {isInProgress ? (
               <Badge
@@ -94,11 +110,20 @@ export function PayrollDetailSheet({ run, onClose }: PayrollDetailSheetProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <Button
+            onClick={handleViewFullDetail}
+            className="w-full cursor-pointer text-xs gap-2 font-bold"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Buka Halaman Detail Lengkap CRM View
+          </Button>
+
+          <div className="space-y-2 pt-2 border-t">
             <h4 className="text-xs font-bold text-foreground">Aksi Ekspor</h4>
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
+                onClick={handleExportCsv}
                 className="cursor-pointer gap-2 text-xs justify-center"
               >
                 <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
@@ -106,6 +131,7 @@ export function PayrollDetailSheet({ run, onClose }: PayrollDetailSheetProps) {
               </Button>
               <Button
                 variant="outline"
+                onClick={handleExportBank}
                 className="cursor-pointer gap-2 text-xs justify-center"
               >
                 <Download className="h-3.5 w-3.5 text-primary" />
@@ -118,3 +144,4 @@ export function PayrollDetailSheet({ run, onClose }: PayrollDetailSheetProps) {
     </Sheet>
   );
 }
+
