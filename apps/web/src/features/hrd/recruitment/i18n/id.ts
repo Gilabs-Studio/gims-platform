@@ -293,5 +293,20 @@ export const recruitmentId = {
         Intern: "Magang",
       },
     },
+
+    timeline: {
+      scheduleTitle: "Jadwal & Timeline Recruitment",
+      requestedOn: "Diajukan {date}",
+      targetOn: "Target Penempatan {date}",
+      daysLeft: "{days} hari lagi",
+      daysOverdue: "{days} hari lewat",
+      targetToday: "Target Hari Ini",
+      noSchedule: "Jadwal belum ditentukan",
+      noScheduleBadge: "Jadwal Belum Set",
+      targetEmploymentDate: "Target Mulai Bekerja",
+      onlyAddInOpenStatus: "Pelamar hanya dapat ditambahkan ketika status lowongan 'OPEN'",
+      invalidLinkedIn: "Format URL LinkedIn tidak valid (contoh: linkedin.com/in/username)",
+      jobTypeDesc: "Tipe Pekerjaan Lowongan",
+    },
   },
 };

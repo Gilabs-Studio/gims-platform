@@ -1,0 +1,32 @@
+meta {
+  name: 13 - List Applicants
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{base_url}}/api/v1/hrd/applicants?page=1&per_page=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  per_page: 20
+  ~search: 
+  ~recruitment_request_id: ae000001-0000-0000-0000-000000000001
+  ~stage_id: af000001-0000-0000-0000-000000000001
+  ~source: linkedin
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+docs {
+  List applicants with search, pagination, recruitment request, stage, and source filters.
+  Permission required: `recruitment.read`
+}

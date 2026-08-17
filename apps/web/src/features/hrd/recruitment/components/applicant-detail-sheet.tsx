@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Star,
   Mail,
@@ -61,14 +61,14 @@ function getTranslatedSourceLabel(
 
 function getSourceColor(source: ApplicantSource): string {
   const colors: Record<ApplicantSource, string> = {
-    linkedin: "bg-blue-100 text-blue-800",
-    jobstreet: "bg-orange-100 text-orange-800",
-    glints: "bg-purple-100 text-purple-800",
-    referral: "bg-green-100 text-green-800",
-    direct: "bg-gray-100 text-gray-800",
-    other: "bg-slate-100 text-slate-800",
+    linkedin: "bg-primary/10 text-primary border-primary/20",
+    jobstreet: "bg-warning/10 text-warning border-warning/20",
+    glints: "bg-purple/10 text-purple border-purple/20",
+    referral: "bg-success/10 text-success border-success/20",
+    direct: "bg-secondary text-secondary-foreground border-border",
+    other: "bg-muted text-muted-foreground border-border",
   };
-  return colors[source] || "bg-gray-100 text-gray-800";
+  return colors[source] || "bg-muted text-muted-foreground";
 }
 
 function getActivityIcon(type: ActivityType) {
@@ -105,18 +105,19 @@ function getActivityIconBgColor(type: ActivityType): string {
   switch (type) {
     case "hired":
     case "offer_accepted":
-      return "bg-green-100 text-green-700";
+      return "bg-success text-white shadow-sm ring-2 ring-success/20";
     case "rejected":
     case "offer_declined":
-      return "bg-red-100 text-red-700";
+      return "bg-destructive text-destructive-foreground shadow-sm ring-2 ring-destructive/20";
     case "interview_scheduled":
-      return "bg-blue-100 text-blue-700";
+    case "interview_completed":
+      return "bg-warning text-white shadow-sm ring-2 ring-warning/20";
     case "converted":
-      return "bg-purple-100 text-purple-700";
+      return "bg-purple text-purple-foreground shadow-sm ring-2 ring-purple/20";
     case "created":
-      return "bg-primary/10 text-primary";
+      return "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20";
     default:
-      return "bg-muted text-muted-foreground";
+      return "bg-muted text-muted-foreground shadow-sm ring-2 ring-muted/20";
   }
 }
 
@@ -130,8 +131,8 @@ function RatingStars({ rating }: { rating?: number }) {
           key={i}
           className={`h-4 w-4 ${
             i < rating
-              ? "fill-yellow-400 text-yellow-400"
-              : "fill-gray-200 text-gray-200"
+              ? "fill-warning text-warning"
+              : "fill-muted text-muted-foreground/30"
           }`}
         />
       ))}
@@ -147,6 +148,7 @@ export function ApplicantDetailSheet({
   onDelete,
 }: ApplicantDetailSheetProps) {
   const t = useTranslations("recruitment");
+  const locale = useLocale();
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
 
   const { data: applicantData, isLoading: isLoadingApplicant } = useApplicant(
@@ -164,25 +166,24 @@ export function ApplicantDetailSheet({
   const canConvert =
     canConvertData?.data?.can_convert && !applicant?.employee_id;
 
-  // Helper function to get full URL for resume
   const getResumeUrl = (resumePath: string) => {
     if (resumePath.startsWith("http://") || resumePath.startsWith("https://")) {
       return resumePath;
     }
-    // If it's a relative path, prepend the API base URL
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
     return `${baseUrl}${resumePath.startsWith("/") ? "" : "/"}${resumePath}`;
   };
 
   const isLoading = isLoadingApplicant;
 
-  // Helper function to format date nicely
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
+    return date.toLocaleDateString(locale === "id" ? "id-ID" : "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -200,7 +201,7 @@ export function ApplicantDetailSheet({
       }
       headerExtra={
         !isLoading && applicant ? (
-          <div className="flex items-center gap-2 px-6 pb-2">
+          <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
             <RatingStars rating={applicant.rating} />
             <Badge
               variant="secondary"
@@ -211,10 +212,11 @@ export function ApplicantDetailSheet({
             {applicant.stage && (
               <Badge
                 variant="outline"
+                className="font-medium"
                 style={{ borderColor: applicant.stage.color }}
               >
                 <span
-                  className="inline-block h-2 w-2 rounded-full mr-1"
+                  className="inline-block h-2 w-2 rounded-full mr-1.5"
                   style={{ backgroundColor: applicant.stage.color }}
                 />
                 {applicant.stage.name}
@@ -224,7 +226,7 @@ export function ApplicantDetailSheet({
         ) : null
       }
     >
-      <div className="px-4 py-4 md:px-5 md:py-5 flex flex-col h-full">
+      <div className="px-6 py-5 flex flex-col h-full">
         {isLoading ? (
           <div className="space-y-4 py-4">
             <Skeleton className="h-20 w-full" />
@@ -235,24 +237,24 @@ export function ApplicantDetailSheet({
           <div className="flex-1 space-y-6">
             {/* Contact Information */}
             <section className="space-y-3">
-              <h4 className="text-sm font-semibold">
+              <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">
                 {t("applicants.contactInfo")}
               </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="h-4 w-4" />
-                  <span>{applicant.email}</span>
+              <div className="space-y-2.5 text-sm bg-muted/20 p-3.5 rounded-lg border border-border/50">
+                <div className="flex items-center gap-2 text-foreground">
+                  <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="font-medium">{applicant.email}</span>
                 </div>
                 {applicant.phone && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-4 w-4" />
-                    <span>{applicant.phone}</span>
+                  <div className="flex items-center gap-2 text-foreground">
+                    <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="font-medium">{applicant.phone}</span>
                   </div>
                 )}
                 {applicant.linkedin_url && (
                   <div className="flex items-center gap-2">
                     <svg
-                      className="h-4 w-4 text-primary"
+                      className="h-4 w-4 text-primary shrink-0"
                       fill="currentColor"
                       viewBox="0 0 24 24"
                     >
@@ -262,9 +264,10 @@ export function ApplicantDetailSheet({
                       href={`https://linkedin.com/in/${applicant.linkedin_url}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary hover:underline"
+                      className="text-primary font-medium hover:underline flex items-center gap-1"
                     >
                       linkedin.com/in/{applicant.linkedin_url}
+                      <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
                 )}
@@ -275,27 +278,37 @@ export function ApplicantDetailSheet({
 
             {/* Application Details */}
             <section className="space-y-3">
-              <h4 className="text-sm font-semibold">
+              <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">
                 {t("applicants.applicationDetails")}
               </h4>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2.5 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="h-4 w-4 shrink-0" />
                   <span>
                     {t("applicants.appliedAt")}:{" "}
-                    {new Date(applicant.applied_at).toLocaleDateString()}
+                    <strong className="text-foreground">
+                      {new Date(applicant.applied_at).toLocaleDateString(
+                        locale === "id" ? "id-ID" : "en-US",
+                        {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        },
+                      )}
+                    </strong>
                   </span>
                 </div>
                 {applicant.resume_url && (
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
+                    <FileText className="h-4 w-4 text-primary shrink-0" />
                     <a
                       href={getResumeUrl(applicant.resume_url)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary hover:underline"
+                      className="text-primary font-medium hover:underline flex items-center gap-1"
                     >
                       {t("applicants.viewResume")}
+                      <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
                 )}
@@ -306,10 +319,10 @@ export function ApplicantDetailSheet({
               <>
                 <Separator />
                 <section className="space-y-3">
-                  <h4 className="text-sm font-semibold">
+                  <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">
                     {t("applicants.notes")}
                   </h4>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap bg-muted/20 p-3.5 rounded-lg border border-border/50">
                     {applicant.notes}
                   </p>
                 </section>
@@ -321,48 +334,46 @@ export function ApplicantDetailSheet({
               <>
                 <Separator />
                 <section className="space-y-3">
-                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
                     <UserCheck className="h-4 w-4 text-primary" />
                     {t("applicants.employeeInfo")}
                   </h4>
-                  <div className="rounded-lg bg-primary/10 p-3 border border-primary/20">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">
-                          {t("applicants.employeeCode")}
-                        </span>
-                        <span className="font-medium">
-                          {applicant.employee.employee_code}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">
-                          {t("applicants.fields.name")}
-                        </span>
-                        <span className="font-medium">
-                          {applicant.employee.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">
-                          {t("applicants.fields.email")}
-                        </span>
-                        <span className="font-medium">
-                          {applicant.employee.email}
-                        </span>
-                      </div>
-                      <div className="pt-2">
-                        <Link
-                          href={{
-                            pathname: "/master-data/employees",
-                            query: { openId: applicant.employee.id },
-                          }}
-                          className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-medium"
-                        >
-                          {t("applicants.viewEmployee")}
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
-                      </div>
+                  <div className="rounded-lg bg-primary/10 p-3.5 border border-primary/20 space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        {t("applicants.employeeCode")}
+                      </span>
+                      <span className="font-mono font-bold text-foreground">
+                        {applicant.employee.employee_code}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        {t("applicants.fields.name")}
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {applicant.employee.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">
+                        {t("applicants.fields.email")}
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {applicant.employee.email}
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t border-primary/20">
+                      <Link
+                        href={{
+                          pathname: "/master-data/employees",
+                          query: { openId: applicant.employee.id },
+                        }}
+                        className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 font-semibold"
+                      >
+                        {t("applicants.viewEmployee")}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
                     </div>
                   </div>
                 </section>
@@ -371,9 +382,9 @@ export function ApplicantDetailSheet({
 
             <Separator />
 
-            {/* Activity History - Timeline Design */}
-            <section className="space-y-3">
-              <h4 className="text-sm font-semibold">
+            {/* Activity History - Timeline Design with Center-Aligned Connecting Line */}
+            <section className="space-y-4">
+              <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">
                 {t("applicants.activityHistory")}
               </h4>
               {isLoadingActivities ? (
@@ -382,17 +393,17 @@ export function ApplicantDetailSheet({
                   <Skeleton className="h-16 w-full" />
                 </div>
               ) : activities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground italic">
                   {t("applicants.noActivities")}
                 </p>
               ) : (
-                <div className="relative pl-4">
-                  {/* Vertical timeline line */}
-                  <div className="absolute left-6 top-2 bottom-2 w-px bg-border" />
-                  <div className="space-y-4">
+                <div className="relative pt-1">
+                  {/* Vertical line running EXACTLY through center of 32px (h-8) icons (left-[15px]) */}
+                  <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-border z-0" />
+                  <div className="space-y-5">
                     {activities.map((activity) => (
-                      <div key={activity.id} className="relative flex gap-4">
-                        {/* Timeline dot/icon */}
+                      <div key={activity.id} className="relative flex items-start gap-4">
+                        {/* Solid background circular icon centered over the timeline line */}
                         <div className="relative z-10 shrink-0">
                           <div
                             className={`h-8 w-8 rounded-full flex items-center justify-center ${getActivityIconBgColor(
@@ -402,13 +413,17 @@ export function ApplicantDetailSheet({
                             {getActivityIcon(activity.type as ActivityType)}
                           </div>
                         </div>
-                        {/* Activity content */}
-                        <div className="flex-1 min-w-0 pt-1">
-                          <p className="text-sm">{activity.description}</p>
-                          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                            <span>{formatDate(activity.created_at)}</span>
+
+                        {/* Activity details */}
+                        <div className="flex-1 min-w-0 pt-0.5">
+                          <p className="text-sm font-medium text-foreground leading-snug">
+                            {activity.description}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            <span className="font-mono">{formatDate(activity.created_at)}</span>
                             {activity.created_by_name && (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 font-medium">
+                                <span>•</span>
                                 <User className="h-3 w-3" />
                                 <span>{activity.created_by_name}</span>
                               </div>
@@ -424,14 +439,14 @@ export function ApplicantDetailSheet({
           </div>
         ) : null}
 
-        {/* Actions */}
+        {/* Actions Footer */}
         {applicant && (
-          <div className="flex flex-col gap-2 pt-4 pb-6 border-t mt-6">
+          <div className="flex flex-col gap-2 pt-4 pb-4 border-t mt-6 bg-background">
             {/* Convert to Employee Button */}
             {canConvert && (
               <Button
                 variant="default"
-                className="w-full bg-green-600 hover:bg-green-700"
+                className="w-full bg-success text-white font-semibold cursor-pointer"
                 onClick={() => setConvertDialogOpen(true)}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
@@ -439,16 +454,16 @@ export function ApplicantDetailSheet({
               </Button>
             )}
             {applicant.employee_id && (
-              <div className="flex items-center gap-2 text-sm text-primary bg-primary/10 p-2 rounded-md border border-primary/20">
+              <div className="flex items-center justify-center gap-2 text-sm text-primary bg-primary/10 p-2.5 rounded-md border border-primary/20 font-medium">
                 <UserCheck className="h-4 w-4" />
                 <span>{t("applicants.alreadyConverted")}</span>
               </div>
             )}
             {!applicant.employee_id && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 cursor-pointer"
                   onClick={() => onEdit?.(applicant)}
                 >
                   <Pencil className="h-4 w-4 mr-2" />
@@ -456,7 +471,7 @@ export function ApplicantDetailSheet({
                 </Button>
                 <Button
                   variant="destructive"
-                  className="flex-1"
+                  className="flex-1 cursor-pointer"
                   onClick={() => {
                     onDelete?.(applicant.id);
                     onOpenChange(false);

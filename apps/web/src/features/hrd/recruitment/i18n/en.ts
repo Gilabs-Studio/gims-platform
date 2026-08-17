@@ -292,6 +292,21 @@ export const recruitmentEn = {
         Intern: "Internship",
       },
     },
+
+    timeline: {
+      scheduleTitle: "Recruitment Schedule & Timeline",
+      requestedOn: "Requested {date}",
+      targetOn: "Target Placement {date}",
+      daysLeft: "{days} days left",
+      daysOverdue: "{days} days overdue",
+      targetToday: "Target Today",
+      noSchedule: "Schedule not specified",
+      noScheduleBadge: "No Schedule Set",
+      targetEmploymentDate: "Target Employment Date",
+      onlyAddInOpenStatus: "Applicants can only be added when recruitment status is 'OPEN'",
+      invalidLinkedIn: "Invalid LinkedIn URL format (e.g. linkedin.com/in/username)",
+      jobTypeDesc: "Recruitment Job Type",
+    },
   },
 };
 

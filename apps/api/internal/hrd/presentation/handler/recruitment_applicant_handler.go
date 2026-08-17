@@ -298,6 +298,12 @@ func handleApplicantError(c *gin.Context, err error) {
 		errors.ErrorResponse(c, "TARGET_STAGE_NOT_FOUND", map[string]any{"message": msg}, nil)
 	case msg == "invalid applicant source":
 		errors.ErrorResponse(c, "INVALID_SOURCE", map[string]any{"message": msg}, nil)
+	case strings.Contains(msg, "can only be added to open recruitment requests"):
+		errors.ErrorResponse(c, "RECRUITMENT_NOT_OPEN", map[string]any{"message": msg}, nil)
+	case strings.Contains(msg, "INVALID_LINKEDIN_URL"):
+		errors.ErrorResponse(c, "INVALID_LINKEDIN_URL", map[string]any{"message": msg}, nil)
+	case strings.Contains(msg, "APPLICANT_ALREADY_CONVERTED"):
+		errors.ErrorResponse(c, "ALREADY_CONVERTED", map[string]any{"message": msg}, nil)
 	case msg == "applicant already converted to employee":
 		errors.ErrorResponse(c, "ALREADY_CONVERTED", map[string]any{"message": msg}, nil)
 	case msg == "applicant must be in hired stage to convert":
@@ -313,6 +319,6 @@ func handleApplicantError(c *gin.Context, err error) {
 	case strings.Contains(msg, "failed to link applicant to employee"):
 		errors.ErrorResponse(c, "LINK_FAILED", map[string]any{"message": msg}, nil)
 	default:
-		errors.ErrorResponse(c, "INTERNAL_ERROR", map[string]any{"message": "An unexpected error occurred"}, nil)
+		errors.ErrorResponse(c, "BAD_REQUEST", map[string]any{"message": msg}, nil)
 	}
 }

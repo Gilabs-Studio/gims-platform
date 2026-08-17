@@ -69,7 +69,7 @@ func (r *recruitmentRequestRepositoryImpl) Delete(ctx context.Context, id string
 	return nil
 }
 
-func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, perPage int, search string, status *models.RecruitmentStatus, divisionID, positionID *string, priority *models.RecruitmentPriority) ([]models.RecruitmentRequest, int64, error) {
+func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, perPage int, search string, status *models.RecruitmentStatus, divisionID, positionID *string) ([]models.RecruitmentRequest, int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -99,10 +99,6 @@ func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, pe
 
 	if positionID != nil {
 		query = query.Where("recruitment_requests.position_id = ?", *positionID)
-	}
-
-	if priority != nil {
-		query = query.Where("recruitment_requests.priority = ?", *priority)
 	}
 
 	// Count

@@ -34,8 +34,6 @@ export type RecruitmentStatus =
   | "CLOSED"
   | "CANCELLED";
 
-export type RecruitmentPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-
 export type RecruitmentEmploymentType =
   | "FULL_TIME"
   | "PART_TIME"
@@ -55,13 +53,13 @@ export interface RecruitmentRequest {
   required_count: number;
   filled_count: number;
   open_positions: number;
+  applicants_count?: number;
   employment_type: RecruitmentEmploymentType;
   expected_start_date: string;
   salary_range_min?: number | null;
   salary_range_max?: number | null;
   job_description: string;
   qualifications: string;
-  priority: RecruitmentPriority;
   status: RecruitmentStatus;
   notes?: string | null;
   approved_by_id?: string | null;
@@ -82,7 +80,6 @@ export interface ListRecruitmentRequestsParams {
   per_page?: number;
   search?: string;
   status?: RecruitmentStatus;
-  priority?: RecruitmentPriority;
   division_id?: string;
   position_id?: string;
   sort_by?: string;
@@ -126,7 +123,6 @@ export interface RecruitmentFormDataResponse {
     divisions: DivisionOption[];
     job_positions: JobPositionOption[];
     employment_types: EnumOption[];
-    priorities: EnumOption[];
     statuses: EnumOption[];
   };
   timestamp: string;
@@ -145,7 +141,6 @@ export interface CreateRecruitmentRequestData {
   salary_range_max?: number;
   job_description: string;
   qualifications: string;
-  priority?: string;
   notes?: string;
 }
 
@@ -159,7 +154,6 @@ export interface UpdateRecruitmentRequestData {
   salary_range_max?: number;
   job_description?: string;
   qualifications?: string;
-  priority?: string;
   notes?: string;
 }
 

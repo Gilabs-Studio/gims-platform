@@ -15,7 +15,6 @@ type CreateRecruitmentRequestDTO struct {
 	SalaryRangeMax    *float64 `json:"salary_range_max" binding:"omitempty,gte=0"`
 	JobDescription    string   `json:"job_description" binding:"required,max=5000"`
 	Qualifications    string   `json:"qualifications" binding:"required,max=5000"`
-	Priority          string   `json:"priority" binding:"omitempty,oneof=LOW MEDIUM HIGH URGENT"`
 	Notes             *string  `json:"notes" binding:"omitempty,max=2000"`
 }
 
@@ -30,7 +29,6 @@ type UpdateRecruitmentRequestDTO struct {
 	SalaryRangeMax    *float64 `json:"salary_range_max" binding:"omitempty,gte=0"`
 	JobDescription    *string  `json:"job_description" binding:"omitempty,max=5000"`
 	Qualifications    *string  `json:"qualifications" binding:"omitempty,max=5000"`
-	Priority          *string  `json:"priority" binding:"omitempty,oneof=LOW MEDIUM HIGH URGENT"`
 	Notes             *string  `json:"notes" binding:"omitempty,max=2000"`
 }
 
@@ -64,13 +62,13 @@ type RecruitmentRequestResponse struct {
 	RequiredCount     int                     `json:"required_count"`
 	FilledCount       int                     `json:"filled_count"`
 	OpenPositions     int                     `json:"open_positions"`
+	ApplicantsCount   int                     `json:"applicants_count"`
 	EmploymentType    string                  `json:"employment_type"`
 	ExpectedStartDate string                  `json:"expected_start_date"`
 	SalaryRangeMin    *float64                `json:"salary_range_min"`
 	SalaryRangeMax    *float64                `json:"salary_range_max"`
 	JobDescription    string                  `json:"job_description"`
 	Qualifications    string                  `json:"qualifications"`
-	Priority          string                  `json:"priority"`
 	Status            string                  `json:"status"`
 	Notes             *string                 `json:"notes"`
 	ApprovedByID      *string                 `json:"approved_by_id"`
@@ -90,7 +88,6 @@ type RecruitmentFormDataResponse struct {
 	Divisions       []DivisionFormOption              `json:"divisions"`
 	JobPositions    []JobPositionFormOption           `json:"job_positions"`
 	EmploymentTypes []RecruitmentEmploymentTypeOption `json:"employment_types"`
-	Priorities      []RecruitmentPriorityOption       `json:"priorities"`
 	Statuses        []RecruitmentStatusOption         `json:"statuses"`
 }
 
@@ -108,12 +105,6 @@ type JobPositionFormOption struct {
 
 // RecruitmentEmploymentTypeOption represents an employment type option for dropdowns
 type RecruitmentEmploymentTypeOption struct {
-	Value string `json:"value"`
-	Label string `json:"label"`
-}
-
-// RecruitmentPriorityOption represents a priority option for dropdowns
-type RecruitmentPriorityOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
