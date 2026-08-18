@@ -1,6 +1,6 @@
 export type RoomStatus = 'available' | 'occupied' | 'reserved' | 'unavailable';
 
-export type BookingStatus = 'confirmed' | 'pending' | 'in_progress' | 'cancelled' | 'completed';
+export type BookingStatus = 'confirmed' | 'pending' | 'in_progress' | 'cancelled' | 'completed' | 'reserved';
 
 export interface RoomFacility {
   id: string;
@@ -26,6 +26,7 @@ export interface Room {
   floor: string;
   facilities: string[];
   description?: string;
+  imageUrl?: string;
   coordinates?: RoomMapCoordinates;
   currentBooking?: {
     title: string;
@@ -124,4 +125,3 @@ export interface RoomLayoutCanvasData {
   objects: RoomCanvasObject[];
   rooms: Room[];
 }
-

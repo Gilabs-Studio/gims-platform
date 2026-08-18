@@ -1,16 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import { useRoomBooking } from "@/features/room-booking/hooks/use-room-booking";
-import { RoomBookingHeader } from "@/features/room-booking/components/room-booking-header";
-import { RoomBookingStatsCards } from "@/features/room-booking/components/room-booking-stats-cards";
+import { RoomBookingHeader, type ViewTabMode } from "@/features/room-booking/components/room-booking-header";
 import { RoomFloorMap } from "@/features/room-booking/components/room-floor-map";
-import { RoomListView } from "@/features/room-booking/components/room-list-view";
-import { UpcomingBookingsCard } from "@/features/room-booking/components/upcoming-bookings-card";
-import { TodayBookingsTable } from "@/features/room-booking/components/today-bookings-table";
-import { RoomUsageChart } from "@/features/room-booking/components/room-usage-chart";
 import { CreateBookingModal } from "@/features/room-booking/components/create-booking-modal";
 import { RoomDetailModal } from "@/features/room-booking/components/room-detail-modal";
 import { MyBookingsDrawer } from "@/features/room-booking/components/my-bookings-drawer";
+import { RoomCalendar, type RoomCalendarResource, type RoomCalendarEvent } from "@/components/ui/room-calendar";
 import { PageMotion } from "@/components/motion";
 
 export default function RoomBookingClient() {
@@ -25,18 +22,15 @@ export default function RoomBookingClient() {
     zoomLevel,
     showGrid,
     isPending,
-    stats,
     rooms,
     layoutData,
-    todayBookings,
-    upcomingBookings,
-    usageTrend,
-    chartPeriod,
+    bookings,
+    selectedDate,
     permissions,
     setActiveTab,
     setSelectedLocation,
     setSelectedFloor,
-    setChartPeriod,
+    setSelectedDate,
     openCreateModal,
     closeCreateModal,
     openDetailModal,
@@ -49,81 +43,87 @@ export default function RoomBookingClient() {
     toggleGrid,
     handleCreateBookingSubmit,
     handleCancelBooking,
+    handleSelectSlot,
   } = useRoomBooking();
 
+  // Map rooms to calendar resources format (including Unsplash photo & facilities count)
+  const calendarResources: RoomCalendarResource[] = useMemo(() => {
+    return rooms.map((r) => ({
+      id: r.id,
+      name: r.name,
+      code: r.code,
+      capacity: r.capacity,
+      status: r.status,
+      floor: r.floor,
+      imageUrl: r.imageUrl,
+      facilitiesCount: r.facilities.length,
+    }));
+  }, [rooms]);
+
+  // Map bookings to calendar events format
+  const calendarEvents: RoomCalendarEvent[] = useMemo(() => {
+    return bookings.map((b) => ({
+      id: b.id,
+      roomId: b.roomId,
+      roomName: b.roomName,
+      title: b.title,
+      organizerName: b.organizerName,
+      organizerDept: b.organizerDept,
+      date: b.date,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      status: b.status,
+      notes: b.notes,
+    }));
+  }, [bookings]);
+
   return (
-    <PageMotion className="space-y-6">
-      {/* 1. Header Section */}
+    <PageMotion className="space-y-4">
+      {/* 1. Simplified Page Header */}
       <RoomBookingHeader
+        activeTab={(activeTab === "map" ? "map" : "calendar") as ViewTabMode}
+        onTabChange={(tab) => setActiveTab(tab)}
+        selectedLocation={selectedLocation}
+        onLocationChange={setSelectedLocation}
+        selectedFloor={selectedFloor}
+        onFloorChange={setSelectedFloor}
         onOpenCreateModal={() => openCreateModal()}
         onOpenMyBookingsDrawer={openMyBookingsDrawer}
         canCreateBooking={permissions.canCreateBooking}
       />
 
-      {/* 2. Top Summary Metric Cards */}
-      <RoomBookingStatsCards stats={stats} />
-
-      {/* 3. Main Full Grid Floor Layout Visualizer / Room List */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="lg:col-span-12">
+      {/* 2. Full Window Main Workspace (Reference Calendar or SVG Map Layout) */}
+      <div className="w-full min-h-[620px]">
+        {activeTab === "map" ? (
           <RoomFloorMap
             rooms={rooms}
             layoutData={layoutData}
-            activeTab={activeTab}
-            selectedLocation={selectedLocation}
-            selectedFloor={selectedFloor}
             zoomLevel={zoomLevel}
             showGrid={showGrid}
-            onTabChange={setActiveTab}
-            onLocationChange={setSelectedLocation}
-            onFloorChange={setSelectedFloor}
             onSelectRoom={(room) => openDetailModal(room)}
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}
             onResetZoom={resetZoom}
             onToggleGrid={toggleGrid}
           />
-
-          {activeTab === "list" && (
-            <div className="mt-4">
-              <RoomListView
-                rooms={rooms}
-                onSelectRoom={(room) => openDetailModal(room)}
-                onOpenCreateModal={(room) => openCreateModal(room)}
-              />
-            </div>
-          )}
-        </div>
+        ) : (
+          <RoomCalendar
+            resources={calendarResources}
+            events={calendarEvents}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+            onSelectSlot={handleSelectSlot}
+            onSelectEvent={(evt) => {
+              const targetRoom = rooms.find((r) => r.id === evt.roomId);
+              if (targetRoom) {
+                openDetailModal(targetRoom);
+              }
+            }}
+          />
+        )}
       </div>
 
-      {/* 4. Bottom Section: Upcoming Bookings, Today's Bookings Table & Usage Chart */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="lg:col-span-4">
-          <UpcomingBookingsCard
-            bookings={upcomingBookings}
-            onCancelBooking={handleCancelBooking}
-            onOpenMyBookingsDrawer={openMyBookingsDrawer}
-            canCancelBooking={permissions.canCancelBooking}
-          />
-        </div>
-
-        <div className="lg:col-span-5">
-          <TodayBookingsTable
-            bookings={todayBookings}
-            onOpenMyBookingsDrawer={openMyBookingsDrawer}
-          />
-        </div>
-
-        <div className="lg:col-span-3">
-          <RoomUsageChart
-            data={usageTrend}
-            period={chartPeriod}
-            onPeriodChange={setChartPeriod}
-          />
-        </div>
-      </div>
-
-      {/* Modals & Drawer */}
+      {/* Modals & Drawers */}
       <CreateBookingModal
         isOpen={isCreateModalOpen}
         onClose={closeCreateModal}
@@ -137,6 +137,7 @@ export default function RoomBookingClient() {
         isOpen={isDetailModalOpen}
         onClose={closeDetailModal}
         room={selectedRoom}
+        bookings={bookings}
         onBookRoom={(room) => openCreateModal(room)}
         canCreateBooking={permissions.canCreateBooking}
       />
@@ -144,7 +145,7 @@ export default function RoomBookingClient() {
       <MyBookingsDrawer
         isOpen={isMyBookingsDrawerOpen}
         onClose={closeMyBookingsDrawer}
-        bookings={upcomingBookings}
+        bookings={bookings}
         onCancelBooking={handleCancelBooking}
         canCancelBooking={permissions.canCancelBooking}
       />

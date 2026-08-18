@@ -93,29 +93,10 @@ function RoomZoneObject({
         </g>
       )}
 
-      {/* Capacity Pill Badge (Top Right) */}
-      {object.capacity && (
-        <g transform={`translate(${w - 60}, 12)`}>
-          <rect x={0} y={0} width={48} height={20} rx={5} fill="#ffffff" fillOpacity={0.85} stroke={colors.stroke} strokeWidth={1} />
-          <text
-            x={24}
-            y={10}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontSize={10}
-            fontWeight="600"
-            fill={colors.text}
-            className="select-none pointer-events-none"
-          >
-            {object.capacity} psl
-          </text>
-        </g>
-      )}
-
       {/* Room Title Label (Center) */}
       <text
         x={w / 2}
-        y={h / 2 + 5}
+        y={h / 2}
         textAnchor="middle"
         dominantBaseline="central"
         fontSize={13}

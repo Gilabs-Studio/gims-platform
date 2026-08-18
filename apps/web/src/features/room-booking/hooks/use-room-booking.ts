@@ -3,8 +3,7 @@ import { useRoomBookingStore } from "../stores/use-room-booking-store";
 import { fetchRoomFloorLayout, fetchRooms } from "../services/room-booking.service";
 import {
   MOCK_STATS,
-  MOCK_UPCOMING_BOOKINGS,
-  MOCK_TODAY_BOOKINGS,
+  MOCK_BOOKINGS,
   MOCK_USAGE_TREND,
 } from "../utils/mock-data";
 import type { Booking, Room, RoomLayoutCanvasData } from "../types/room-booking.types";
@@ -27,6 +26,7 @@ export function useRoomBooking() {
     setActiveTab,
     setSelectedLocation,
     setSelectedFloor,
+    setSelectedRoom,
     openCreateModal,
     closeCreateModal,
     openDetailModal,
@@ -43,8 +43,8 @@ export function useRoomBooking() {
   const [layoutData, setLayoutData] = useState<RoomLayoutCanvasData | undefined>(undefined);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [stats] = useState(MOCK_STATS);
-  const [todayBookings] = useState<Booking[]>(MOCK_TODAY_BOOKINGS);
-  const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>(MOCK_UPCOMING_BOOKINGS);
+  const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [usageTrend] = useState(MOCK_USAGE_TREND);
   const [chartPeriod, setChartPeriod] = useState<string>("this_week");
 
@@ -59,13 +59,16 @@ export function useRoomBooking() {
         if (isMounted) {
           setLayoutData(layout);
           setRooms(roomList);
+          if (roomList.length > 0) {
+            setSelectedRoom(roomList[0]);
+          }
         }
       });
     });
     return () => {
       isMounted = false;
     };
-  }, [selectedLocation, selectedFloor]);
+  }, [selectedLocation, selectedFloor, setSelectedRoom]);
 
   // TODO: connect to real permission from backend
   const canCreateBooking = true;
@@ -88,8 +91,6 @@ export function useRoomBooking() {
         roomLocation: selectedLocation,
         title: data.title,
         date: data.date,
-        monthShort: "JUN",
-        dayNumber: data.date.split("-")[2] || "05",
         startTime: data.startTime,
         endTime: data.endTime,
         organizerName: data.organizerName,
@@ -98,15 +99,23 @@ export function useRoomBooking() {
         notes: data.notes,
       };
 
-      setUpcomingBookings((prev) => [newBookingItem, ...prev]);
+      setBookings((prev) => [newBookingItem, ...prev]);
       closeCreateModal();
     });
   };
 
   const handleCancelBooking = (bookingId: string) => {
     startTransition(() => {
-      setUpcomingBookings((prev) => prev.filter((b) => b.id !== bookingId));
+      setBookings((prev) => prev.filter((b) => b.id !== bookingId));
     });
+  };
+
+  const handleSelectSlot = (roomId: string) => {
+    const targetRoom = rooms.find((r) => r.id === roomId);
+    if (targetRoom) {
+      setSelectedRoom(targetRoom);
+    }
+    openCreateModal(targetRoom);
   };
 
   return {
@@ -126,8 +135,8 @@ export function useRoomBooking() {
     stats,
     rooms,
     layoutData,
-    todayBookings,
-    upcomingBookings,
+    bookings,
+    selectedDate,
     usageTrend,
     chartPeriod,
 
@@ -142,6 +151,8 @@ export function useRoomBooking() {
     setActiveTab,
     setSelectedLocation,
     setSelectedFloor,
+    setSelectedRoom,
+    setSelectedDate,
     setChartPeriod,
     openCreateModal,
     closeCreateModal,
@@ -155,6 +166,6 @@ export function useRoomBooking() {
     toggleGrid,
     handleCreateBookingSubmit,
     handleCancelBooking,
+    handleSelectSlot,
   };
 }
-

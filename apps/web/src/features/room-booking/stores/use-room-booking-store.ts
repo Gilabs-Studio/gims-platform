@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import type { Room } from "../types/room-booking.types";
 
+export type ViewTabMode = "map" | "calendar" | "list";
+
 interface RoomBookingUIState {
-  activeTab: "map" | "list";
+  activeTab: ViewTabMode;
   selectedLocation: string;
   selectedFloor: string;
   isCreateModalOpen: boolean;
@@ -13,9 +15,10 @@ interface RoomBookingUIState {
   showGrid: boolean;
 
   // Actions
-  setActiveTab: (tab: "map" | "list") => void;
+  setActiveTab: (tab: ViewTabMode) => void;
   setSelectedLocation: (loc: string) => void;
   setSelectedFloor: (floor: string) => void;
+  setSelectedRoom: (room: Room | null) => void;
   openCreateModal: (room?: Room) => void;
   closeCreateModal: () => void;
   openDetailModal: (room: Room) => void;
@@ -42,10 +45,11 @@ export const useRoomBookingStore = create<RoomBookingUIState>((set) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
   setSelectedLocation: (selectedLocation) => set({ selectedLocation }),
   setSelectedFloor: (selectedFloor) => set({ selectedFloor }),
+  setSelectedRoom: (selectedRoom) => set({ selectedRoom }),
   openCreateModal: (room) => set({ isCreateModalOpen: true, selectedRoom: room || null }),
   closeCreateModal: () => set({ isCreateModalOpen: false }),
   openDetailModal: (room) => set({ selectedRoom: room, isDetailModalOpen: true }),
-  closeDetailModal: () => set({ isDetailModalOpen: false, selectedRoom: null }),
+  closeDetailModal: () => set({ isDetailModalOpen: false }),
   openMyBookingsDrawer: () => set({ isMyBookingsDrawerOpen: true }),
   closeMyBookingsDrawer: () => set({ isMyBookingsDrawerOpen: false }),
   zoomIn: () => set((state) => ({ zoomLevel: Math.min(state.zoomLevel + 0.15, 1.8) })),
@@ -53,4 +57,3 @@ export const useRoomBookingStore = create<RoomBookingUIState>((set) => ({
   resetZoom: () => set({ zoomLevel: 1 }),
   toggleGrid: () => set((state) => ({ showGrid: !state.showGrid })),
 }));
-

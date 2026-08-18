@@ -1,5 +1,5 @@
 import type { Room, Booking, RoomBookingStats, UsageTrendItem, RoomBookingFilter, RoomLayoutCanvasData } from "../types/room-booking.types";
-import { MOCK_STATS, MOCK_ROOMS, MOCK_UPCOMING_BOOKINGS, MOCK_TODAY_BOOKINGS, MOCK_USAGE_TREND, getMockFloorCanvasLayout } from "../utils/mock-data";
+import { MOCK_STATS, MOCK_ROOMS, MOCK_BOOKINGS, MOCK_USAGE_TREND, getMockFloorCanvasLayout } from "../utils/mock-data";
 
 export async function fetchRoomBookingStats(): Promise<RoomBookingStats> {
   return Promise.resolve({ ...MOCK_STATS });
@@ -28,14 +28,17 @@ export async function fetchRoomFloorLayout(location: string, floor: string): Pro
 }
 
 export async function fetchUpcomingBookings(): Promise<Booking[]> {
-  return Promise.resolve([...MOCK_UPCOMING_BOOKINGS]);
+  return Promise.resolve([...MOCK_BOOKINGS]);
 }
 
 export async function fetchTodayBookings(): Promise<Booking[]> {
-  return Promise.resolve([...MOCK_TODAY_BOOKINGS]);
+  return Promise.resolve([...MOCK_BOOKINGS]);
+}
+
+export async function fetchBookings(): Promise<Booking[]> {
+  return Promise.resolve([...MOCK_BOOKINGS]);
 }
 
 export async function fetchRoomUsageTrend(): Promise<UsageTrendItem[]> {
   return Promise.resolve([...MOCK_USAGE_TREND]);
 }
-
