@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
-import { Search, Plus, Download, Eye, FileSpreadsheet, MoreHorizontal, Layers } from "lucide-react";
+import { Search, Plus, Download, Eye, FileSpreadsheet, MoreHorizontal, Layers, CheckCircle2, Clock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -223,13 +224,15 @@ export function PayrollRunListModal({
                       </TableCell>
                       <TableCell>
                         {row.status === "In Progress" ? (
-                          <span className="inline-flex items-center rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning">
+                          <Badge variant="warning" className="text-xs font-medium">
+                            <Clock className="h-3 w-3 mr-1" />
                             {t("status.inProgress")}
-                          </span>
+                          </Badge>
                         ) : (
-                          <span className="inline-flex items-center rounded-md bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success">
+                          <Badge variant="success" className="text-xs font-medium">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
                             {t("status.completed")}
-                          </span>
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">

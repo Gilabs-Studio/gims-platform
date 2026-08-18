@@ -72,6 +72,8 @@ import { recruitmentEn } from "@/features/hrd/recruitment/i18n/en";
 import { recruitmentId } from "@/features/hrd/recruitment/i18n/id";
 import { payrollEn } from "@/features/hrd/payroll/i18n/en";
 import { payrollId } from "@/features/hrd/payroll/i18n/id";
+import { roomBookingEn } from "@/features/room-booking/i18n/en";
+import { roomBookingId } from "@/features/room-booking/i18n/id";
 
 import { passwordResetEn } from "@/features/auth/password-reset/i18n/en";
 import { passwordResetId } from "@/features/auth/password-reset/i18n/id";
@@ -244,6 +246,7 @@ const messages = {
     ...evaluationEn,
     ...recruitmentEn,
     ...payrollEn,
+    ...roomBookingEn,
     ...passwordResetEn,
     auth: {
       ...globalEnMessages.auth,
@@ -345,6 +348,7 @@ const messages = {
     ...evaluationId,
     ...recruitmentId,
     ...payrollId,
+    ...roomBookingId,
     ...passwordResetId,
     auth: {
       ...globalIdMessages.auth,

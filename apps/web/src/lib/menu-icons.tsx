@@ -93,6 +93,7 @@ import {
   MessageCircle,
   ClipboardPen,
   ScrollText,
+  DoorOpen,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -155,6 +156,12 @@ const iconMap: Record<string, React.ReactNode> = {
   "shopping-bag": <ShoppingBag className="h-4 w-4" />,
   shoppingbag: <ShoppingBag className="h-4 w-4" />,
   star: <Star className="h-4 w-4" />,
+
+  // Room Booking & Door icons
+  "door-open": <DoorOpen className="h-4 w-4" />,
+  dooropen: <DoorOpen className="h-4 w-4" />,
+  "room-booking": <DoorOpen className="h-4 w-4" />,
+  roombooking: <DoorOpen className="h-4 w-4" />,
 
   // Sales icons
   "trending-up": <TrendingUp className="h-4 w-4" />,

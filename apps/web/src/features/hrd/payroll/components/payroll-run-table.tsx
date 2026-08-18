@@ -3,9 +3,10 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/routing";
-import { MoreHorizontal, FileSpreadsheet, Download, Eye } from "lucide-react";
+import { MoreHorizontal, FileSpreadsheet, Download, Eye, CheckCircle2, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import {
   DropdownMenu,
@@ -78,13 +79,15 @@ export function PayrollRunTable({ runs, onSelectRun, onOpenFullList }: PayrollRu
         header: t("list.columns.status"),
         accessor: (row) =>
           row.status === "In Progress" ? (
-            <span className="inline-flex items-center rounded-md bg-warning/15 px-2 py-0.5 text-[11px] font-semibold text-warning tabular-nums">
+            <Badge variant="warning" className="text-xs font-medium">
+              <Clock className="h-3 w-3 mr-1" />
               {t("status.inProgress")}
-            </span>
+            </Badge>
           ) : (
-            <span className="inline-flex items-center rounded-md bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success tabular-nums">
+            <Badge variant="success" className="text-xs font-medium">
+              <CheckCircle2 className="h-3 w-3 mr-1" />
               {t("status.completed")}
-            </span>
+            </Badge>
           ),
       },
       {
@@ -143,9 +146,9 @@ export function PayrollRunTable({ runs, onSelectRun, onOpenFullList }: PayrollRu
   );
 
   return (
-    <Card className="h-full flex flex-col justify-between">
+    <Card className="h-full border border-border/60 bg-card transition-all duration-200 hover:shadow-sm">
       <div>
-        <CardHeader className="flex flex-row items-center justify-between px-6 pb-3">
+        <CardHeader className="flex flex-row items-center justify-between px-6 pb-3 pt-4">
           <CardTitle className="text-base font-bold text-foreground">
             {t("list.title")}
           </CardTitle>
@@ -173,4 +176,3 @@ export function PayrollRunTable({ runs, onSelectRun, onOpenFullList }: PayrollRu
     </Card>
   );
 }
-
