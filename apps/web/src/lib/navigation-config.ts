@@ -701,6 +701,29 @@ export const navigationConfig: NavItem[] = [
         icon: "banknote",
         permission: "recruitment.read",
       },
+      {
+        name: "Asset Borrowing",
+        i18nKey: "assetBorrowing",
+        url: "/hrd/asset-borrowing",
+        icon: "box",
+        permission: "recruitment.read",
+        children: [
+          {
+            name: "Peminjaman Aset",
+            i18nKey: "assetBorrowing",
+            url: "/hrd/asset-borrowing",
+            icon: "file-check",
+            permission: "recruitment.read",
+          },
+          {
+            name: "Manage Aset Kantor",
+            i18nKey: "assetBorrowingManage",
+            url: "/hrd/office-assets",
+            icon: "boxes",
+            permission: "recruitment.read",
+          },
+        ],
+      },
     ],
   },
   {
