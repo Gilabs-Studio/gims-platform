@@ -76,6 +76,8 @@ import { roomBookingEn } from "@/features/room-booking/i18n/en";
 import { roomBookingId } from "@/features/room-booking/i18n/id";
 import { assetBorrowingEn } from "@/features/asset-borrowing/i18n/en";
 import { assetBorrowingId } from "@/features/asset-borrowing/i18n/id";
+import { ticketingEn } from "@/features/ticketing/i18n/en";
+import { ticketingId } from "@/features/ticketing/i18n/id";
 
 import { passwordResetEn } from "@/features/auth/password-reset/i18n/en";
 import { passwordResetId } from "@/features/auth/password-reset/i18n/id";
@@ -250,6 +252,7 @@ const messages = {
     ...payrollEn,
     ...roomBookingEn,
     ...assetBorrowingEn,
+    ticketing: ticketingEn,
     ...passwordResetEn,
     auth: {
       ...globalEnMessages.auth,
@@ -353,6 +356,7 @@ const messages = {
     ...payrollId,
     ...roomBookingId,
     ...assetBorrowingId,
+    ticketing: ticketingId,
     ...passwordResetId,
     auth: {
       ...globalIdMessages.auth,

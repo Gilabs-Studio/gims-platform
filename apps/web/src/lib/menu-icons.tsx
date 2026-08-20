@@ -94,6 +94,7 @@ import {
   ClipboardPen,
   ScrollText,
   DoorOpen,
+  Ticket,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -277,6 +278,10 @@ const iconMap: Record<string, React.ReactNode> = {
   messagecircle: <MessageCircle className="h-4 w-4" />,
   "clipboard-pen": <ClipboardPen className="h-4 w-4" />,
   clipboardpen: <ClipboardPen className="h-4 w-4" />,
+
+  // Ticketing icons
+  ticket: <Ticket className="h-4 w-4" />,
+  ticketing: <Ticket className="h-4 w-4" />,
 };
 
 export function getMenuIcon(iconName: string): React.ReactNode {

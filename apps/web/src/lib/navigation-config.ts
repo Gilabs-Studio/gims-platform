@@ -734,6 +734,13 @@ export const navigationConfig: NavItem[] = [
     permission: "recruitment.read",
   },
   {
+    name: "Ticketing",
+    i18nKey: "ticketing",
+    url: "/ticketing",
+    icon: "ticket",
+    permission: "recruitment.read",
+  },
+  {
     name: "Reports",
     i18nKey: "reports",
     icon: "bar-chart-3",
