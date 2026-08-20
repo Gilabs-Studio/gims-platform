@@ -5,6 +5,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../viewmodels/attendance_viewmodel.dart';
+import '../widgets/hris_calendar_widget.dart';
 
 class AttendancePage extends StatefulWidget {
   final bool isOversightMode;
@@ -143,6 +144,13 @@ class _AttendancePageState extends State<AttendancePage> {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 24),
+
+                // Interactive Real-time Calendar
+                HrisCalendarWidget(
+                  attendanceLogs: vm.logs,
+                  leaveRequests: vm.leaves,
                 ),
                 const SizedBox(height: 24),
 

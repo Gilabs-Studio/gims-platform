@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/custom_card.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../viewmodels/meal_order_viewmodel.dart';
@@ -40,7 +41,7 @@ class _MealOrderPageState extends State<MealOrderPage> {
             backgroundColor: AppColors.surface,
             elevation: 0,
             title: const Text(
-              "Order Makan OB Internal",
+              "Kantin & Pesanan OB",
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
@@ -53,26 +54,33 @@ class _MealOrderPageState extends State<MealOrderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Active Order Tracker Banner
+                // Active Order Tracker Banner (Inspired by Reference Image 1 "Cart food")
                 if (vm.orders.isNotEmpty) ...[
                   const Text(
-                    "Status Pesanan Hari Ini",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    "Pesanan OB Aktif",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 12),
                   ...vm.orders.map((ord) => Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: CustomCard(
-                      gradient: AppColors.darkCardGradient,
+                      gradient: AppColors.primaryGradient,
                       child: Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              ord.menuItem.imageUrl,
+                              width: 56,
+                              height: 56,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Container(
+                                width: 56,
+                                height: 56,
+                                color: Colors.white24,
+                                child: const Icon(Icons.restaurant_rounded, color: Colors.white),
+                              ),
                             ),
-                            child: const Icon(Icons.restaurant_rounded, color: AppColors.primaryLight, size: 24),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -85,7 +93,7 @@ class _MealOrderPageState extends State<MealOrderPage> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  "Catatan: ${ord.notes.isNotEmpty ? ord.notes : '-'}",
+                                  "Porsi: ${ord.quantity}x • ${CurrencyFormatter.formatRupiah(ord.totalPrice)}",
                                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                                 ),
                               ],
@@ -99,13 +107,13 @@ class _MealOrderPageState extends State<MealOrderPage> {
                       ),
                     ),
                   )),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                 ],
 
-                // Category Chips
+                // Category Filter Pills
                 const Text(
-                  "Pilih Menu Harian Pribadi",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  "Pilih Menu Kantin Harian",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 12),
                 SingleChildScrollView(
@@ -120,9 +128,15 @@ class _MealOrderPageState extends State<MealOrderPage> {
                           selected: isSelected,
                           onSelected: (_) => vm.selectCategory(cat),
                           selectedColor: AppColors.primary,
+                          backgroundColor: AppColors.surface,
+                          checkmarkColor: Colors.white,
+                          side: BorderSide(
+                            color: isSelected ? AppColors.primary : AppColors.cardBorder,
+                          ),
                           labelStyle: TextStyle(
                             color: isSelected ? Colors.white : AppColors.textPrimary,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontSize: 12,
                           ),
                         ),
                       );
@@ -131,25 +145,26 @@ class _MealOrderPageState extends State<MealOrderPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Menu Items List
+                // Menu List (Reference Image 1 Food Card layout)
                 ...vm.menuItems.map((item) => Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: const EdgeInsets.only(bottom: 14),
                   child: CustomCard(
+                    padding: const EdgeInsets.all(12),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                           child: Image.network(
                             item.imageUrl,
-                            width: 80,
-                            height: 80,
+                            width: 86,
+                            height: 86,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Container(
-                              width: 80,
-                              height: 80,
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.restaurant_rounded, color: Colors.grey),
+                              width: 86,
+                              height: 86,
+                              color: AppColors.primarySoft,
+                              child: const Icon(Icons.restaurant_rounded, color: AppColors.primary, size: 28),
                             ),
                           ),
                         ),
@@ -158,9 +173,26 @@ class _MealOrderPageState extends State<MealOrderPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                item.name,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      item.name,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.star_rounded, color: AppColors.warning, size: 16),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        "${item.rating}",
+                                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -169,24 +201,26 @@ class _MealOrderPageState extends State<MealOrderPage> {
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 10),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    item.vendorName,
-                                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                                    CurrencyFormatter.formatRupiah(item.price),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary),
                                   ),
-                                  ElevatedButton(
+                                  ElevatedButton.icon(
                                     onPressed: () => _showOrderModal(context, item),
+                                    icon: const Icon(Icons.add_rounded, size: 16),
+                                    label: const Text("Pesan"),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: AppColors.primary,
+                                      foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                                       minimumSize: Size.zero,
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                     ),
-                                    child: const Text("Pesan", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
@@ -216,6 +250,8 @@ class _MealOrderPageState extends State<MealOrderPage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            final totalPrice = item.price * qty;
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 24,
@@ -227,45 +263,107 @@ class _MealOrderPageState extends State<MealOrderPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Konfirmasi Pesanan OB", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Text(item.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                    ),
+                  ),
                   const SizedBox(height: 16),
+                  const Text("Konfirmasi Pesanan OB", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  const SizedBox(height: 12),
+
+                  // Item Summary Card
+                  CustomCard(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(item.imageUrl, width: 50, height: 50, fit: BoxFit.cover),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text(CurrencyFormatter.formatRupiah(item.price), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Jumlah Porsi"),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline_rounded),
-                            onPressed: qty > 1 ? () => setModalState(() => qty--) : null,
-                          ),
-                          Text("$qty", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline_rounded),
-                            onPressed: () => setModalState(() => qty++),
-                          ),
-                        ],
+                      const Text("Jumlah Porsi", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.cardBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove_rounded, size: 18),
+                              onPressed: qty > 1 ? () => setModalState(() => qty--) : null,
+                            ),
+                            Text("$qty", style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                            IconButton(
+                              icon: const Icon(Icons.add_rounded, size: 18),
+                              onPressed: () => setModalState(() => qty++),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
+
                   TextField(
                     controller: notesCtrl,
-                    decoration: const InputDecoration(
-                      labelText: "Catatan Khusus (misal: Sambal Dipisah / Tanpa Es)",
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: "Catatan Khusus (misal: Sambal Dipisah)",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Total Pembayaran", style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                      Text(
+                        CurrencyFormatter.formatRupiah(totalPrice),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
                   ElevatedButton(
                     onPressed: () {
                       context.read<MealOrderViewModel>().placeOrder(item, qty, notesCtrl.text);
                       Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Pesanan ${item.name} berhasil dikirim ke OB Kantin!"),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
                     },
-                    style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48), backgroundColor: AppColors.primary),
-                    child: const Text("Kirim Pesanan ke OB", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: const Text("Kirim Pesanan ke OB", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                   ),
                 ],
               ),

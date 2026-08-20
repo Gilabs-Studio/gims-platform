@@ -8,6 +8,8 @@ class CustomCard extends StatelessWidget {
   final Color? backgroundColor;
   final Gradient? gradient;
   final Border? border;
+  final BorderRadius? borderRadius;
+  final List<BoxShadow>? boxShadow;
 
   const CustomCard({
     super.key,
@@ -17,30 +19,34 @@ class CustomCard extends StatelessWidget {
     this.backgroundColor,
     this.gradient,
     this.border,
+    this.borderRadius,
+    this.boxShadow,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveRadius = borderRadius ?? BorderRadius.circular(20);
+
     return Container(
       decoration: BoxDecoration(
         color: backgroundColor ?? AppColors.surface,
         gradient: gradient,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: effectiveRadius,
         border: border ?? Border.all(color: AppColors.cardBorder, width: 1),
-        boxShadow: [
+        boxShadow: boxShadow ?? [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: effectiveRadius,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: effectiveRadius,
           child: Padding(
             padding: padding,
             child: child,

@@ -6,10 +6,11 @@ import '../../auth/views/login_page.dart';
 import '../viewmodels/dashboard_viewmodel.dart';
 import 'staff_dashboard_view.dart';
 import 'admin_dashboard_view.dart';
-import '../../payroll/views/payroll_page.dart';
-import '../../hris/views/attendance_page.dart';
 import '../../meal_order/views/meal_order_page.dart';
+import '../../room_booking/views/room_booking_page.dart';
+import '../../asset_borrowing/views/asset_borrowing_page.dart';
 import '../../manufacturing/views/manufacturing_dashboard_page.dart';
+import '../../profile/views/profile_page.dart';
 
 class MainShell extends StatelessWidget {
   const MainShell({super.key});
@@ -28,60 +29,77 @@ class MainShell extends StatelessWidget {
 
     final List<Widget> pages = [
       isAdmin ? const AdminDashboardView() : const StaffDashboardView(),
-      PayrollPage(isOversightMode: isAdmin),
-      AttendancePage(isOversightMode: isAdmin),
       const MealOrderPage(),
+      const RoomBookingPage(),
+      const AssetBorrowingPage(),
       if (isAdmin) const ManufacturingDashboardPage(),
+      const ProfilePage(),
     ];
 
     final currentIndex = dashVm.currentIndex.clamp(0, pages.length - 1);
 
     return Scaffold(
+      extendBody: true,
+      backgroundColor: AppColors.background,
       body: pages[currentIndex],
+      // Floating Dock Navigation Bar
       bottomNavigationBar: Container(
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
         decoration: BoxDecoration(
           color: AppColors.surface,
+          borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -4),
+              color: const Color(0xFF0F172A).withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: (index) => dashVm.setIndex(index),
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textMuted,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.surface,
-          elevation: 0,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded),
-              label: "Beranda",
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: BottomNavigationBar(
+              currentIndex: currentIndex,
+              onTap: (index) => dashVm.setIndex(index),
+              selectedItemColor: AppColors.primary,
+              unselectedItemColor: AppColors.textMuted,
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: AppColors.surface,
+              elevation: 0,
+              selectedFontSize: 11,
+              unselectedFontSize: 11,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+              items: [
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.grid_view_rounded),
+                  label: "Beranda",
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.restaurant_rounded),
+                  label: "Order Makan",
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.meeting_room_rounded),
+                  label: "Booking",
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.inventory_2_rounded),
+                  label: "Aset",
+                ),
+                if (isAdmin)
+                  const BottomNavigationBarItem(
+                    icon: Icon(Icons.precision_manufacturing_rounded),
+                    label: "Manufaktur",
+                  ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.person_rounded),
+                  label: "Profil",
+                ),
+              ],
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet_rounded),
-              label: "Payroll",
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.access_time_filled_rounded),
-              label: "HRIS Absen",
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant_rounded),
-              label: "Order Makan",
-            ),
-            if (isAdmin)
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.precision_manufacturing_rounded),
-                label: "Manufaktur",
-              ),
-          ],
+          ),
         ),
       ),
       drawer: Drawer(

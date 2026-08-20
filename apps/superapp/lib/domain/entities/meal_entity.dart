@@ -6,6 +6,8 @@ class MealMenuItem {
   final String imageUrl;
   final bool isAvailableToday;
   final String vendorName;
+  final double price;
+  final double rating;
 
   const MealMenuItem({
     required this.id,
@@ -15,6 +17,8 @@ class MealMenuItem {
     required this.imageUrl,
     required this.isAvailableToday,
     this.vendorName = "Dapur OB Internal",
+    this.price = 25000.0,
+    this.rating = 4.8,
   });
 }
 
@@ -34,4 +38,6 @@ class MealOrder {
     required this.notes,
     required this.status,
   });
+
+  double get totalPrice => menuItem.price * quantity;
 }
