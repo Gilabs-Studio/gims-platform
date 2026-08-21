@@ -95,6 +95,7 @@ import {
   ScrollText,
   DoorOpen,
   Ticket,
+  Factory,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -211,8 +212,11 @@ const iconMap: Record<string, React.ReactNode> = {
   "clipboard-check": <ClipboardCheck className="h-4 w-4" />,
   clipboardcheck: <ClipboardCheck className="h-4 w-4" />,
 
-  // Warehouse & Logistics icons
+  // Warehouse, Manufacturing & Logistics icons
   warehouse: <Warehouse className="h-4 w-4" />,
+  factory: <Factory className="h-4 w-4" />,
+  manufacturing: <Factory className="h-4 w-4" />,
+  manufacture: <Factory className="h-4 w-4" />,
   "scroll-text": <ScrollText className="h-4 w-4" />,
   scrolltext: <ScrollText className="h-4 w-4" />,
   truck: <Truck className="h-4 w-4" />,

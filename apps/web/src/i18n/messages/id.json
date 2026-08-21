@@ -486,7 +486,8 @@
     "settings": "Pengaturan",
     "loyalty": "Loyalitas",
     "loyaltyConfig": "Program Loyalitas",
-    "loyaltyMembers": "Anggota Loyalitas"
+    "loyaltyMembers": "Anggota Loyalitas",
+    "manufacturing": "Manufaktur"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",

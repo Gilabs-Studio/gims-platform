@@ -486,7 +486,8 @@
     "settings": "Settings",
     "loyalty": "Loyalty",
     "loyaltyConfig": "Loyalty Program",
-    "loyaltyMembers": "Loyalty Members"
+    "loyaltyMembers": "Loyalty Members",
+    "manufacturing": "Manufacturing"
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",

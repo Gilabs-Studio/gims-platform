@@ -211,6 +211,8 @@ import { systemAdminEn } from "@/features/system-admin/i18n/en";
 import { systemAdminId } from "@/features/system-admin/i18n/id";
 import { userFeedbackEn } from "@/features/feedback/i18n/en";
 import { userFeedbackId } from "@/features/feedback/i18n/id";
+import { manufacturingEn } from "@/features/manufacturing/i18n/en";
+import { manufacturingId } from "@/features/manufacturing/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -317,6 +319,7 @@ const messages = {
     ...landingEn,
     ...systemAdminEn,
     ...userFeedbackEn,
+    manufacturing: manufacturingEn,
   },
   id: {
     ...globalIdMessages,
@@ -421,6 +424,7 @@ const messages = {
     ...landingId,
     ...systemAdminId,
     ...userFeedbackId,
+    manufacturing: manufacturingId,
   },
 } as const;
 

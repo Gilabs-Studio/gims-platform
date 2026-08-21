@@ -358,6 +358,13 @@ export const navigationConfig: NavItem[] = [
     ],
   },
   {
+    name: "Manufacturing",
+    i18nKey: "manufacturing",
+    icon: "factory",
+    url: "/manufacturing/oee",
+    permission: "stock_opname.read",
+  },
+  {
     name: "Finance",
     i18nKey: "finance",
     icon: "credit-card",
