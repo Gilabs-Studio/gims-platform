@@ -78,7 +78,7 @@ class MainShell extends StatelessWidget {
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.restaurant_rounded),
-                  label: "Order Makan",
+                  label: "Kantin",
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.meeting_room_rounded),

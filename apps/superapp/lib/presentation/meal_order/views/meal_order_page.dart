@@ -41,7 +41,7 @@ class _MealOrderPageState extends State<MealOrderPage> {
             backgroundColor: AppColors.surface,
             elevation: 0,
             title: const Text(
-              "Kantin & Pesanan OB",
+              "Kantin",
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
@@ -231,6 +231,7 @@ class _MealOrderPageState extends State<MealOrderPage> {
                     ),
                   ),
                 )),
+                const SizedBox(height: 90), // Bottom spacing for floating dock navigation
               ],
             ),
           ),

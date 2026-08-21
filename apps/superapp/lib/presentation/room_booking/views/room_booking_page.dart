@@ -63,7 +63,7 @@ class _RoomBookingPageState extends State<RoomBookingPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Pemesanan Ruang Meeting",
+          "Booking",
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
@@ -266,6 +266,7 @@ class _RoomBookingPageState extends State<RoomBookingPage> {
                 ),
               ),
             )),
+            const SizedBox(height: 90), // Bottom spacing for floating dock navigation
           ],
         ),
       ),

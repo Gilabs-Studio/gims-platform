@@ -76,7 +76,7 @@ class _AssetBorrowingPageState extends State<AssetBorrowingPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          "Peminjaman Aset Perusahaan",
+          "Aset",
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
@@ -215,6 +215,7 @@ class _AssetBorrowingPageState extends State<AssetBorrowingPage> {
                 ),
               ),
             )),
+            const SizedBox(height: 90), // Bottom spacing for floating dock navigation
           ],
         ),
       ),

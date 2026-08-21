@@ -250,6 +250,7 @@ class _TicketingPageState extends State<TicketingPage> {
                 ),
               ),
             )),
+            const SizedBox(height: 90), // Bottom spacing for floating dock navigation
           ],
         ),
       ),
