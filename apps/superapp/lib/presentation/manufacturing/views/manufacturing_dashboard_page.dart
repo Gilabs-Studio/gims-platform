@@ -6,6 +6,7 @@ import '../../../core/widgets/status_badge.dart';
 import '../viewmodels/manufacturing_viewmodel.dart';
 import '../../../domain/entities/manufacturing_entity.dart';
 import '../widgets/oee_donut_chart.dart';
+import '../widgets/machine_detail_modal.dart';
 
 class ManufacturingDashboardPage extends StatefulWidget {
   const ManufacturingDashboardPage({super.key});
@@ -177,113 +178,110 @@ class _ManufacturingDashboardPageState extends State<ManufacturingDashboardPage>
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
-                        child: CustomCard(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header Machine Title & Status Chip
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "${mch.name} - ${mch.lineName}",
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
-                                  ),
-                                  StatusBadge(
-                                    label: isRun ? "RUNNING" : (isDown ? "DOWN" : "IDLE"),
-                                    type: isRun ? BadgeType.success : (isDown ? BadgeType.danger : BadgeType.warning),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
+                        child: InkWell(
+                          onTap: () => MachineDetailModal.show(context, mch),
+                          borderRadius: BorderRadius.circular(16),
+                          child: CustomCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header Machine Title & Status Chip
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        "${mch.name} - ${mch.lineName}",
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+                                      ),
+                                    ),
+                                    StatusBadge(
+                                      label: isRun ? "RUNNING" : (isDown ? "DOWN" : "IDLE"),
+                                      type: isRun ? BadgeType.success : (isDown ? BadgeType.danger : BadgeType.warning),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
 
-                              // 4 Key OEE Metrics Row (Image 1 Style)
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  _buildKeyMetricTile(
-                                    "OEE",
-                                    "${mch.oeeScore.toStringAsFixed(0)}%",
-                                    isHighOee ? AppColors.success : AppColors.danger,
-                                  ),
-                                  _buildKeyMetricTile(
-                                    "Parts/Hour",
-                                    isRun ? (mch.oeeScore * 3.2).toStringAsFixed(0) : "14",
-                                    isRun ? AppColors.success : AppColors.danger,
-                                  ),
-                                  _buildKeyMetricTile(
-                                    "Cavitation",
-                                    isRun ? "11/12" : "2/12",
-                                    AppColors.textPrimary,
-                                  ),
-                                  _buildKeyMetricTile(
-                                    "Rejects",
-                                    isRun ? "14" : "72",
-                                    isRun ? AppColors.textSecondary : AppColors.danger,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
+                                // 4 Key OEE Metrics Row (Image 1 Style)
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _buildKeyMetricTile(
+                                      "OEE",
+                                      "${mch.oeeScore.toStringAsFixed(0)}%",
+                                      isHighOee ? AppColors.success : AppColors.danger,
+                                    ),
+                                    _buildKeyMetricTile(
+                                      "Parts/Hour",
+                                      isRun ? (mch.oeeScore * 3.2).toStringAsFixed(0) : "14",
+                                      isRun ? AppColors.success : AppColors.danger,
+                                    ),
+                                    _buildKeyMetricTile(
+                                      "Cavitation",
+                                      isRun ? "11/12" : "2/12",
+                                      AppColors.textPrimary,
+                                    ),
+                                    _buildKeyMetricTile(
+                                      "Rejects",
+                                      isRun ? "14" : "72",
+                                      isRun ? AppColors.textSecondary : AppColors.danger,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
 
-                              // Middle Donut Chart & Breakdown Legend
-                              Row(
-                                children: [
-                                  OeeDonutChart(
-                                    availability: isRun ? 70 : 18,
-                                    performance: isRun ? 20 : 32,
-                                    quality: isRun ? 10 : 50,
-                                    size: 76,
-                                    strokeWidth: 10,
-                                  ),
-                                  const SizedBox(width: 16),
+                                // Middle Donut Chart & Breakdown Legend
+                                Row(
+                                  children: [
+                                    OeeDonutChart(
+                                      availability: isRun ? 70 : 18,
+                                      performance: isRun ? 20 : 32,
+                                      quality: isRun ? 10 : 50,
+                                      size: 76,
+                                      strokeWidth: 10,
+                                    ),
+                                    const SizedBox(width: 16),
 
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text("OEE Breakdown", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                          const SizedBox(height: 4),
+                                          _buildBreakdownItem(const Color(0xFF3B82F6), isRun ? "70% Availability" : "18% Availability"),
+                                          _buildBreakdownItem(const Color(0xFFF59E0B), isRun ? "20% Performance" : "32% Performance"),
+                                          _buildBreakdownItem(const Color(0xFF10B981), isRun ? "10% Quality" : "50% Quality"),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Cycle Time
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
-                                        const Text("OEE Breakdown", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                        const Icon(Icons.timer_outlined, size: 20, color: AppColors.primary),
                                         const SizedBox(height: 4),
-                                        _buildBreakdownItem(const Color(0xFF3B82F6), isRun ? "70% Availability" : "18% Availability"),
-                                        _buildBreakdownItem(const Color(0xFFF59E0B), isRun ? "20% Performance" : "32% Performance"),
-                                        _buildBreakdownItem(const Color(0xFF10B981), isRun ? "10% Quality" : "50% Quality"),
+                                        Text(
+                                          isRun ? "2.51m" : "6.21m",
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                                        ),
+                                        const Text("Cycle Time", style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                                       ],
                                     ),
-                                  ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
 
-                                  // Cycle Time
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      const Icon(Icons.timer_outlined, size: 20, color: AppColors.primary),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        isRun ? "2.51m" : "6.21m",
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
-                                      ),
-                                      const Text("Cycle Time", style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              // Downtime Timeline Bar (Image 1 Style)
-                              DowntimeTimelineBar(
-                                segments: isRun
-                                    ? const [
-                                        DowntimeSegment(12, DowntimeSegment.running),
-                                        DowntimeSegment(1, DowntimeSegment.down),
-                                        DowntimeSegment(8, DowntimeSegment.running),
-                                      ]
-                                    : const [
-                                        DowntimeSegment(4, DowntimeSegment.running),
-                                        DowntimeSegment(8, DowntimeSegment.down),
-                                        DowntimeSegment(2, DowntimeSegment.maintenance),
-                                        DowntimeSegment(4, DowntimeSegment.down),
-                                      ],
-                              ),
-                            ],
+                                // Graphic Machine Time Timeline Widget (Shows exact time of down)
+                                MachineGraphicTimeline(
+                                  logs: mch.downtimeLogs,
+                                  currentStatus: mch.status,
+                                  compactMode: false,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );

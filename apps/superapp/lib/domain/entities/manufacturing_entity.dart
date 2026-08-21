@@ -1,5 +1,21 @@
 enum MachineStatus { running, idle, downtime, maintenance }
 
+class DowntimeLogEvent {
+  final String startTime; // e.g. "08:30"
+  final String endTime;   // e.g. "09:15"
+  final MachineStatus status;
+  final String reason;    // e.g. "Spindle Motor Overheat"
+  final int durationMinutes; // 45
+
+  const DowntimeLogEvent({
+    required this.startTime,
+    required this.endTime,
+    required this.status,
+    required this.reason,
+    required this.durationMinutes,
+  });
+}
+
 class MachineItem {
   final String id;
   final String name;
@@ -10,6 +26,7 @@ class MachineItem {
   final double temperature; // Celsius
   final double vibrationLevel;
   final String lastMaintenance;
+  final List<DowntimeLogEvent> downtimeLogs;
 
   const MachineItem({
     required this.id,
@@ -21,6 +38,7 @@ class MachineItem {
     required this.temperature,
     required this.vibrationLevel,
     required this.lastMaintenance,
+    this.downtimeLogs = const [],
   });
 }
 

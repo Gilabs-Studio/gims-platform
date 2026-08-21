@@ -8,6 +8,8 @@ import '../viewmodels/dashboard_viewmodel.dart';
 import '../../manufacturing/viewmodels/manufacturing_viewmodel.dart';
 import '../../../domain/entities/manufacturing_entity.dart';
 import '../../manufacturing/widgets/oee_donut_chart.dart';
+import '../../manufacturing/widgets/machine_detail_modal.dart';
+import '../../hris/views/attendance_page.dart';
 import '../../ticketing/views/ticketing_page.dart';
 import '../../room_booking/views/room_booking_page.dart';
 import '../../asset_borrowing/views/asset_borrowing_page.dart';
@@ -51,7 +53,7 @@ class AdminDashboardView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Admin Header (8-pt spacing)
+                  // Admin Greeting Header (Consistent with Staff Header)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -88,19 +90,40 @@ class AdminDashboardView extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const StatusBadge(label: "ADMIN ACCESS", type: BadgeType.danger),
+                      Row(
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendancePage(isOversightMode: true)));
+                            },
+                            icon: const Icon(Icons.calendar_month_rounded, color: AppColors.primary, size: 22),
+                            tooltip: "Oversight HRIS Absensi Tim",
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.surface,
+                              elevation: 1,
+                              shadowColor: Colors.black12,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => dashVm.setIndex(5),
+                            icon: const Icon(Icons.person_outline_rounded, color: AppColors.textPrimary, size: 22),
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.surface,
+                              elevation: 1,
+                              shadowColor: Colors.black12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
 
-                  // HERO MANUFACTURING DRAWER CARD (24px Radius Deep Drawer Card)
+                  // HERO MANUFACTURING DRAWER CARD (Consistent with Staff Hero Drawer Style, Clean & Dot-free)
                   CustomCard(
                     borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-                    ),
+                    gradient: AppColors.primaryGradient,
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,16 +132,12 @@ class AdminDashboardView extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 6),
-                                const Text(
-                                  "STATUS MANUFAKTUR PABRIK",
-                                  style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                              children: const [
+                                Icon(Icons.factory_rounded, color: Colors.white, size: 16),
+                                SizedBox(width: 6),
+                                Text(
+                                  "STATISTIK MANUFAKTUR PABRIK",
+                                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
                                 ),
                               ],
                             ),
@@ -128,7 +147,7 @@ class AdminDashboardView extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 16),
 
                         Row(
                           children: [
@@ -136,45 +155,61 @@ class AdminDashboardView extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    "Monitoring Mesin Telemetri",
-                                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    "Pantau live status 6 mesin produksi & sensor IoT real-time.",
-                                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                                  const Text("Mesin Beroperasi", style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "${mfgVm.runningCount}/${mfgVm.totalMachines} Unit",
+                                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
                             ),
+                            Container(width: 1, height: 32, color: Colors.white30),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text("Total Output Shift", style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      "1,420 Pcs",
+                                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 18),
 
-                        // Executive Metric Pills (Solid White High Contrast Pills)
-                        Row(
-                          children: [
-                            _buildMetricPill("Running", "${mfgVm.runningCount} Unit", const Color(0xFF10B981)),
-                            const SizedBox(width: 8),
-                            _buildMetricPill("Downtime", "${mfgVm.downtimeCount} Unit", const Color(0xFFEF4444)),
-                            const SizedBox(width: 8),
-                            _buildMetricPill("Target", "1,420 pcs", AppColors.textPrimary),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Action Button
-                        ElevatedButton.icon(
+                        // Prominent Solid White Action Button (Consistent with Staff Card Button)
+                        ElevatedButton(
                           onPressed: () => dashVm.setIndex(4), // Open Manufacturing Dashboard Tab
-                          icon: const Icon(Icons.analytics_rounded, size: 18),
-                          label: const Text("Buka Live Telemetri Mesin", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size.fromHeight(48),
                             backgroundColor: Colors.white,
                             foregroundColor: AppColors.primary,
-                            elevation: 2,
+                            elevation: 4,
+                            shadowColor: Colors.black26,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.analytics_rounded, size: 20, color: AppColors.primary),
+                              SizedBox(width: 8),
+                              Text(
+                                "Buka Live Telemetri Mesin",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -242,16 +277,17 @@ class AdminDashboardView extends StatelessWidget {
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      childAspectRatio: 1.25,
+                      childAspectRatio: 1.05,
                     ),
                     itemCount: mfgVm.machines.length,
                     itemBuilder: (context, index) {
                       final m = mfgVm.machines[index];
                       final isRunning = m.status == MachineStatus.running;
                       final isDown = m.status == MachineStatus.downtime;
+                      final isMaint = m.status == MachineStatus.maintenance;
 
                       return InkWell(
-                        onTap: () => dashVm.setIndex(4),
+                        onTap: () => MachineDetailModal.show(context, m),
                         borderRadius: BorderRadius.circular(16),
                         child: CustomCard(
                           borderRadius: BorderRadius.circular(16),
@@ -278,13 +314,9 @@ class AdminDashboardView extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isRunning ? AppColors.success : (isDown ? AppColors.danger : AppColors.warning),
-                                    ),
+                                  StatusBadge(
+                                    label: isRunning ? "RUNNING" : (isDown ? "DOWN" : (isMaint ? "SERVIS" : "IDLE")),
+                                    type: isRunning ? BadgeType.success : (isDown ? BadgeType.danger : BadgeType.warning),
                                   ),
                                 ],
                               ),
@@ -296,8 +328,8 @@ class AdminDashboardView extends StatelessWidget {
                                     availability: isRunning ? 70 : 18,
                                     performance: isRunning ? 20 : 32,
                                     quality: isRunning ? 10 : 50,
-                                    size: 40,
-                                    strokeWidth: 6,
+                                    size: 38,
+                                    strokeWidth: 5,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -319,15 +351,28 @@ class AdminDashboardView extends StatelessWidget {
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 6),
+
+                              // Graphic Time Timeline Widget
+                              MachineGraphicTimeline(
+                                logs: m.downtimeLogs,
+                                currentStatus: m.status,
+                                compactMode: true,
+                              ),
                               const SizedBox(height: 4),
 
-                              // Telemetry stats row
+                              // Telemetry stats row & Click hint
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text("${m.temperature.toStringAsFixed(0)}°C", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: m.temperature > 85 ? AppColors.danger : AppColors.textPrimary)),
                                   Text("Vib: ${m.vibrationLevel}", style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                                  Text("${m.oeeScore.toStringAsFixed(0)}% OEE", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                                  const Row(
+                                    children: [
+                                      Text("Detail", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                                      Icon(Icons.chevron_right_rounded, size: 14, color: AppColors.primary),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ],
@@ -341,30 +386,6 @@ class AdminDashboardView extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricPill(String label, String val, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text("$label: ", style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500)),
-          Text(val, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../domain/entities/manufacturing_entity.dart';
 
 /// OEE Breakdown Donut Chart (Availability, Performance, Quality)
 class OeeDonutChart extends StatelessWidget {
@@ -115,6 +116,148 @@ class _OeeDonutPainter extends CustomPainter {
     return oldDelegate.availability != availability ||
         oldDelegate.performance != performance ||
         oldDelegate.quality != quality;
+  }
+}
+
+/// Enhanced Graphic Timeline Widget showing Machine Uptime & Downtime intervals
+class MachineGraphicTimeline extends StatelessWidget {
+  final List<DowntimeLogEvent> logs;
+  final MachineStatus currentStatus;
+  final bool compactMode;
+
+  const MachineGraphicTimeline({
+    super.key,
+    required this.logs,
+    required this.currentStatus,
+    this.compactMode = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Find key downtime / maintenance event if any
+    final downLog = logs.cast<DowntimeLogEvent?>().firstWhere(
+          (l) => l?.status == MachineStatus.downtime,
+          orElse: () => null,
+        );
+    final maintLog = logs.cast<DowntimeLogEvent?>().firstWhere(
+          (l) => l?.status == MachineStatus.maintenance,
+          orElse: () => null,
+        );
+
+    final highlightLog = downLog ?? maintLog;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Timeline Status 24h",
+              style: TextStyle(
+                fontSize: 10,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (highlightLog != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: highlightLog.status == MachineStatus.downtime
+                      ? AppColors.dangerBg
+                      : AppColors.warningBg,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  "${highlightLog.status == MachineStatus.downtime ? '🔴 Down' : '🟡 Servis'}: ${highlightLog.startTime}-${highlightLog.endTime}",
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: highlightLog.status == MachineStatus.downtime
+                        ? AppColors.danger
+                        : AppColors.warning,
+                  ),
+                ),
+              )
+            else
+              const Text(
+                "🟢 Uptime 100%",
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.success,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        // Timeline Bar
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            height: compactMode ? 8 : 10,
+            color: Colors.grey[200],
+            child: Row(
+              children: logs.isNotEmpty
+                  ? logs.map((log) {
+                      Color color;
+                      switch (log.status) {
+                        case MachineStatus.running:
+                          color = const Color(0xFF10B981);
+                          break;
+                        case MachineStatus.downtime:
+                          color = const Color(0xFFEF4444);
+                          break;
+                        case MachineStatus.maintenance:
+                          color = const Color(0xFFF59E0B);
+                          break;
+                        case MachineStatus.idle:
+                          color = const Color(0xFF9CA3AF);
+                          break;
+                      }
+                      return Expanded(
+                        flex: log.durationMinutes,
+                        child: Tooltip(
+                          message: "${log.startTime} - ${log.endTime}: ${log.reason}",
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 0.5),
+                            decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList()
+                  : [
+                      Expanded(
+                        child: Container(
+                          color: currentStatus == MachineStatus.running
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444),
+                        ),
+                      )
+                    ],
+            ),
+          ),
+        ),
+        if (!compactMode) ...[
+          const SizedBox(height: 3),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text("06:00", style: TextStyle(fontSize: 8, color: AppColors.textMuted)),
+              Text("08:00", style: TextStyle(fontSize: 8, color: AppColors.textMuted)),
+              Text("10:00", style: TextStyle(fontSize: 8, color: AppColors.textMuted)),
+              Text("12:00", style: TextStyle(fontSize: 8, color: AppColors.textMuted)),
+              Text("14:00", style: TextStyle(fontSize: 8, color: AppColors.textMuted)),
+              Text("16:00", style: TextStyle(fontSize: 8, color: AppColors.textMuted)),
+            ],
+          ),
+        ],
+      ],
+    );
   }
 }
 

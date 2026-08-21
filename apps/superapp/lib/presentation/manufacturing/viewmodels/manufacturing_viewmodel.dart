@@ -21,6 +21,11 @@ class ManufacturingViewModel extends ChangeNotifier {
       temperature: 68.5,
       vibrationLevel: 1.2,
       lastMaintenance: "12 Ags 2026",
+      downtimeLogs: [
+        DowntimeLogEvent(startTime: "06:00", endTime: "08:00", status: MachineStatus.running, reason: "Operasi Normal", durationMinutes: 120),
+        DowntimeLogEvent(startTime: "08:00", endTime: "08:15", status: MachineStatus.idle, reason: "Ganti Matras Stamping", durationMinutes: 15),
+        DowntimeLogEvent(startTime: "08:15", endTime: "16:00", status: MachineStatus.running, reason: "Produksi Berkelanjutan", durationMinutes: 465),
+      ],
     ),
     MachineItem(
       id: "MCH-102",
@@ -32,6 +37,11 @@ class ManufacturingViewModel extends ChangeNotifier {
       temperature: 72.0,
       vibrationLevel: 1.8,
       lastMaintenance: "05 Ags 2026",
+      downtimeLogs: [
+        DowntimeLogEvent(startTime: "06:00", endTime: "09:30", status: MachineStatus.running, reason: "Pemotongan Plat Metal", durationMinutes: 210),
+        DowntimeLogEvent(startTime: "09:30", endTime: "09:45", status: MachineStatus.idle, reason: "Pembersihan Nozzle Laser", durationMinutes: 15),
+        DowntimeLogEvent(startTime: "09:45", endTime: "16:00", status: MachineStatus.running, reason: "Pemotongan Batch B", durationMinutes: 375),
+      ],
     ),
     MachineItem(
       id: "MCH-201",
@@ -43,6 +53,12 @@ class ManufacturingViewModel extends ChangeNotifier {
       temperature: 94.8,
       vibrationLevel: 4.5,
       lastMaintenance: "20 Jul 2026",
+      downtimeLogs: [
+        DowntimeLogEvent(startTime: "06:00", endTime: "08:30", status: MachineStatus.running, reason: "Machining Blok Mesin", durationMinutes: 150),
+        DowntimeLogEvent(startTime: "08:30", endTime: "09:45", status: MachineStatus.downtime, reason: "Sensor Thermal Spindle Overheat (94.8°C)", durationMinutes: 75),
+        DowntimeLogEvent(startTime: "09:45", endTime: "11:00", status: MachineStatus.maintenance, reason: "Pengurasan & Isi Coolant", durationMinutes: 75),
+        DowntimeLogEvent(startTime: "11:00", endTime: "16:00", status: MachineStatus.downtime, reason: "Lockout Interlock - Menunggu Sparepart", durationMinutes: 300),
+      ],
     ),
     MachineItem(
       id: "MCH-202",
@@ -54,6 +70,11 @@ class ManufacturingViewModel extends ChangeNotifier {
       temperature: 62.1,
       vibrationLevel: 2.1,
       lastMaintenance: "01 Ags 2026",
+      downtimeLogs: [
+        DowntimeLogEvent(startTime: "06:00", endTime: "09:10", status: MachineStatus.running, reason: "Pembubutan Poros Axle", durationMinutes: 190),
+        DowntimeLogEvent(startTime: "09:10", endTime: "10:30", status: MachineStatus.idle, reason: "Menunggu Suplai Raw Material Aluminium", durationMinutes: 80),
+        DowntimeLogEvent(startTime: "10:30", endTime: "16:00", status: MachineStatus.running, reason: "Melanjutkan Pembubutan", durationMinutes: 330),
+      ],
     ),
     MachineItem(
       id: "MCH-301",
@@ -65,6 +86,9 @@ class ManufacturingViewModel extends ChangeNotifier {
       temperature: 78.4,
       vibrationLevel: 1.0,
       lastMaintenance: "18 Ags 2026",
+      downtimeLogs: [
+        DowntimeLogEvent(startTime: "06:00", endTime: "16:00", status: MachineStatus.running, reason: "Injeksi Presisi Bumper Auto", durationMinutes: 600),
+      ],
     ),
     MachineItem(
       id: "MCH-401",
@@ -76,6 +100,10 @@ class ManufacturingViewModel extends ChangeNotifier {
       temperature: 55.0,
       vibrationLevel: 0.5,
       lastMaintenance: "Hari ini (Sedang Servis)",
+      downtimeLogs: [
+        DowntimeLogEvent(startTime: "06:00", endTime: "07:30", status: MachineStatus.running, reason: "Pengelasan Frame A", durationMinutes: 90),
+        DowntimeLogEvent(startTime: "07:30", endTime: "16:00", status: MachineStatus.maintenance, reason: "Kalibrasi Servo & Penggantian Torch Tip", durationMinutes: 510),
+      ],
     ),
   ];
   List<MachineAlert> _alerts = [];
