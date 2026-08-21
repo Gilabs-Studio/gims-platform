@@ -7,214 +7,161 @@ import '../../dashboard/views/main_shell.dart';
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
+  void _login(BuildContext context, bool isAdmin) {
+    final authVm = context.read<AuthViewModel>();
+    if (isAdmin) {
+      authVm.loginAsAdmin();
+    } else {
+      authVm.loginAsStaff();
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const MainShell()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.secondary,
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Background Decorative Elements
-            Positioned(
-              top: -80,
-              right: -80,
-              child: Container(
-                width: 280,
-                height: 280,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -100,
-              left: -60,
-              child: Container(
-                width: 320,
-                height: 320,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.accent.withValues(alpha: 0.1),
-                ),
-              ),
-            ),
-
-            Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Brand Logo Badge
-                    Container(
-                      padding: const EdgeInsets.all(4),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Clean Minimal Logo
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    'assets/logo.jpg',
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.4),
-                            blurRadius: 24,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
+                        color: AppColors.primarySoft,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.asset(
-                          'assets/logo.jpg',
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
+                      child: const Icon(Icons.factory_rounded, color: AppColors.primary, size: 32),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title & Subtitle
+                const Text(
+                  "GIMS",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  "Pilih akun untuk masuk ke aplikasi",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 36),
+
+                // Ultra Clean Role Buttons Container
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.cardBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Staff Button
+                      ElevatedButton(
+                        onPressed: () => _login(context, false),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // App Title
-                    const Text(
-                      "GIMS SUPERAPP",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Platform Operasional Enterprise & ERP Monitoring",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-
-                    // Role Selector Card
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Text(
-                            "Pilih Peran Pengguna",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            "Prototype Mode — Tanpa autentikasi kata sandi",
-                            style: TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Staff Login Button
-                          ElevatedButton(
-                            onPressed: () {
-                              final authVm = context.read<AuthViewModel>();
-                              authVm.loginAsStaff();
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => const MainShell(),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              elevation: 4,
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.person_rounded, size: 20),
-                                SizedBox(width: 10),
-                                Text(
-                                  "Masuk sebagai Staff",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Admin Login Button
-                          OutlinedButton(
-                            onPressed: () {
-                              final authVm = context.read<AuthViewModel>();
-                              authVm.loginAsAdmin();
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => const MainShell(),
-                                ),
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: AppColors.primaryLight, width: 1.5),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_outline_rounded, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              "Masuk sebagai Staff",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.admin_panel_settings_rounded, size: 20, color: AppColors.primaryLight),
-                                SizedBox(width: 10),
-                                Text(
-                                  "Masuk sebagai Admin",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
+                      const SizedBox(height: 12),
 
-                    // Version Info
-                    const Text(
-                      "GIMS SuperApp Mobile v1.0.0 • GiLabs Platform",
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
+                      // Admin Button
+                      OutlinedButton(
+                        onPressed: () => _login(context, true),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: AppColors.cardBorder, width: 1.2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.shield_outlined, size: 20, color: AppColors.textPrimary),
+                            SizedBox(width: 8),
+                            Text(
+                              "Masuk sebagai Admin",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 40),
+
+                // Muted Minimal Footer
+                const Text(
+                  "GIMS SuperApp • GiLabs",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
