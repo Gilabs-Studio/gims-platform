@@ -26,7 +26,7 @@ class StaffDashboardView extends StatelessWidget {
 
     final today = attendanceVm.todayAttendance;
     final isClockedIn = attendanceVm.isClockedIn;
-    final profileIndex = user?.isAdmin == true ? 5 : 4;
+    final profileIndex = user?.isAdmin == true ? 3 : 2;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -272,29 +272,29 @@ class StaffDashboardView extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildCircularQuickAction(
-                        icon: Icons.calendar_month_outlined,
+                      _buildPureQuickAction(
+                        assetPath: "assets/icons/icon-cuti.png",
                         label: "Cuti",
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendancePage(isOversightMode: false)));
                         },
                       ),
-                      _buildCircularQuickAction(
-                        icon: Icons.meeting_room_outlined,
+                      _buildPureQuickAction(
+                        assetPath: "assets/icons/icon-roombooking.png",
                         label: "Booking",
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const RoomBookingPage()));
                         },
                       ),
-                      _buildCircularQuickAction(
-                        icon: Icons.inventory_2_outlined,
+                      _buildPureQuickAction(
+                        assetPath: "assets/icons/icon-asset.png",
                         label: "Aset",
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const AssetBorrowingPage()));
                         },
                       ),
-                      _buildCircularQuickAction(
-                        icon: Icons.warning_amber_rounded,
+                      _buildPureQuickAction(
+                        assetPath: "assets/icons/icon-help.png",
                         label: "Lapor",
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketingPage()));
@@ -430,33 +430,22 @@ class StaffDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildCircularQuickAction({
-    required IconData icon,
+  Widget _buildPureQuickAction({
+    required String assetPath,
     required String label,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(30),
+      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.cardBorder.withValues(alpha: 0.8), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 24),
+          Image.asset(
+            assetPath,
+            width: 48,
+            height: 48,
+            fit: BoxFit.contain,
           ),
           const SizedBox(height: 8),
           Text(

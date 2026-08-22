@@ -59,7 +59,7 @@ class AdminDashboardView extends StatelessWidget {
                     children: [
                       Expanded(
                         child: InkWell(
-                          onTap: () => dashVm.setIndex(5), // Profile tab
+                          onTap: () => dashVm.setIndex(3), // Profile tab
                           borderRadius: BorderRadius.circular(16),
                           child: Row(
                             children: [
@@ -112,7 +112,7 @@ class AdminDashboardView extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           IconButton(
-                            onPressed: () => dashVm.setIndex(5),
+                            onPressed: () => dashVm.setIndex(3),
                             icon: const Icon(Icons.person_outline_rounded, color: AppColors.textPrimary, size: 22),
                             style: IconButton.styleFrom(
                               backgroundColor: AppColors.surface,
@@ -200,7 +200,7 @@ class AdminDashboardView extends StatelessWidget {
 
                         // Prominent Solid White Action Button (Consistent with Staff Card Button)
                         ElevatedButton(
-                          onPressed: () => dashVm.setIndex(4), // Open Manufacturing Dashboard Tab
+                          onPressed: () => dashVm.setIndex(2), // Open Manufacturing Dashboard Tab
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size.fromHeight(48),
                             backgroundColor: Colors.white,
@@ -234,34 +234,36 @@ class AdminDashboardView extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // MINIMALIST CIRCULAR QUICK ACTIONS (myXL Style)
+                  // MINIMALIST PURE ICON QUICK ACTIONS
                   const Text("Layanan Operasional", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                   const SizedBox(height: 16),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildCircularQuickAction(
-                        icon: Icons.sensors_outlined,
-                        label: "Telemetri",
-                        onTap: () => dashVm.setIndex(4),
+                      _buildPureQuickAction(
+                        assetPath: "assets/icons/icon-cuti.png",
+                        label: "Cuti",
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendancePage(isOversightMode: true)));
+                        },
                       ),
-                      _buildCircularQuickAction(
-                        icon: Icons.meeting_room_outlined,
+                      _buildPureQuickAction(
+                        assetPath: "assets/icons/icon-roombooking.png",
                         label: "Booking",
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const RoomBookingPage()));
                         },
                       ),
-                      _buildCircularQuickAction(
-                        icon: Icons.inventory_2_outlined,
+                      _buildPureQuickAction(
+                        assetPath: "assets/icons/icon-asset.png",
                         label: "Aset",
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const AssetBorrowingPage()));
                         },
                       ),
-                      _buildCircularQuickAction(
-                        icon: Icons.warning_amber_rounded,
+                      _buildPureQuickAction(
+                        assetPath: "assets/icons/icon-help.png",
                         label: "Lapor",
                         onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketingPage()));
@@ -280,7 +282,7 @@ class AdminDashboardView extends StatelessWidget {
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                       ),
                       TextButton(
-                        onPressed: () => dashVm.setIndex(4),
+                        onPressed: () => dashVm.setIndex(2),
                         child: const Text("Detail Telemetri", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                     ],
@@ -426,33 +428,22 @@ class AdminDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildCircularQuickAction({
-    required IconData icon,
+  Widget _buildPureQuickAction({
+    required String assetPath,
     required String label,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(30),
+      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.cardBorder.withValues(alpha: 0.8), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: AppColors.primary, size: 24),
+          Image.asset(
+            assetPath,
+            width: 48,
+            height: 48,
+            fit: BoxFit.contain,
           ),
           const SizedBox(height: 8),
           Text(

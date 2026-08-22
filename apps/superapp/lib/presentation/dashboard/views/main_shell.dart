@@ -7,8 +7,6 @@ import '../viewmodels/dashboard_viewmodel.dart';
 import 'staff_dashboard_view.dart';
 import 'admin_dashboard_view.dart';
 import '../../meal_order/views/meal_order_page.dart';
-import '../../room_booking/views/room_booking_page.dart';
-import '../../asset_borrowing/views/asset_borrowing_page.dart';
 import '../../manufacturing/views/manufacturing_dashboard_page.dart';
 import '../../profile/views/profile_page.dart';
 
@@ -30,8 +28,6 @@ class MainShell extends StatelessWidget {
     final List<Widget> pages = [
       isAdmin ? const AdminDashboardView() : const StaffDashboardView(),
       const MealOrderPage(),
-      const RoomBookingPage(),
-      const AssetBorrowingPage(),
       if (isAdmin) const ManufacturingDashboardPage(),
       const ProfilePage(),
     ];
@@ -80,14 +76,6 @@ class MainShell extends StatelessWidget {
                   icon: Icon(Icons.restaurant_rounded),
                   label: "Kantin",
                 ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.meeting_room_rounded),
-                  label: "Booking",
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.inventory_2_rounded),
-                  label: "Aset",
-                ),
                 if (isAdmin)
                   const BottomNavigationBarItem(
                     icon: Icon(Icons.precision_manufacturing_rounded),
@@ -109,7 +97,7 @@ class MainShell extends StatelessWidget {
               UserAccountsDrawerHeader(
                 decoration: const BoxDecoration(color: AppColors.secondary),
                 currentAccountPicture: ClipOval(
-                  child: Image.asset('assets/logo.jpg', fit: BoxFit.cover),
+                  child: Image.asset('assets/MECCAYA.png', fit: BoxFit.cover),
                 ),
                 accountName: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                 accountEmail: Text(user.email),

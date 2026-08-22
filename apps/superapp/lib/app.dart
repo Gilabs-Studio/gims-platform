@@ -72,7 +72,7 @@ class SuperApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'GIMS SuperApp',
+        title: 'SuperApp Meccaya',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,

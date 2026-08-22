@@ -38,30 +38,17 @@ class LoginPage extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Clean Minimal Logo
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.asset(
-                    'assets/logo.jpg',
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySoft,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(Icons.factory_rounded, color: AppColors.primary, size: 32),
-                    ),
-                  ),
+                // Clean Logo (No Placeholder, No Clipping)
+                Image.asset(
+                  'assets/MECCAYA.png',
+                  height: 64,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 16),
 
                 // Title & Subtitle
                 const Text(
-                  "GIMS",
+                  "SuperApp Meccaya",
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -115,11 +102,14 @@ class LoginPage extends StatelessWidget {
                           children: [
                             Icon(Icons.person_outline_rounded, size: 20),
                             SizedBox(width: 8),
-                            Text(
-                              "Masuk sebagai Staff",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Text(
+                                "Masuk sebagai Staff",
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -143,12 +133,15 @@ class LoginPage extends StatelessWidget {
                           children: [
                             Icon(Icons.shield_outlined, size: 20, color: AppColors.textPrimary),
                             SizedBox(width: 8),
-                            Text(
-                              "Masuk sebagai Admin",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                            Flexible(
+                              child: Text(
+                                "Masuk sebagai Admin",
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
                           ],
@@ -173,11 +166,14 @@ class LoginPage extends StatelessWidget {
                           children: [
                             Icon(Icons.two_wheeler_rounded, size: 20),
                             SizedBox(width: 8),
-                            Text(
-                              "Masuk sebagai OB (Office Boy)",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Text(
+                                "Masuk sebagai OB (Office Boy)",
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -190,7 +186,7 @@ class LoginPage extends StatelessWidget {
 
                 // Muted Minimal Footer
                 const Text(
-                  "GIMS SuperApp • GiLabs",
+                  "SuperApp Meccaya • GiLabs",
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textMuted,

@@ -262,7 +262,7 @@ class ProfilePage extends StatelessWidget {
 
             const Center(
               child: Text(
-                "GIMS SuperApp v2.5.0 • Enterprise Edition",
+                "SuperApp Meccaya v2.5.0 • Enterprise Edition",
                 style: TextStyle(color: AppColors.textMuted, fontSize: 11),
               ),
             ),
@@ -327,7 +327,7 @@ class ProfilePage extends StatelessWidget {
             Text("Konfirmasi Keluar"),
           ],
         ),
-        content: const Text("Apakah Anda yakin ingin keluar dari aplikasi GIMS SuperApp?"),
+        content: const Text("Apakah Anda yakin ingin keluar dari aplikasi SuperApp Meccaya?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
