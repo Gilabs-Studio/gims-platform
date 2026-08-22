@@ -352,15 +352,9 @@ class StaffDashboardView extends StatelessWidget {
                                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
                                   ),
                                   const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.directions_run_rounded, color: AppColors.primary, size: 14),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        ord.notes.isNotEmpty ? "Catatan: ${ord.notes}" : "Pesanan sedang diproses di kantin",
-                                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                                      ),
-                                    ],
+                                  Text(
+                                    ord.notes.isNotEmpty ? "Catatan: ${ord.notes}" : "Pesanan sedang diproses di kantin",
+                                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                                   ),
                                 ],
                               ),
