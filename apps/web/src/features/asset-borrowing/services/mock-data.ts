@@ -146,6 +146,42 @@ export const INITIAL_ASSETS: AssetItem[] = [
     image_url:
       "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=300&auto=format&fit=crop&q=80",
   },
+  {
+    id: "asset-8",
+    code: "AST-2026-0008",
+    finance_asset_code: "FA-VH-00052",
+    name: "Toyota Camry 2.5 V Sedan (B 1088 RFS)",
+    category: "vehicles",
+    serial_number: "MHKS8839201948",
+    location: "Head Office - Parkiran VIP B2",
+    status: "available",
+    condition: "excellent",
+    purchase_date: "2025-08-10",
+    book_value: 650000000,
+    warranty_until: "2028-08-10",
+    description: "Mobil dinas eksklusif eksekutif / sedan operasional direksi & tamu VIP",
+    custodian: "GA Fleet Specialist",
+    image_url:
+      "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=600&auto=format&fit=crop&q=80",
+  },
+  {
+    id: "asset-9",
+    code: "AST-2026-0009",
+    finance_asset_code: "FA-VH-00058",
+    name: "Honda CR-V Turbo SUV (B 1920 KJS)",
+    category: "vehicles",
+    serial_number: "MHKR9920192837",
+    location: "Head Office - Parkiran Executive B1",
+    status: "available",
+    condition: "excellent",
+    purchase_date: "2025-11-01",
+    book_value: 540000000,
+    warranty_until: "2028-11-01",
+    description: "SUV operasional perjalanan dinas luar kota dan site visit manajerial",
+    custodian: "GA Fleet Specialist",
+    image_url:
+      "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=600&auto=format&fit=crop&q=80",
+  },
 ];
 
 export const INITIAL_BORROWINGS: BorrowingRequest[] = [

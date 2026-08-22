@@ -47,6 +47,28 @@ class _AssetBorrowingPageState extends State<AssetBorrowingPage> {
       condition: "Baik",
       imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600",
     ),
+    const AssetItem(
+      id: "ast-4",
+      code: "AST-VHC-01",
+      name: "Toyota Camry 2.5 V Sedan (B 1088 RFS)",
+      category: "Kendaraan Dinas",
+      serialNumber: "SN-CMR-88392",
+      location: "Parkiran VIP Basement 2",
+      status: AssetStatus.available,
+      condition: "Sangat Baik",
+      imageUrl: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=600",
+    ),
+    const AssetItem(
+      id: "ast-5",
+      code: "AST-VHC-02",
+      name: "Honda CR-V Turbo SUV (B 1920 KJS)",
+      category: "Kendaraan Dinas",
+      serialNumber: "SN-CRV-99201",
+      location: "Parkiran Executive Basement 1",
+      status: AssetStatus.available,
+      condition: "Sangat Baik",
+      imageUrl: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=600",
+    ),
   ];
 
   final List<BorrowingRecord> _myLoans = [
