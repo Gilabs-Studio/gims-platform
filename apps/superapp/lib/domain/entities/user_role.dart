@@ -1,4 +1,4 @@
-enum UserRole { staff, admin }
+enum UserRole { staff, admin, ob }
 
 class UserProfile {
   final String id;
@@ -20,4 +20,5 @@ class UserProfile {
   });
 
   bool get isAdmin => role == UserRole.admin;
+  bool get isOb => role == UserRole.ob;
 }

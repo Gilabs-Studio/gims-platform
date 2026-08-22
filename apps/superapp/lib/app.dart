@@ -22,6 +22,7 @@ import 'presentation/meal_order/viewmodels/meal_order_viewmodel.dart';
 import 'presentation/manufacturing/viewmodels/manufacturing_viewmodel.dart';
 import 'presentation/auth/views/login_page.dart';
 import 'presentation/dashboard/views/main_shell.dart';
+import 'presentation/ob_meal_order/views/ob_main_shell.dart';
 
 class SuperApp extends StatelessWidget {
   const SuperApp({super.key});
@@ -85,6 +86,9 @@ class SuperApp extends StatelessWidget {
         home: Consumer<AuthViewModel>(
           builder: (context, auth, _) {
             if (auth.isLoggedIn) {
+              if (auth.currentUser?.isOb == true) {
+                return const ObMainShell();
+              }
               return const MainShell();
             }
             return const LoginPage();

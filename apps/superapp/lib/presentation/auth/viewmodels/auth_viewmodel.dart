@@ -45,6 +45,24 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void loginAsOB() {
+    _isLoading = true;
+    notifyListeners();
+
+    _currentUser = const UserProfile(
+      id: "OB-7007",
+      name: "Pak Agus (OB Specialist)",
+      email: "agus.ob@gilabs.id",
+      avatarUrl: "https://i.pravatar.cc/150?img=68",
+      position: "Assisten Personal & Titip Makanan",
+      department: "Umum & Rumah Tangga",
+      role: UserRole.ob,
+    );
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
   void logout() {
     _currentUser = null;
     notifyListeners();

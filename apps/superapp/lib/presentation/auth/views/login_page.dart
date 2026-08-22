@@ -4,18 +4,26 @@ import '../../../core/constants/app_colors.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../../dashboard/views/main_shell.dart';
 
+import '../../ob_meal_order/views/ob_main_shell.dart';
+
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
-  void _login(BuildContext context, bool isAdmin) {
+  void _login(BuildContext context, String roleType) {
     final authVm = context.read<AuthViewModel>();
-    if (isAdmin) {
+    Widget targetShell = const MainShell();
+
+    if (roleType == "admin") {
       authVm.loginAsAdmin();
+    } else if (roleType == "ob") {
+      authVm.loginAsOB();
+      targetShell = const ObMainShell();
     } else {
       authVm.loginAsStaff();
     }
+
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainShell()),
+      MaterialPageRoute(builder: (_) => targetShell),
     );
   }
 
@@ -92,7 +100,7 @@ class LoginPage extends StatelessWidget {
                     children: [
                       // Staff Button
                       ElevatedButton(
-                        onPressed: () => _login(context, false),
+                        onPressed: () => _login(context, "staff"),
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size.fromHeight(48),
                           backgroundColor: AppColors.primary,
@@ -117,11 +125,11 @@ class LoginPage extends StatelessWidget {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
 
                       // Admin Button
                       OutlinedButton(
-                        onPressed: () => _login(context, true),
+                        onPressed: () => _login(context, "admin"),
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size.fromHeight(48),
                           foregroundColor: AppColors.textPrimary,
@@ -141,6 +149,35 @@ class LoginPage extends StatelessWidget {
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // OB Specialist Button
+                      ElevatedButton(
+                        onPressed: () => _login(context, "ob"),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: AppColors.warning,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.two_wheeler_rounded, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              "Masuk sebagai OB (Office Boy)",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
