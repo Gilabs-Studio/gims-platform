@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Brand Primary & Gradients (Inspired by Reference UI: Vibrant, Minimalist, High Contrast)
-  static const Color primary = Color(0xFFFF5500); // Electric Warm Orange
-  static const Color primaryDark = Color(0xFFE04800);
-  static const Color primaryLight = Color(0xFFFF7733);
-  static const Color primarySoft = Color(0xFFFFF0E6); // Light orange tint
+  // Brand Primary & Gradients (Enterprise Red #C32033 - Consistent with Web)
+  static const Color primary = Color(0xFFC32033); // Enterprise Red (#C32033)
+  static const Color primaryDark = Color(0xFF9E1B29);
+  static const Color primaryLight = Color(0xFFDE3B4F);
+  static const Color primarySoft = Color(0xFFFDF2F4); // Soft red tint
   static const Color secondary = Color(0xFF0F172A); // Deep Slate 900
   static const Color accent = Color(0xFF4F46E5); // Indigo Accent
 
@@ -31,7 +31,7 @@ class AppColors {
 
   // Premium Gradients
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFFFF5500), Color(0xFFFF7733)],
+    colors: [Color(0xFFC32033), Color(0xFFDE3B4F)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
