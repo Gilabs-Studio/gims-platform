@@ -152,41 +152,54 @@ class MachineGraphicTimeline extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              "Timeline Status 24h",
-              style: TextStyle(
-                fontSize: 10,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.bold,
+            const Flexible(
+              child: Text(
+                "Timeline Status 24h",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
+            const SizedBox(width: 4),
             if (highlightLog != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: highlightLog.status == MachineStatus.downtime
-                      ? AppColors.dangerBg
-                      : AppColors.warningBg,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  "${highlightLog.status == MachineStatus.downtime ? '🔴 Down' : '🟡 Servis'}: ${highlightLog.startTime}-${highlightLog.endTime}",
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
                     color: highlightLog.status == MachineStatus.downtime
-                        ? AppColors.danger
-                        : AppColors.warning,
+                        ? AppColors.dangerBg
+                        : AppColors.warningBg,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    "${highlightLog.status == MachineStatus.downtime ? '🔴 Down' : '🟡 Servis'}: ${highlightLog.startTime}-${highlightLog.endTime}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: highlightLog.status == MachineStatus.downtime
+                          ? AppColors.danger
+                          : AppColors.warning,
+                    ),
                   ),
                 ),
               )
             else
-              const Text(
-                "🟢 Uptime 100%",
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.success,
+              const Flexible(
+                child: Text(
+                  "🟢 Uptime 100%",
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.success,
+                  ),
                 ),
               ),
           ],
@@ -278,7 +291,15 @@ class DowntimeTimelineBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: const [
-            Text("Downtime (Last 24h)", style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
+            Flexible(
+              child: Text(
+                "Downtime (Last 24h)",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+              ),
+            ),
+            SizedBox(width: 4),
             Text("24 hrs", style: TextStyle(fontSize: 10, color: AppColors.textMuted)),
           ],
         ),
