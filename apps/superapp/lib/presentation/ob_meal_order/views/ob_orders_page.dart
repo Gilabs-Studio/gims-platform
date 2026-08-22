@@ -3,10 +3,10 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/widgets/custom_card.dart';
-import '../../../../core/widgets/status_badge.dart';
 import '../../meal_order/viewmodels/meal_order_viewmodel.dart';
 import '../widgets/shopping_list_widget.dart';
 import '../widgets/custom_menu_modal.dart';
+import '../widgets/ob_order_card.dart';
 
 class ObOrdersPage extends StatefulWidget {
   const ObOrdersPage({super.key});
@@ -36,137 +36,178 @@ class _ObOrdersPageState extends State<ObOrdersPage> with SingleTickerProviderSt
       builder: (context, vm, child) {
         return Scaffold(
           backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: AppColors.surface,
-            elevation: 0,
-            titleSpacing: 20,
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          body: SafeArea(
+            child: Column(
               children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // Top Header Row with Generous Padding & Notif Bell
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "Pesanan Makanan",
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Pesanan Makanan",
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 3),
+                            Text(
+                              "Dashboard Kelola Titipan",
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      SizedBox(height: 2),
-                      Text(
-                        "Dashboard Kelola Titipan",
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
+                      // Notification Bell Button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.cardBorder),
                         ),
-                        overflow: TextOverflow.ellipsis,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: AppColors.textPrimary,
+                            size: 22,
+                          ),
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Tidak ada notifikasi baru"),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+
+                // Pill Navigation TabBar (Matching Mockup Image)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  height: 46,
+                  padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
-                    color: AppColors.primarySoft,
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.cardBorder),
                   ),
-                  child: Text(
-                    "${vm.pendingOrdersCount} Aktif",
-                    style: const TextStyle(
+                  child: TabBar(
+                    controller: _tabController,
+                    indicator: BoxDecoration(
                       color: AppColors.primary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: AppColors.textSecondary,
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
+                    dividerColor: Colors.transparent,
+                    tabs: [
+                      Tab(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.restaurant_rounded, size: 14),
+                              const SizedBox(width: 5),
+                              const Text("Pesanan Masuk"),
+                              if (vm.pendingOrdersCount > 0) ...[
+                                const SizedBox(width: 5),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    "${vm.pendingOrdersCount}",
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Tab(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.assignment_outlined, size: 14),
+                              SizedBox(width: 5),
+                              Text("Daftar Belanja"),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Tab(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.restaurant_menu_rounded, size: 14),
+                              SizedBox(width: 5),
+                              Text("Kelola Menu"),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                // TabBar View Content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // 1. Pesanan Masuk Tab
+                      _buildCombinedOrdersTab(context, vm),
+
+                      // 2. Daftar Belanja Tab
+                      const ShoppingListWidget(),
+
+                      // 3. Kelola Menu Tab
+                      _buildMenuManagementTab(context, vm),
+                    ],
                   ),
                 ),
               ],
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, color: AppColors.textPrimary, size: 22),
-                onPressed: () => vm.loadMealData(),
-              ),
-              const SizedBox(width: 8),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: AppColors.textSecondary,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
-                  dividerColor: Colors.transparent,
-                  tabs: [
-                    Tab(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text("Pesanan Masuk"),
-                            if (vm.pendingOrdersCount > 0) ...[
-                              const SizedBox(width: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  "${vm.pendingOrdersCount}",
-                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Tab(child: FittedBox(fit: BoxFit.scaleDown, child: Text("Daftar Belanja"))),
-                    const Tab(child: FittedBox(fit: BoxFit.scaleDown, child: Text("Kelola Menu"))),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              // 1. Combined Pesanan Masuk (Single + Bulk)
-              _buildCombinedOrdersTab(context, vm),
-
-              // 2. Daftar Belanja Tab (Checkboxes)
-              const ShoppingListWidget(),
-
-              // 3. Kelola Menu Tab (OB Admin Custom Menu)
-              _buildMenuManagementTab(context, vm),
-            ],
           ),
         );
       },
     );
   }
 
-  // --- Combined Tab: Pesanan Masuk (Individual + Bulk Orders) ---
+  // --- Tab 1: Pesanan Masuk ---
   Widget _buildCombinedOrdersTab(BuildContext context, MealOrderViewModel vm) {
     final activeOrders = vm.orders;
 
@@ -201,243 +242,102 @@ class _ObOrdersPageState extends State<ObOrdersPage> with SingleTickerProviderSt
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: activeOrders.length,
-      itemBuilder: (context, index) {
-        final order = activeOrders[index];
-        final isDone = order.status == "Selesai";
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: CustomCard(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Row: Customer Name & Department + Order Type Badge & Status Badge
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        // Toolbar: Section Title & Search/Filter Buttons (Matching Image)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Daftar Titipan (${activeOrders.length})",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Row(
+                children: [
+                  // Search Button
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.search_rounded, size: 18, color: AppColors.textPrimary),
+                      onPressed: () {
+                        // Search action
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Filter Button
+                  InkWell(
+                    onTap: () {
+                      // Filter action
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: const Row(
                         children: [
+                          Icon(Icons.tune_rounded, size: 15, color: AppColors.textPrimary),
+                          SizedBox(width: 5),
                           Text(
-                            order.customerName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                            "Filter",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.background,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppColors.cardBorder),
-                                ),
-                                child: Text(
-                                  order.department,
-                                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                                ),
-                              ),
-                              if (order.isBulkOrder)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.warning.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text(
-                                    "Pesanan Ramai-Ramai",
-                                    style: TextStyle(fontSize: 10, color: AppColors.warning, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                            ],
-                          ),
                         ],
                       ),
                     ),
-                    StatusBadge(
-                      label: order.status,
-                      type: isDone
-                          ? BadgeType.success
-                          : (order.status == "Sedang Dibeli" ? BadgeType.info : BadgeType.warning),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Clean Item Details (No Image, No Avatar)
-                if (order.isBulkOrder && order.bulkItems.isNotEmpty) ...[
-                  // Bulk Order Items Breakdown
-                  Text(
-                    order.groupName ?? "Pesanan Kolektif Tim",
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 6),
-                  ...order.bulkItems.map((bItem) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "• ${bItem.quantity}x ${bItem.menuItemName}",
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                            ),
-                            Text(
-                              CurrencyFormatter.formatRupiah(bItem.totalPrice),
-                              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      )),
-                ] else ...[
-                  // Single Item Display
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "${order.quantity}x ${order.menuItem.name}",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
-
-                const SizedBox(height: 10),
-
-                // Clear & Prominent Total Price Display Banner (Requirement 3)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primarySoft,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Total Harga (${order.quantity} Porsi):",
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                      ),
-                      Text(
-                        CurrencyFormatter.formatRupiah(order.totalPrice),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Catatan Khusus Box
-                if (order.notes.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.sticky_note_2_rounded, size: 15, color: AppColors.warning),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            "Catatan: ${order.notes}",
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-
-                // Action Progress Buttons
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    if (order.status == "Diproses OB")
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => vm.updateOrderStatus(order.id, "Sedang Dibeli"),
-                          icon: const Icon(Icons.shopping_bag_outlined, size: 14),
-                          label: const Text("Tandai Sedang Dibeli", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primary),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                        ),
-                      ),
-                    if (order.status == "Sedang Dibeli")
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => vm.updateOrderStatus(order.id, "Siap Diantar"),
-                          icon: const Icon(Icons.delivery_dining_rounded, size: 14),
-                          label: const Text("Siap Diantar Ke Staff", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                        ),
-                      ),
-                    if (order.status == "Siap Diantar")
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => vm.updateOrderStatus(order.id, "Selesai"),
-                          icon: const Icon(Icons.check_circle_rounded, size: 14),
-                          label: const Text("Selesaikan Titipan", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.success,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                        ),
-                      ),
-                    if (isDone)
-                      const Row(
-                        children: [
-                          Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
-                          SizedBox(width: 4),
-                          Text(
-                            "Titipan Selesai Diantar",
-                            style: TextStyle(color: AppColors.success, fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+
+        // Orders List View
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+            itemCount: activeOrders.length,
+            itemBuilder: (context, index) {
+              final order = activeOrders[index];
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ObOrderCard(
+                  order: order,
+                  onUpdateStatus: (orderId, newStatus) {
+                    vm.updateOrderStatus(orderId, newStatus);
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
-  // --- Sub-Tab: Kelola Menu (OB Custom Menu) ---
+  // --- Tab 3: Kelola Menu ---
   Widget _buildMenuManagementTab(BuildContext context, MealOrderViewModel vm) {
     return Column(
       children: [
@@ -476,7 +376,7 @@ class _ObOrdersPageState extends State<ObOrdersPage> with SingleTickerProviderSt
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
             itemCount: vm.rawMenuItems.length,
             itemBuilder: (context, index) {
               final item = vm.rawMenuItems[index];
