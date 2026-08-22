@@ -62,41 +62,47 @@ class StaffDashboardView extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      InkWell(
-                        onTap: () => dashVm.setIndex(profileIndex),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: AppColors.primaryGradient,
-                              ),
-                              child: CircleAvatar(
-                                radius: 24,
-                                backgroundImage: NetworkImage(user?.avatarUrl ?? "https://i.pravatar.cc/150"),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Halo, ${user?.name.split(' ')[0] ?? 'Staff'} 👋",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                    color: AppColors.textPrimary,
-                                  ),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => dashVm.setIndex(profileIndex),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: AppColors.primaryGradient,
                                 ),
-                                Text(
-                                  user?.position ?? "Staff Production",
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                child: CircleAvatar(
+                                  radius: 24,
+                                  backgroundImage: NetworkImage(user?.avatarUrl ?? "https://i.pravatar.cc/150"),
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Halo, ${user?.name.split(' ')[0] ?? 'Staff'} 👋",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      user?.position ?? "Staff Production",
+                                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       Row(
@@ -140,16 +146,23 @@ class StaffDashboardView extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.verified_rounded, color: Colors.white, size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  DateFormatter.formatFullDate(DateTime.now()),
-                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                                ),
-                              ],
+                            Flexible(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.verified_rounded, color: Colors.white, size: 16),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      DateFormatter.formatFullDate(DateTime.now()),
+                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             StatusBadge(
                               label: isClockedIn ? "PRESENSI MASUK" : "BELUM ABSEN",
                               type: isClockedIn ? BadgeType.success : BadgeType.warning,
@@ -232,12 +245,16 @@ class StaffDashboardView extends StatelessWidget {
                                 color: AppColors.primary,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                isClockedIn ? "Absen Pulang Sekarang (Clock Out)" : "Klik untuk Absen Masuk Sekarang",
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                              Flexible(
+                                child: Text(
+                                  isClockedIn ? "Absen Pulang Sekarang (Clock Out)" : "Klik untuk Absen Masuk Sekarang",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                               ),
                             ],

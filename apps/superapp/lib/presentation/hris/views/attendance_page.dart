@@ -65,20 +65,25 @@ class _AttendancePageState extends State<AttendancePage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                DateFormatter.formatFullDate(DateTime.now()),
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                "Jadwal Shift: 08:00 - 17:00",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  DateFormatter.formatFullDate(DateTime.now()),
+                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  "Jadwal Shift: 08:00 - 17:00",
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           StatusBadge(
                             label: isClockedIn ? "PRESENSI MASUK" : "BELUM ABSEN",
                             type: isClockedIn ? BadgeType.success : BadgeType.warning,
@@ -135,9 +140,12 @@ class _AttendancePageState extends State<AttendancePage> {
                           children: [
                             Icon(isClockedIn ? Icons.logout_rounded : Icons.login_rounded, color: Colors.white, size: 20),
                             const SizedBox(width: 8),
-                            Text(
-                              isClockedIn ? "Absen Pulang (Clock Out)" : "Absen Masuk (Clock In)",
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                            Flexible(
+                              child: Text(
+                                isClockedIn ? "Absen Pulang (Clock Out)" : "Absen Masuk (Clock In)",
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
@@ -158,9 +166,12 @@ class _AttendancePageState extends State<AttendancePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "Pengajuan Cuti / Izin Sakit",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    const Expanded(
+                      child: Text(
+                        "Pengajuan Cuti / Izin Sakit",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     TextButton.icon(
                       onPressed: () => _showLeaveModal(context),
@@ -220,20 +231,24 @@ class _AttendancePageState extends State<AttendancePage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              DateFormatter.formatShortDate(log.date),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              "Masuk: ${log.checkInTime} • Pulang: ${log.checkOutTime}",
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                            ),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                DateFormatter.formatShortDate(log.date),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Masuk: ${log.checkInTime} • Pulang: ${log.checkOutTime}",
+                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         StatusBadge(
                           label: log.status,
                           type: log.status == "Tepat Waktu"

@@ -43,27 +43,32 @@ class _ObOrdersPageState extends State<ObOrdersPage> with SingleTickerProviderSt
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Pesanan Makanan",
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Pesanan Makanan",
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      "Dashboard Kelola Titipan",
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
+                      SizedBox(height: 2),
+                      Text(
+                        "Dashboard Kelola Titipan",
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -112,29 +117,32 @@ class _ObOrdersPageState extends State<ObOrdersPage> with SingleTickerProviderSt
                   dividerColor: Colors.transparent,
                   tabs: [
                     Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text("Pesanan Masuk"),
-                          if (vm.pendingOrdersCount > 0) ...[
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(8),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text("Pesanan Masuk"),
+                            if (vm.pendingOrdersCount > 0) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  "${vm.pendingOrdersCount}",
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
                               ),
-                              child: Text(
-                                "${vm.pendingOrdersCount}",
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                              ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                    const Tab(text: "Daftar Belanja"),
-                    const Tab(text: "Kelola Menu"),
+                    const Tab(child: FittedBox(fit: BoxFit.scaleDown, child: Text("Daftar Belanja"))),
+                    const Tab(child: FittedBox(fit: BoxFit.scaleDown, child: Text("Kelola Menu"))),
                   ],
                 ),
               ),
@@ -225,7 +233,9 @@ class _ObOrdersPageState extends State<ObOrdersPage> with SingleTickerProviderSt
                             ),
                           ),
                           const SizedBox(height: 2),
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -239,8 +249,7 @@ class _ObOrdersPageState extends State<ObOrdersPage> with SingleTickerProviderSt
                                   style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
                                 ),
                               ),
-                              if (order.isBulkOrder) ...[
-                                const SizedBox(width: 6),
+                              if (order.isBulkOrder)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
@@ -252,7 +261,6 @@ class _ObOrdersPageState extends State<ObOrdersPage> with SingleTickerProviderSt
                                     style: TextStyle(fontSize: 10, color: AppColors.warning, fontWeight: FontWeight.bold),
                                   ),
                                 ),
-                              ],
                             ],
                           ),
                         ],

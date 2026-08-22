@@ -365,10 +365,14 @@ class _MealOrderPageState extends State<MealOrderPage> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      CurrencyFormatter.formatRupiah(item.price),
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
+                                    Expanded(
+                                      child: Text(
+                                        CurrencyFormatter.formatRupiah(item.price),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
                                     ElevatedButton.icon(
                                       onPressed: item.isAvailableToday
                                           ? () => OrderCustomModal.show(context, item)

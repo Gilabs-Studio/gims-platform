@@ -125,7 +125,14 @@ class _ManufacturingDashboardPageState extends State<ManufacturingDashboardPage>
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text("TOTAL OEE PABRIK", style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    const Flexible(
+                                      child: Text(
+                                        "TOTAL OEE PABRIK",
+                                        style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
                                     StatusBadge(
                                       label: "TARGET: 85%",
                                       type: BadgeType.success,
@@ -138,14 +145,17 @@ class _ManufacturingDashboardPageState extends State<ManufacturingDashboardPage>
                                   style: const TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    _buildOeeLegendDot(const Color(0xFF3B82F6), "Avail 92%"),
-                                    const SizedBox(width: 8),
-                                    _buildOeeLegendDot(const Color(0xFFF59E0B), "Perf 95%"),
-                                    const SizedBox(width: 8),
-                                    _buildOeeLegendDot(const Color(0xFF10B981), "Qual 98%"),
-                                  ],
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      _buildOeeLegendDot(const Color(0xFF3B82F6), "Avail 92%"),
+                                      const SizedBox(width: 8),
+                                      _buildOeeLegendDot(const Color(0xFFF59E0B), "Perf 95%"),
+                                      const SizedBox(width: 8),
+                                      _buildOeeLegendDot(const Color(0xFF10B981), "Qual 98%"),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -311,22 +321,28 @@ class _ManufacturingDashboardPageState extends State<ManufacturingDashboardPage>
                   ),
                   child: SafeArea(
                     top: false,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStickyOeeMetric("Target", "85%", AppColors.danger),
-                        _buildStickyOeeMetric("Availability", "92%", AppColors.textPrimary),
-                        _buildStickyOeeMetric("Performance", "95%", AppColors.textPrimary),
-                        _buildStickyOeeMetric("Quality", "98%", AppColors.textPrimary),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(10),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildStickyOeeMetric("Target", "85%", AppColors.danger),
+                          const SizedBox(width: 16),
+                          _buildStickyOeeMetric("Availability", "92%", AppColors.textPrimary),
+                          const SizedBox(width: 16),
+                          _buildStickyOeeMetric("Performance", "95%", AppColors.textPrimary),
+                          const SizedBox(width: 16),
+                          _buildStickyOeeMetric("Quality", "98%", AppColors.textPrimary),
+                          const SizedBox(width: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: _buildStickyOeeMetric("OEE Total", "${vm.averageOee.toStringAsFixed(0)}%", Colors.white, isHighlighted: true),
                           ),
-                          child: _buildStickyOeeMetric("OEE Total", "${vm.averageOee.toStringAsFixed(0)}%", Colors.white, isHighlighted: true),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -96,17 +96,21 @@ class _RoomDetailPageState extends State<RoomDetailPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySoft,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              rm.code,
-                              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySoft,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                rm.code,
+                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           StatusBadge(
                             label: rm.status == RoomStatus.available ? "TERSEDIA HARI INI" : "SEDANG TERPAKAI",
                             type: rm.status == RoomStatus.available ? BadgeType.success : BadgeType.danger,
@@ -129,9 +133,12 @@ class _RoomDetailPageState extends State<RoomDetailPage> {
                         children: [
                           const Icon(Icons.location_on_rounded, size: 16, color: AppColors.textSecondary),
                           const SizedBox(width: 4),
-                          Text(
-                            "${rm.location} • ${rm.floor}",
-                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                          Expanded(
+                            child: Text(
+                              "${rm.location} • ${rm.floor}",
+                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -145,14 +152,19 @@ class _RoomDetailPageState extends State<RoomDetailPage> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: AppColors.cardBorder),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildSpecIcon(Icons.people_rounded, "${rm.capacity} Orang", "Kapasitas"),
-                            _buildSpecIcon(Icons.straighten_rounded, "42 m²", "Luas"),
-                            _buildSpecIcon(Icons.ac_unit_rounded, "Dual AC", "Pendingin"),
-                            _buildSpecIcon(Icons.wifi_rounded, "5G WiFi", "Koneksi"),
-                          ],
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildSpecIcon(Icons.people_rounded, "${rm.capacity} Orang", "Kapasitas"),
+                              const SizedBox(width: 24),
+                              _buildSpecIcon(Icons.straighten_rounded, "42 m²", "Luas"),
+                              const SizedBox(width: 24),
+                              _buildSpecIcon(Icons.ac_unit_rounded, "Dual AC", "Pendingin"),
+                              const SizedBox(width: 24),
+                              _buildSpecIcon(Icons.wifi_rounded, "5G WiFi", "Koneksi"),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -252,10 +264,12 @@ class _RoomDetailPageState extends State<RoomDetailPage> {
                               fontWeight: FontWeight.bold,
                               color: rm.status == RoomStatus.available ? AppColors.success : AppColors.danger,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: rm.status == RoomStatus.available
                           ? () => _showBookModal(context, rm)

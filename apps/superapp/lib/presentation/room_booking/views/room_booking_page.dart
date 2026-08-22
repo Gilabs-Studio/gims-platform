@@ -130,9 +130,12 @@ class _RoomBookingPageState extends State<RoomBookingPage> {
                   "Daftar Ruangan Rapat",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
-                Text(
-                  "Tersedia ${_rooms.where((r) => r.status == RoomStatus.available).length} Ruangan",
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                Flexible(
+                  child: Text(
+                    "Tersedia ${_rooms.where((r) => r.status == RoomStatus.available).length} Ruangan",
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -207,20 +210,23 @@ class _RoomBookingPageState extends State<RoomBookingPage> {
                             const SizedBox(height: 4),
 
                             // Specifications Row (Travelio Style Icons)
-                            Row(
-                              children: [
-                                const Icon(Icons.people_alt_rounded, size: 14, color: AppColors.primary),
-                                const SizedBox(width: 4),
-                                Text("${rm.capacity} Orang", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                                const SizedBox(width: 12),
-                                const Icon(Icons.straighten_rounded, size: 14, color: AppColors.textMuted),
-                                const SizedBox(width: 4),
-                                const Text("42 m²", style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                                const SizedBox(width: 12),
-                                const Icon(Icons.ac_unit_rounded, size: 14, color: AppColors.textMuted),
-                                const SizedBox(width: 4),
-                                const Text("Full AC", style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                              ],
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.people_alt_rounded, size: 14, color: AppColors.primary),
+                                  const SizedBox(width: 4),
+                                  Text("${rm.capacity} Orang", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.straighten_rounded, size: 14, color: AppColors.textMuted),
+                                  const SizedBox(width: 4),
+                                  const Text("42 m²", style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.ac_unit_rounded, size: 14, color: AppColors.textMuted),
+                                  const SizedBox(width: 4),
+                                  const Text("Full AC", style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 8),
 

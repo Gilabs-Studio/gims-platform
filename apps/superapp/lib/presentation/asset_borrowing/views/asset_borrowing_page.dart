@@ -126,13 +126,20 @@ class _AssetBorrowingPageState extends State<AssetBorrowingPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(loan.requestNumber, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                          const StatusBadge(label: "DIPINJAM", type: BadgeType.success),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            loan.requestNumber,
+                            style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const StatusBadge(label: "DIPINJAM", type: BadgeType.success),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                       Text(loan.assetName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                       const SizedBox(height: 4),
                       Text("Keperluan: ${loan.purpose}", style: const TextStyle(color: Colors.white70, fontSize: 12)),
@@ -185,14 +192,21 @@ class _AssetBorrowingPageState extends State<AssetBorrowingPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primarySoft,
-                                  borderRadius: BorderRadius.circular(6),
+                              Flexible(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primarySoft,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    ast.code,
+                                    style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                child: Text(ast.code, style: const TextStyle(color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.bold)),
                               ),
+                              const SizedBox(width: 6),
                               StatusBadge(
                                 label: ast.status == AssetStatus.available ? "TERSEDIA" : "DIPINJAM",
                                 type: ast.status == AssetStatus.available ? BadgeType.success : BadgeType.warning,
@@ -208,6 +222,8 @@ class _AssetBorrowingPageState extends State<AssetBorrowingPage> {
                           const SizedBox(height: 2),
                           Text(
                             "Serial: ${ast.serialNumber} • Kondisi: ${ast.condition}",
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 10),
@@ -225,9 +241,12 @@ class _AssetBorrowingPageState extends State<AssetBorrowingPage> {
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
-                            child: Text(
-                              ast.status == AssetStatus.available ? "Ajukan Pinjam Aset" : "Sedang Dipinjam",
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                ast.status == AssetStatus.available ? "Ajukan Pinjam Aset" : "Sedang Dipinjam",
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ),
                         ],

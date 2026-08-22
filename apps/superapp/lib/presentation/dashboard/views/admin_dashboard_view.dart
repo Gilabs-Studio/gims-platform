@@ -57,37 +57,43 @@ class AdminDashboardView extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      InkWell(
-                        onTap: () => dashVm.setIndex(5), // Profile tab
-                        borderRadius: BorderRadius.circular(16),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: AppColors.adminHeaderGradient,
-                              ),
-                              child: CircleAvatar(
-                                radius: 24,
-                                backgroundImage: NetworkImage(user?.avatarUrl ?? "https://i.pravatar.cc/150"),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user?.name ?? "Admin Enterprise",
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => dashVm.setIndex(5), // Profile tab
+                          borderRadius: BorderRadius.circular(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: AppColors.adminHeaderGradient,
                                 ),
-                                Text(
-                                  user?.position ?? "General Manager & Owner",
-                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                child: CircleAvatar(
+                                  radius: 24,
+                                  backgroundImage: NetworkImage(user?.avatarUrl ?? "https://i.pravatar.cc/150"),
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user?.name ?? "Admin Enterprise",
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      user?.position ?? "General Manager & Owner",
+                                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       Row(
@@ -131,16 +137,23 @@ class AdminDashboardView extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: const [
-                                Icon(Icons.factory_rounded, color: Colors.white, size: 16),
-                                SizedBox(width: 6),
-                                Text(
-                                  "STATISTIK MANUFAKTUR PABRIK",
-                                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                                ),
-                              ],
+                            Flexible(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.factory_rounded, color: Colors.white, size: 16),
+                                  SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      "STATISTIK MANUFAKTUR PABRIK",
+                                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             StatusBadge(
                               label: "OEE: ${mfgVm.averageOee.toStringAsFixed(1)}%",
                               type: BadgeType.success,
@@ -201,12 +214,16 @@ class AdminDashboardView extends StatelessWidget {
                             children: const [
                               Icon(Icons.analytics_rounded, size: 20, color: AppColors.primary),
                               SizedBox(width: 8),
-                              Text(
-                                "Buka Live Telemetri Mesin",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                              Flexible(
+                                child: Text(
+                                  "Buka Live Telemetri Mesin",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -299,21 +316,25 @@ class AdminDashboardView extends StatelessWidget {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isRunning ? AppColors.successBg : (isDown ? AppColors.dangerBg : AppColors.warningBg),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      m.lineName,
-                                      style: TextStyle(
-                                        color: isRunning ? AppColors.success : (isDown ? AppColors.danger : AppColors.warning),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isRunning ? AppColors.successBg : (isDown ? AppColors.dangerBg : AppColors.warningBg),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        m.lineName,
+                                        style: TextStyle(
+                                          color: isRunning ? AppColors.success : (isDown ? AppColors.danger : AppColors.warning),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(width: 4),
                                   StatusBadge(
                                     label: isRunning ? "RUNNING" : (isDown ? "DOWN" : (isMaint ? "SERVIS" : "IDLE")),
                                     type: isRunning ? BadgeType.success : (isDown ? BadgeType.danger : BadgeType.warning),
@@ -345,6 +366,7 @@ class AdminDashboardView extends StatelessWidget {
                                         Text(
                                           "OEE ${m.oeeScore.toStringAsFixed(0)}% • ${isRunning ? "248 P/h" : "14 P/h"}",
                                           style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                     ),
@@ -365,8 +387,21 @@ class AdminDashboardView extends StatelessWidget {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text("${m.temperature.toStringAsFixed(0)}°C", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: m.temperature > 85 ? AppColors.danger : AppColors.textPrimary)),
-                                  Text("Vib: ${m.vibrationLevel}", style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                                  Flexible(
+                                    child: Text(
+                                      "${m.temperature.toStringAsFixed(0)}°C",
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: m.temperature > 85 ? AppColors.danger : AppColors.textPrimary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Flexible(
+                                    child: Text(
+                                      "Vib:${m.vibrationLevel}",
+                                      style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                   const Row(
                                     children: [
                                       Text("Detail", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),

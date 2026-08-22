@@ -115,14 +115,18 @@ class _PayrollPageState extends State<PayrollPage> with SingleTickerProviderStat
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  latest?.monthPeriod ?? "Bulan Ini",
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
+                                Expanded(
+                                  child: Text(
+                                    latest?.monthPeriod ?? "Bulan Ini",
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 const StatusBadge(
                                   label: "TERBAYAR",
                                   type: BadgeType.success,
@@ -152,10 +156,14 @@ class _PayrollPageState extends State<PayrollPage> with SingleTickerProviderStat
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  "Tgl Transfer: ${latest != null ? DateFormatter.formatShortDate(latest.paymentDate) : '-'}",
-                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                Expanded(
+                                  child: Text(
+                                    "Tgl Transfer: ${latest != null ? DateFormatter.formatShortDate(latest.paymentDate) : '-'}",
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 const Row(
                                   children: [
                                     Text(
@@ -419,7 +427,14 @@ class _PayrollPageState extends State<PayrollPage> with SingleTickerProviderStat
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
           Text(
             "${isDeduction ? '-' : '+'} ${CurrencyFormatter.formatRupiah(amount)}",
             style: TextStyle(

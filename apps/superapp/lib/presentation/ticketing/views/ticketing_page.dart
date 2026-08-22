@@ -187,26 +187,32 @@ class _TicketingPageState extends State<TicketingPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.primarySoft,
-                                borderRadius: BorderRadius.circular(8),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primarySoft,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  tck.ticketNumber,
+                                  style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
                               ),
-                              child: Text(
-                                tck.ticketNumber,
-                                style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  tck.category,
+                                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              tck.category,
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         StatusBadge(
                           label: _getPriorityLabel(tck.priority),
                           type: _getPriorityBadgeType(tck.priority),
@@ -233,13 +239,22 @@ class _TicketingPageState extends State<TicketingPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_rounded, size: 14, color: AppColors.textMuted),
-                            const SizedBox(width: 4),
-                            Text(tck.location, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.location_on_rounded, size: 14, color: AppColors.textMuted),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  tck.location,
+                                  style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         StatusBadge(
                           label: _getStatusLabel(tck.status),
                           type: _getStatusBadgeType(tck.status),

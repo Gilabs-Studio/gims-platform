@@ -66,18 +66,21 @@ class MachineDetailModal extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySoft,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              machine.lineName,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySoft,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                machine.lineName,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ),
@@ -155,14 +158,17 @@ class MachineDetailModal extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  _buildMiniDot(const Color(0xFF3B82F6), isRun ? "Avail 70%" : "Avail 18%"),
-                                  const SizedBox(width: 8),
-                                  _buildMiniDot(const Color(0xFFF59E0B), isRun ? "Perf 20%" : "Perf 32%"),
-                                  const SizedBox(width: 8),
-                                  _buildMiniDot(const Color(0xFF10B981), isRun ? "Qual 10%" : "Qual 50%"),
-                                ],
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    _buildMiniDot(const Color(0xFF3B82F6), isRun ? "Avail 70%" : "Avail 18%"),
+                                    const SizedBox(width: 8),
+                                    _buildMiniDot(const Color(0xFFF59E0B), isRun ? "Perf 20%" : "Perf 32%"),
+                                    const SizedBox(width: 8),
+                                    _buildMiniDot(const Color(0xFF10B981), isRun ? "Qual 10%" : "Qual 50%"),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
