@@ -1,4 +1,4 @@
-export type TicketStatus =
+export type HRTicketStatus =
   | "open"
   | "assigned"
   | "in_progress"
@@ -7,17 +7,15 @@ export type TicketStatus =
   | "closed"
   | "rejected";
 
-export type TicketPriority = "low" | "medium" | "high" | "urgent";
+export type HRTicketPriority = "low" | "medium" | "high" | "urgent";
 
-export type TicketCategory =
-  | "it_hardware"
-  | "it_software"
-  | "facility_ac"
-  | "facility_plumbing"
-  | "facility_electrical"
-  | "general_maintenance";
+export type HRTicketCategory =
+  | "hr_asset_repair"
+  | "hr_asset_replacement"
+  | "hr_facility_building"
+  | "hr_payroll_admin";
 
-export interface Technician {
+export interface HRTechnician {
   id: string;
   name: string;
   code: string;
@@ -28,7 +26,7 @@ export interface Technician {
   active_tickets_count: number;
 }
 
-export interface TicketReporter {
+export interface HRTicketReporter {
   id: string;
   name: string;
   code: string;
@@ -39,7 +37,7 @@ export interface TicketReporter {
   location: string;
 }
 
-export interface TicketActivity {
+export interface HRTicketActivity {
   id: string;
   ticket_id: string;
   actor_name: string;
@@ -51,42 +49,45 @@ export interface TicketActivity {
   created_at: string;
 }
 
-export interface Ticket {
+export interface HRTicket {
   id: string;
   ticket_number: string;
   title: string;
-  category: TicketCategory;
-  priority: TicketPriority;
-  status: TicketStatus;
+  asset_name?: string;
+  asset_code?: string;
+  asset_photo?: string;
+  category: HRTicketCategory;
+  priority: HRTicketPriority;
+  status: HRTicketStatus;
   location: string;
   description: string;
   photos: string[];
-  
-  reporter: TicketReporter;
-  assigned_technician?: Technician | null;
+
+  reporter: HRTicketReporter;
+  assigned_technician?: HRTechnician | null;
   assigned_team?: string;
-  
+
   target_completion_date?: string;
   resolution_notes?: string;
   resolution_photos?: string[];
-  
+
   created_at: string;
   updated_at: string;
   resolved_at?: string;
   closed_at?: string;
 
-  activities: TicketActivity[];
+  activities: HRTicketActivity[];
 }
 
-export interface TicketFilter {
+export interface HRTicketFilter {
   search?: string;
-  category?: TicketCategory | "all";
-  status?: TicketStatus | "all";
-  priority?: TicketPriority | "all";
+  category?: HRTicketCategory | "all";
+  status?: HRTicketStatus | "all";
+  priority?: HRTicketPriority | "all";
   assigned_to_me?: boolean;
 }
 
-export interface TicketStatistics {
+export interface HRTicketStatistics {
   total: number;
   open: number;
   in_progress: number;

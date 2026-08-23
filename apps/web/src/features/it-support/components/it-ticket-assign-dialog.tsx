@@ -24,29 +24,27 @@ import {
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
 import { UserCheck } from "lucide-react";
 import {
-  assignTechnicianSchema,
-  type AssignTechnicianFormValues,
-} from "../schemas/ticketing.schema";
-import type { Ticket, Technician } from "../types/ticketing.types";
+  assignITTechnicianSchema,
+  type AssignITTechnicianFormValues,
+} from "../schemas/it-ticket.schema";
+import type { ITTicket, ITTechnician } from "../types/it-ticket.types";
 
-interface TicketAssignDialogProps {
+interface ITTicketAssignDialogProps {
   open: boolean;
   onClose: () => void;
-  ticket: Ticket | null;
-  technicians: Technician[];
-  onSubmit: (ticketId: string, data: AssignTechnicianFormValues) => void;
+  ticket: ITTicket | null;
+  technicians: ITTechnician[];
+  onSubmit: (ticketId: string, data: AssignITTechnicianFormValues) => void;
 }
 
-export function TicketAssignDialog({
+export function ITTicketAssignDialog({
   open,
   onClose,
   ticket,
   technicians,
   onSubmit,
-}: TicketAssignDialogProps) {
-  const t = useTranslations("ticketing");
-
-  const todayStr = new Date().toISOString().split("T")[0];
+}: ITTicketAssignDialogProps) {
+  const t = useTranslations("itSupport");
 
   const {
     register,
@@ -55,62 +53,60 @@ export function TicketAssignDialog({
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<AssignTechnicianFormValues>({
-    resolver: zodResolver(assignTechnicianSchema),
+  } = useForm<AssignITTechnicianFormValues>({
+    resolver: zodResolver(assignITTechnicianSchema),
     defaultValues: {
       technician_id: ticket?.assigned_technician?.id || "",
-      target_completion_date: ticket?.target_completion_date || todayStr,
+      target_completion_date:
+        ticket?.target_completion_date ||
+        new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
       notes: "",
     },
   });
 
-  const selectedTechId = watch("technician_id");
+  const techIdVal = watch("technician_id");
 
-  if (!ticket) return null;
-
-  const handleFormSubmit = (data: AssignTechnicianFormValues) => {
-    onSubmit(ticket.id, data);
-    reset();
-    onClose();
+  const handleFormSubmit = (data: AssignITTechnicianFormValues) => {
+    if (ticket) {
+      onSubmit(ticket.id, data);
+      reset();
+      onClose();
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{t("dialogs.assignTitle")}</DialogTitle>
-          <DialogDescription>{t("dialogs.assignDesc")}</DialogDescription>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            <UserCheck className="h-5 w-5 text-primary" />
+            {t("dialogs.assignTitle")}
+          </DialogTitle>
+          <DialogDescription>
+            {ticket?.ticket_number} - {ticket?.title}
+          </DialogDescription>
         </DialogHeader>
-
-        <div className="rounded-lg border p-3 bg-muted/30 text-xs space-y-1 my-1">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-primary">{ticket.ticket_number}</span>
-            <span className="text-muted-foreground">{ticket.location}</span>
-          </div>
-          <p className="font-medium text-sm text-foreground">{ticket.title}</p>
-        </div>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
           <FieldGroup className="space-y-4">
-            {/* Technician Select */}
             <Field className="space-y-1.5">
               <FieldLabel htmlFor="technician_id">{t("dialogs.fields.technician")}</FieldLabel>
               <Select
-                value={selectedTechId}
+                value={techIdVal}
                 onValueChange={(val) =>
                   setValue("technician_id", val, { shouldValidate: true })
                 }
               >
                 <SelectTrigger id="technician_id" className="w-full cursor-pointer">
-                  <SelectValue placeholder={t("dialogs.fields.technicianPlaceholder")} />
+                  <SelectValue placeholder={t("dialogs.fields.technician")} />
                 </SelectTrigger>
                 <SelectContent>
                   {technicians.map((tech) => (
                     <SelectItem key={tech.id} value={tech.id} className="cursor-pointer">
-                      <div className="flex items-center justify-between w-full gap-2">
+                      <div className="flex items-center justify-between w-full gap-4">
                         <span>{tech.name} ({tech.role})</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          ({tech.active_tickets_count} {t("dialogs.fields.activeCount")})
+                        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          {tech.active_tickets_count} tiket aktif
                         </span>
                       </div>
                     </SelectItem>
@@ -122,7 +118,6 @@ export function TicketAssignDialog({
               )}
             </Field>
 
-            {/* Target Completion Date */}
             <Field className="space-y-1.5">
               <FieldLabel htmlFor="target_completion_date">
                 {t("dialogs.fields.targetDate")}
@@ -130,7 +125,6 @@ export function TicketAssignDialog({
               <Input
                 id="target_completion_date"
                 type="date"
-                min={todayStr}
                 {...register("target_completion_date")}
               />
               {errors.target_completion_date && (
@@ -138,33 +132,22 @@ export function TicketAssignDialog({
               )}
             </Field>
 
-            {/* Notes */}
             <Field className="space-y-1.5">
               <FieldLabel htmlFor="notes">{t("dialogs.fields.notes")}</FieldLabel>
               <Textarea
                 id="notes"
-                rows={2}
-                placeholder={t("dialogs.fields.notesPlaceholder")}
+                rows={3}
+                placeholder="Berikan arahan penanganan awal teknisi IT..."
                 {...register("notes")}
               />
             </Field>
           </FieldGroup>
 
           <DialogFooter className="pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="cursor-pointer"
-            >
+            <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer">
               {t("dialogs.actions.cancel")}
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="cursor-pointer hover:-translate-y-0.5 active:translate-y-0 hover:shadow-lg transition-all duration-300"
-            >
-              <UserCheck className="h-4 w-4 mr-2" />
+            <Button type="submit" disabled={isSubmitting} className="cursor-pointer">
               {t("dialogs.actions.submitAssign")}
             </Button>
           </DialogFooter>

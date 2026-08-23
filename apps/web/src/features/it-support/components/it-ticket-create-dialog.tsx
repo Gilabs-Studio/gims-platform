@@ -23,20 +23,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
-import { Upload, X, Camera } from "lucide-react";
+import { Upload, X, Camera, Monitor } from "lucide-react";
 import {
-  createTicketSchema,
-  type CreateTicketFormValues,
-} from "../schemas/ticketing.schema";
+  createITTicketSchema,
+  type CreateITTicketFormValues,
+} from "../schemas/it-ticket.schema";
 
-interface TicketCreateDialogProps {
+interface ITTicketCreateDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateTicketFormValues) => void;
+  onSubmit: (data: CreateITTicketFormValues) => void;
 }
 
-export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDialogProps) {
-  const t = useTranslations("ticketing");
+export function ITTicketCreateDialog({ open, onClose, onSubmit }: ITTicketCreateDialogProps) {
+  const t = useTranslations("itSupport");
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
 
   const {
@@ -46,8 +46,8 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<CreateTicketFormValues>({
-    resolver: zodResolver(createTicketSchema),
+  } = useForm<CreateITTicketFormValues>({
+    resolver: zodResolver(createITTicketSchema),
     defaultValues: {
       title: "",
       category: "it_hardware",
@@ -61,21 +61,24 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
   const categoryVal = watch("category");
   const priorityVal = watch("priority");
 
-  const handleFormSubmit = (data: CreateTicketFormValues) => {
-    onSubmit({
-      ...data,
-      photos: photoPreviews,
-    });
+  const handleResetDialog = () => {
     setPhotoPreviews([]);
     reset();
     onClose();
   };
 
+  const handleFormSubmit = (data: CreateITTicketFormValues) => {
+    onSubmit({
+      ...data,
+      photos: photoPreviews,
+    });
+    handleResetDialog();
+  };
+
   const handleAddSamplePhoto = () => {
     const samplePhotos = [
-      "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80",
       "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1508873696983-2df515122519?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80",
     ];
     const randomPhoto = samplePhotos[Math.floor(Math.random() * samplePhotos.length)];
     if (photoPreviews.length < 3) {
@@ -88,11 +91,16 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(o) => !o && handleResetDialog()}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("dialogs.createTitle")}</DialogTitle>
-          <DialogDescription>{t("dialogs.createDesc")}</DialogDescription>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            <Monitor className="h-5 w-5 text-primary" />
+            {t("dialogs.createTitle")}
+          </DialogTitle>
+          <DialogDescription>
+            {t("dialogs.createDesc")}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
@@ -115,7 +123,7 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
                 <Select
                   value={categoryVal}
                   onValueChange={(val) =>
-                    setValue("category", val as CreateTicketFormValues["category"], {
+                    setValue("category", val as CreateITTicketFormValues["category"], {
                       shouldValidate: true,
                     })
                   }
@@ -124,12 +132,18 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="it_hardware" className="cursor-pointer">{t("categories.it_hardware")}</SelectItem>
-                    <SelectItem value="it_software" className="cursor-pointer">{t("categories.it_software")}</SelectItem>
-                    <SelectItem value="facility_ac" className="cursor-pointer">{t("categories.facility_ac")}</SelectItem>
-                    <SelectItem value="facility_plumbing" className="cursor-pointer">{t("categories.facility_plumbing")}</SelectItem>
-                    <SelectItem value="facility_electrical" className="cursor-pointer">{t("categories.facility_electrical")}</SelectItem>
-                    <SelectItem value="general_maintenance" className="cursor-pointer">{t("categories.general_maintenance")}</SelectItem>
+                    <SelectItem value="it_hardware" className="cursor-pointer">
+                      {t("categories.it_hardware")}
+                    </SelectItem>
+                    <SelectItem value="it_software" className="cursor-pointer">
+                      {t("categories.it_software")}
+                    </SelectItem>
+                    <SelectItem value="it_network" className="cursor-pointer">
+                      {t("categories.it_network")}
+                    </SelectItem>
+                    <SelectItem value="it_account" className="cursor-pointer">
+                      {t("categories.it_account")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.category && <FieldError>{errors.category.message}</FieldError>}
@@ -140,7 +154,7 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
                 <Select
                   value={priorityVal}
                   onValueChange={(val) =>
-                    setValue("priority", val as CreateTicketFormValues["priority"], {
+                    setValue("priority", val as CreateITTicketFormValues["priority"], {
                       shouldValidate: true,
                     })
                   }
@@ -149,10 +163,18 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low" className="cursor-pointer">{t("priority.low")}</SelectItem>
-                    <SelectItem value="medium" className="cursor-pointer text-primary">{t("priority.medium")}</SelectItem>
-                    <SelectItem value="high" className="cursor-pointer text-warning">{t("priority.high")}</SelectItem>
-                    <SelectItem value="urgent" className="cursor-pointer text-destructive font-bold">{t("priority.urgent")}</SelectItem>
+                    <SelectItem value="low" className="cursor-pointer">
+                      {t("priority.low")}
+                    </SelectItem>
+                    <SelectItem value="medium" className="cursor-pointer text-primary">
+                      {t("priority.medium")}
+                    </SelectItem>
+                    <SelectItem value="high" className="cursor-pointer text-amber-600 font-semibold">
+                      {t("priority.high")}
+                    </SelectItem>
+                    <SelectItem value="urgent" className="cursor-pointer text-rose-600 font-bold">
+                      {t("priority.urgent")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {errors.priority && <FieldError>{errors.priority.message}</FieldError>}
@@ -182,7 +204,7 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
               {errors.description && <FieldError>{errors.description.message}</FieldError>}
             </Field>
 
-            {/* Photos upload / preview */}
+            {/* Photos Upload */}
             <Field className="space-y-2">
               <FieldLabel>{t("dialogs.fields.photos")}</FieldLabel>
               <FieldDescription className="text-xs">
@@ -222,7 +244,7 @@ export function TicketCreateDialog({ open, onClose, onSubmit }: TicketCreateDial
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleResetDialog}
               className="cursor-pointer"
             >
               {t("dialogs.actions.cancel")}

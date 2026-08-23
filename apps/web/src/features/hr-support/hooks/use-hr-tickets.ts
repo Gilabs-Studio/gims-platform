@@ -2,46 +2,44 @@
 
 import { useState, useMemo, useCallback } from "react";
 import type {
-  Ticket,
-  TicketCategory,
-  TicketPriority,
-  TicketStatus,
-  TicketStatistics,
-  Technician,
-} from "../types/ticketing.types";
+  HRTicketCategory,
+  HRTicketPriority,
+  HRTicketStatus,
+  HRTicketStatistics,
+  HRTechnician,
+} from "../types/hr-ticket.types";
 import type {
-  CreateTicketFormValues,
-  AssignTechnicianFormValues,
-  UpdateTicketStatusFormValues,
-} from "../schemas/ticketing.schema";
-import { ticketingService, MOCK_TECHNICIANS } from "../services/ticketing-service";
+  CreateHRTicketFormValues,
+  AssignHRTechnicianFormValues,
+  UpdateHRTicketStatusFormValues,
+} from "../schemas/hr-ticket.schema";
+import { hrTicketService } from "../services/hr-ticket.service";
 import { useDebounce } from "@/hooks/use-debounce";
 import { toast } from "sonner";
 
-export function useTickets() {
+export function useHRTickets() {
   const [activeTab, setActiveTab] = useState<"my_tickets" | "manage_tickets">("my_tickets");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
-  const [categoryFilter, setCategoryFilter] = useState<TicketCategory | "all">("all");
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
-  const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<HRTicketCategory | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<HRTicketStatus | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<HRTicketPriority | "all">("all");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Trigger state refresh
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   const allTickets = useMemo(() => {
-    // eslint-disable-next-ignore-line unused-vars
-    void refreshKey;
-    return ticketingService.getTickets({});
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    refreshKey;
+    return hrTicketService.getTickets({});
   }, [refreshKey]);
 
   const filteredTickets = useMemo(() => {
-    return ticketingService.getTickets({
+    return hrTicketService.getTickets({
       search: debouncedSearch,
       category: categoryFilter,
       status: statusFilter,
@@ -50,14 +48,14 @@ export function useTickets() {
     });
   }, [debouncedSearch, categoryFilter, statusFilter, priorityFilter, activeTab, refreshKey]);
 
-  const statistics: TicketStatistics = useMemo(() => {
-    // eslint-disable-next-ignore-line unused-vars
-    void refreshKey;
-    return ticketingService.getStatistics();
+  const statistics: HRTicketStatistics = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    refreshKey;
+    return hrTicketService.getStatistics();
   }, [refreshKey]);
 
-  const technicians: Technician[] = useMemo(() => {
-    return ticketingService.getTechnicians();
+  const technicians: HRTechnician[] = useMemo(() => {
+    return hrTicketService.getTechnicians();
   }, []);
 
   const paginatedTickets = useMemo(() => {
@@ -68,9 +66,9 @@ export function useTickets() {
   const totalCount = filteredTickets.length;
 
   const handleCreateTicket = useCallback(
-    (data: CreateTicketFormValues) => {
-      const created = ticketingService.createTicket(data);
-      toast.success(`Tiket #${created.ticket_number} berhasil dibuat!`);
+    (data: CreateHRTicketFormValues) => {
+      const created = hrTicketService.createTicket(data);
+      toast.success(`Tiket Aset #${created.ticket_number} berhasil dibuat!`);
       refresh();
       return created;
     },
@@ -78,10 +76,10 @@ export function useTickets() {
   );
 
   const handleAssignTechnician = useCallback(
-    (ticketId: string, data: AssignTechnicianFormValues) => {
-      const updated = ticketingService.assignTechnician(ticketId, data);
+    (ticketId: string, data: AssignHRTechnicianFormValues) => {
+      const updated = hrTicketService.assignTechnician(ticketId, data);
       if (updated) {
-        toast.success(`Teknisi berhasil ditugaskan ke tiket #${updated.ticket_number}`);
+        toast.success(`Petugas Aset berhasil ditugaskan ke tiket #${updated.ticket_number}`);
         refresh();
       }
       return updated;
@@ -90,10 +88,10 @@ export function useTickets() {
   );
 
   const handleUpdateStatus = useCallback(
-    (ticketId: string, data: UpdateTicketStatusFormValues) => {
-      const updated = ticketingService.updateTicketStatus(ticketId, data);
+    (ticketId: string, data: UpdateHRTicketStatusFormValues) => {
+      const updated = hrTicketService.updateTicketStatus(ticketId, data);
       if (updated) {
-        toast.success(`Status tiket #${updated.ticket_number} berhasil diperbarui`);
+        toast.success(`Status tiket Aset #${updated.ticket_number} berhasil diperbarui`);
         refresh();
       }
       return updated;
@@ -103,9 +101,9 @@ export function useTickets() {
 
   const handleDeleteTicket = useCallback(
     (ticketId: string) => {
-      const success = ticketingService.deleteTicket(ticketId);
+      const success = hrTicketService.deleteTicket(ticketId);
       if (success) {
-        toast.success("Tiket telah dihapus");
+        toast.success("Tiket Aset telah dihapus");
         refresh();
       }
     },

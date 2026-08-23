@@ -731,6 +731,13 @@ export const navigationConfig: NavItem[] = [
           },
         ],
       },
+      {
+        name: "Asset Tickets",
+        i18nKey: "hrdAssetTickets",
+        url: "/hrd/asset-tickets",
+        icon: "life-buoy",
+        permission: "recruitment.read",
+      },
     ],
   },
   {
@@ -741,8 +748,8 @@ export const navigationConfig: NavItem[] = [
     permission: "recruitment.read",
   },
   {
-    name: "Ticketing",
-    i18nKey: "ticketing",
+    name: "IT Support",
+    i18nKey: "itSupport",
     url: "/ticketing",
     icon: "ticket",
     permission: "recruitment.read",

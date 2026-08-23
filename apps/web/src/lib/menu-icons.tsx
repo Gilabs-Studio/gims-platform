@@ -95,6 +95,7 @@ import {
   ScrollText,
   DoorOpen,
   Ticket,
+  LifeBuoy,
   Factory,
 } from "lucide-react";
 
@@ -283,9 +284,15 @@ const iconMap: Record<string, React.ReactNode> = {
   "clipboard-pen": <ClipboardPen className="h-4 w-4" />,
   clipboardpen: <ClipboardPen className="h-4 w-4" />,
 
-  // Ticketing icons
+  // Ticketing & Support icons
   ticket: <Ticket className="h-4 w-4" />,
   ticketing: <Ticket className="h-4 w-4" />,
+  itsupport: <Ticket className="h-4 w-4" />,
+  "it-support": <Ticket className="h-4 w-4" />,
+  "life-buoy": <LifeBuoy className="h-4 w-4" />,
+  lifebuoy: <LifeBuoy className="h-4 w-4" />,
+  hrdassettickets: <LifeBuoy className="h-4 w-4" />,
+  "hrd-asset-tickets": <LifeBuoy className="h-4 w-4" />,
 };
 
 export function getMenuIcon(iconName: string): React.ReactNode {

@@ -1,6 +1,5 @@
-import { TicketingPage } from "@/features/ticketing/components/ticketing-page";
+import { ITTicketKanban } from "@/features/it-support/components";
 
-// TODO: connect to real permission from backend when 'ticketing.read' permission is active
 export default function TicketingRoutePage() {
-  return <TicketingPage />;
+  return <ITTicketKanban />;
 }
