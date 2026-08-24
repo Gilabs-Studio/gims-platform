@@ -1,0 +1,39 @@
+meta {
+  name: Get Stock Ledger by Product ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/api/v1/inventory/products/:product_id/ledgers?page=1&per_page=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  per_page: 20
+  ~transaction_type: 
+  ~date_from: 
+  ~date_to: 
+}
+
+params:path {
+  product_id: f1000001-0000-0000-0000-000000000002
+}
+
+docs {
+  Fetch moving-average stock ledger entries for a specific product ID via the inventory product endpoint.
+  
+  Permission required: `ledger.read`
+  
+  Path Parameters:
+  - `product_id` (required, UUID): Product UUID
+  
+  Query Parameters:
+  - `page` (optional, default: 1): Page number for pagination
+  - `per_page` / `limit` (optional, default: 20, max: 100): Number of records per page
+  - `transaction_type` (optional, enum: GR, GI, OPNAME, TRANSFER, SO, POS): Filter by movement transaction type
+  - `date_from` (optional, string: YYYY-MM-DD): Filter entries created on or after date
+  - `date_to` (optional, string: YYYY-MM-DD): Filter entries created on or before date
+}

@@ -104,6 +104,25 @@ func SeedInventory() error {
 		}
 		if createErr := db.Create(&batch).Error; createErr != nil {
 			log.Printf("Failed to create batch %s: %v", batch.BatchNumber, createErr)
+		} else if batch.InitialQuantity > 0 {
+			var ledgerCount int64
+			db.Model(&inventoryModels.StockLedger{}).
+				Where("product_id = ? AND transaction_id = ?", batch.ProductID, batch.BatchNumber).
+				Count(&ledgerCount)
+			if ledgerCount == 0 {
+				ledger := inventoryModels.StockLedger{
+					ProductID:       batch.ProductID,
+					TransactionID:   batch.BatchNumber,
+					TransactionType: "GR",
+					Qty:             batch.InitialQuantity,
+					UnitCost:        batch.CostPrice,
+					AverageCost:     batch.CostPrice,
+					StockValue:      batch.InitialQuantity * batch.CostPrice,
+					RunningQty:      batch.InitialQuantity,
+					CreatedAt:       time.Now().AddDate(0, 0, -30),
+				}
+				_ = db.Create(&ledger).Error
+			}
 		}
 	}
 
