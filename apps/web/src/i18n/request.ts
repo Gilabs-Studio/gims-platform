@@ -70,6 +70,16 @@ import { evaluationEn } from "@/features/hrd/evaluation/i18n/en";
 import { evaluationId } from "@/features/hrd/evaluation/i18n/id";
 import { recruitmentEn } from "@/features/hrd/recruitment/i18n/en";
 import { recruitmentId } from "@/features/hrd/recruitment/i18n/id";
+import { payrollEn } from "@/features/hrd/payroll/i18n/en";
+import { payrollId } from "@/features/hrd/payroll/i18n/id";
+import { roomBookingEn } from "@/features/room-booking/i18n/en";
+import { roomBookingId } from "@/features/room-booking/i18n/id";
+import { assetBorrowingEn } from "@/features/asset-borrowing/i18n/en";
+import { assetBorrowingId } from "@/features/asset-borrowing/i18n/id";
+import { itSupportEn } from "@/features/it-support/i18n/en";
+import { itSupportId } from "@/features/it-support/i18n/id";
+import { hrSupportEn } from "@/features/hr-support/i18n/en";
+import { hrSupportId } from "@/features/hr-support/i18n/id";
 
 import { passwordResetEn } from "@/features/auth/password-reset/i18n/en";
 import { passwordResetId } from "@/features/auth/password-reset/i18n/id";
@@ -203,6 +213,8 @@ import { systemAdminEn } from "@/features/system-admin/i18n/en";
 import { systemAdminId } from "@/features/system-admin/i18n/id";
 import { userFeedbackEn } from "@/features/feedback/i18n/en";
 import { userFeedbackId } from "@/features/feedback/i18n/id";
+import { manufacturingEn } from "@/features/manufacturing/i18n/en";
+import { manufacturingId } from "@/features/manufacturing/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -241,6 +253,12 @@ const messages = {
     ...settingsEn,
     ...evaluationEn,
     ...recruitmentEn,
+    ...payrollEn,
+    ...roomBookingEn,
+    ...assetBorrowingEn,
+    itSupport: itSupportEn,
+    hrSupport: hrSupportEn,
+    ticketing: itSupportEn,
     ...passwordResetEn,
     auth: {
       ...globalEnMessages.auth,
@@ -305,6 +323,7 @@ const messages = {
     ...landingEn,
     ...systemAdminEn,
     ...userFeedbackEn,
+    manufacturing: manufacturingEn,
   },
   id: {
     ...globalIdMessages,
@@ -341,6 +360,12 @@ const messages = {
     ...settingsId,
     ...evaluationId,
     ...recruitmentId,
+    ...payrollId,
+    ...roomBookingId,
+    ...assetBorrowingId,
+    itSupport: itSupportId,
+    hrSupport: hrSupportId,
+    ticketing: itSupportId,
     ...passwordResetId,
     auth: {
       ...globalIdMessages.auth,
@@ -405,6 +430,7 @@ const messages = {
     ...landingId,
     ...systemAdminId,
     ...userFeedbackId,
+    manufacturing: manufacturingId,
   },
 } as const;
 

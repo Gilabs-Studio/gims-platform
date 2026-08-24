@@ -1,0 +1,41 @@
+meta {
+  name: Submit Goods Receipt
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/api/v1/purchase/goods-receipt/:id/submit
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "notes": "Submitting goods receipt for approval"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Submit goods receipt for formal approval.
+  Permission required: `goods_receipt.submit`
+}

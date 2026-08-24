@@ -1,0 +1,42 @@
+meta {
+  name: Update Purchase Order
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/purchase/purchase-orders/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "expected_delivery_date": "2026-08-30",
+    "notes": "Updated delivery schedule per supplier confirmation"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update purchase order details.
+  Permission required: `purchase_order.update`
+}

@@ -1,0 +1,41 @@
+meta {
+  name: Update Adjustment Journal
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{base_url}}/api/v1/finance/accounting/journal-entries/adjustment/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "description": "Updated adjustment details"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update draft adjustment journal entry.
+  Permission required: `adjustment_journal.update`
+}

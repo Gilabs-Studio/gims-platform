@@ -1,0 +1,23 @@
+meta {
+  name: Print Customer Invoice PDF
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/api/v1/sales/customer-invoices/:id/print
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Generate printable PDF for customer invoice.
+  Permission required: `customer_invoice.print`
+}

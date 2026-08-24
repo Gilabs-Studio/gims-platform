@@ -1,0 +1,41 @@
+meta {
+  name: Reject Supplier Invoice Down Payment
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/api/v1/purchase/supplier-invoice-down-payments/:id/reject
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "rejection_reason": "Advance terms mismatch"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Reject supplier invoice down payment.
+  Permission required: `supplier_invoice_dp.reject`
+}

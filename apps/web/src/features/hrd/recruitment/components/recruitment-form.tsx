@@ -86,7 +86,6 @@ export function RecruitmentForm({
       salary_range_max: undefined,
       job_description: "",
       qualifications: "",
-      priority: "MEDIUM",
       notes: "",
     },
   });
@@ -103,7 +102,6 @@ export function RecruitmentForm({
         salary_range_max: recruitmentRequest.salary_range_max ?? undefined,
         job_description: recruitmentRequest.job_description,
         qualifications: recruitmentRequest.qualifications,
-        priority: recruitmentRequest.priority,
         notes: recruitmentRequest.notes ?? "",
       });
     } else if (!recruitmentRequest && open) {
@@ -117,7 +115,6 @@ export function RecruitmentForm({
         salary_range_max: undefined,
         job_description: "",
         qualifications: "",
-        priority: "MEDIUM",
         notes: "",
       });
     }
@@ -296,82 +293,53 @@ export function RecruitmentForm({
                 </div>
               </div>
 
-              {/* Expected Start Date + Priority */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>{t("expectedStartDate")} *</Label>
-                  <Controller
-                    name="expected_start_date"
-                    control={control}
-                    render={({ field }) => (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal cursor-pointer",
-                              !field.value && "text-muted-foreground",
-                              errors.expected_start_date && "border-destructive"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {field.value
-                              ? format(parseISO(field.value), "PPP")
-                              : t("common.selectDate")}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={
-                              field.value
-                                ? parseISO(field.value)
-                                : undefined
-                            }
-                            onSelect={(date: Date | undefined) =>
-                              field.onChange(
-                                date ? format(date, "yyyy-MM-dd") : ""
-                              )
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  />
-                  {errors.expected_start_date && (
-                    <p className="text-sm text-destructive">
-                      {errors.expected_start_date.message}
-                    </p>
+              {/* Expected Start Date */}
+              <div className="space-y-2">
+                <Label>{t("expectedStartDate")} *</Label>
+                <Controller
+                  name="expected_start_date"
+                  control={control}
+                  render={({ field }) => (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal cursor-pointer",
+                            !field.value && "text-muted-foreground",
+                            errors.expected_start_date && "border-destructive"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {field.value
+                            ? format(parseISO(field.value), "PPP")
+                            : t("common.selectDate")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={
+                            field.value
+                              ? parseISO(field.value)
+                              : undefined
+                          }
+                          onSelect={(date: Date | undefined) =>
+                            field.onChange(
+                              date ? format(date, "yyyy-MM-dd") : ""
+                            )
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>{t("priority.label")}</Label>
-                  <Controller
-                    name="priority"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value ?? "MEDIUM"}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={`${t("common.select")} ${t("priority.label")}`}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {formData?.priorities?.map((p) => (
-                            <SelectItem key={p.value} value={p.value}>
-                              {p.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
+                />
+                {errors.expected_start_date && (
+                  <p className="text-sm text-destructive">
+                    {errors.expected_start_date.message}
+                  </p>
+                )}
               </div>
 
               {/* Salary Range - auto-format as rupiah (e.g. 20000 → 20.000) */}

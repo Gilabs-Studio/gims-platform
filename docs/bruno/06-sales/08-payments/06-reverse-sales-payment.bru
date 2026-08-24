@@ -1,0 +1,41 @@
+meta {
+  name: Reverse Sales Payment
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/sales/payments/:id/reverse
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "reversal_reason": "Bounced check / returned payment"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Reverse a confirmed customer payment.
+  Permission required: `sales_payment.reverse`
+}

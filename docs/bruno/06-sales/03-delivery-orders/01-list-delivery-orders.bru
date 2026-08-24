@@ -1,0 +1,28 @@
+meta {
+  name: List Delivery Orders
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/sales/delivery-orders?page=1&per_page=10
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  per_page: 10
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  List delivery orders with pagination.
+  Permission required: `delivery_order.read`
+}

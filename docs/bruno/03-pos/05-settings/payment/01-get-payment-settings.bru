@@ -1,0 +1,23 @@
+meta {
+  name: Get POS Payment Settings
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/pos/settings/payment
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  View POS payment gateway configuration.
+  Permission required: `pos.payment.view`
+}

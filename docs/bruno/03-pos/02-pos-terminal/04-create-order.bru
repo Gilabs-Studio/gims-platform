@@ -1,0 +1,53 @@
+meta {
+  name: Create POS Order
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/api/v1/pos/orders
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+  X-Idempotency-Key: idempotency-key-uuid-123
+}
+
+body:json {
+  {
+    "outlet_id": "outlet-uuid-here",
+    "order_type": "DINE_IN",
+    "table_number": "T-01",
+    "customer_name": "John Doe",
+    "items": [
+      {
+        "product_id": "product-uuid-here",
+        "quantity": 2,
+        "price": 35000,
+        "notes": "Extra spicy"
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new POS transaction order.
+  Permission required: `pos.order.create`
+}

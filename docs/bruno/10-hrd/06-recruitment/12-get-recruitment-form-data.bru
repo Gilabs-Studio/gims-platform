@@ -1,0 +1,23 @@
+meta {
+  name: 12 - Get Recruitment Form Data
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{base_url}}/api/v1/hrd/recruitment-requests/form-data
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+docs {
+  Get master lookup options (divisions, job positions, employment types, statuses) for creating/editing recruitment requests.
+  Permission required: `recruitment.read`
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Print Goods Receipt PDF
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{base_url}}/api/v1/purchase/goods-receipt/:id/print
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Generate printable PDF for goods receipt.
+  Permission required: `goods_receipt.print`
+}

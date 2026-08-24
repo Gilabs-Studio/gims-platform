@@ -1,0 +1,46 @@
+meta {
+  name: Create Deal
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/crm/deals
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "title": "ERP System Implementation - PT Sentosa",
+    "customer_id": "customer-uuid-here",
+    "pipeline_stage_id": "stage-uuid-here",
+    "amount": 150000000,
+    "expected_closing_date": "2026-09-30",
+    "probability": 70
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new CRM pipeline deal.
+  Permission required: `crm_deal.create`
+}

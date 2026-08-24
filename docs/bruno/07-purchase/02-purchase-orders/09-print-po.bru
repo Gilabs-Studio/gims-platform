@@ -1,0 +1,23 @@
+meta {
+  name: Print Purchase Order PDF
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{base_url}}/api/v1/purchase/purchase-orders/:id/print
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Generate printable PDF for purchase order.
+  Permission required: `purchase_order.print`
+}

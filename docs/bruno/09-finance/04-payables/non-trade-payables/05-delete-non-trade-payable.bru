@@ -1,0 +1,34 @@
+meta {
+  name: Delete Non-Trade Payable
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/api/v1/finance/ap/non-trade-payables/:id
+  body: none
+  auth: none
+}
+
+headers {
+  X-CSRF-Token: {{csrf_token}}
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Soft delete a non-trade payable record.
+  Permission required: `non_trade_payable.delete`
+}

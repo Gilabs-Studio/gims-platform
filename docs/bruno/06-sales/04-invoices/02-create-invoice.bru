@@ -1,0 +1,44 @@
+meta {
+  name: Create Customer Invoice
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/sales/customer-invoices
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "delivery_order_id": "delivery-order-uuid-here",
+    "invoice_date": "2026-08-16",
+    "due_date": "2026-09-15",
+    "payment_term_id": "payment-term-uuid-here"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new customer invoice.
+  Permission required: `customer_invoice.create`
+}

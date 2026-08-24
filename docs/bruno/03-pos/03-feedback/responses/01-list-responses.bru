@@ -1,0 +1,28 @@
+meta {
+  name: List Customer Feedback Responses
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/feedback/responses?page=1&per_page=10
+  body: none
+  auth: none
+}
+
+params:query {
+  page: 1
+  per_page: 10
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Fetch list of submitted customer feedback responses.
+  Permission required: `feedback.read`
+}

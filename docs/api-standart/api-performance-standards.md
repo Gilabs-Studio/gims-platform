@@ -30,6 +30,9 @@ This document defines performance standards and requirements for enterprise-leve
 - Query without indexes on WHERE/JOIN columns
 - Use N+1 queries for relationships
 - Process large datasets in memory
+- Use leading wildcard search (`%term`) on large tables without a dedicated index strategy
+- Sort by raw user input or unindexed columns on large result sets
+- Fetch data outside tenant/company scope and filter it later in Go
 
 **✅ DO:**
 - Use database aggregation (COUNT, SUM, GROUP BY, AVG)
@@ -38,6 +41,55 @@ This document defines performance standards and requirements for enterprise-leve
 - Use batch loading with IN queries for relationships
 - Use `Preload()` for eager loading
 - Use database-level filtering and sorting
+- Apply tenant/company/status/soft-delete filters before joins and preloads where applicable
+- Use whitelisted filters/sorts that match available indexes
+- Use `EXPLAIN (ANALYZE, BUFFERS)` for expensive or business-critical queries before production
+
+### SQL Query Standards
+
+All repository queries must be intentionally shaped for the response DTO and access scope.
+
+**Required:**
+- Use `WithContext(ctx)` on every GORM query.
+- Select only columns required by the response or business decision.
+- Apply tenant/company ownership filters from trusted auth context for tenant-aware domains.
+- Apply `deleted_at IS NULL` or model soft-delete behavior consistently.
+- Keep pagination mandatory for collections; default/max must come from shared pagination helper/config.
+- Use parameterized queries (`Where("field = ?", value)`) for every dynamic value.
+- Whitelist all dynamic filter, sort, include, and aggregate fields.
+- Add composite indexes for common multi-column filters, for example `(company_id, status, created_at)`.
+- Use transactions and row-level locks for concurrent mutations that read-then-write shared state.
+- Keep query methods narrow: repository methods should express intent, not expose arbitrary raw SQL from handler input.
+
+**Forbidden:**
+- `fmt.Sprintf` or string concatenation for SQL clauses with user input.
+- `Order(req.SortBy)` without whitelist and `clause.OrderByColumn`.
+- Unbounded `Find()` on request paths.
+- Cross-tenant query helpers that depend on the handler to filter the returned rows.
+- Returning all model columns when the response DTO only needs a subset.
+
+Example:
+
+```go
+allowedSort := map[string]clause.Column{
+    "name":       {Table: "products", Name: "name"},
+    "updated_at": {Table: "products", Name: "updated_at"},
+}
+
+sortColumn, ok := allowedSort[req.SortBy]
+if !ok {
+    sortColumn = allowedSort["updated_at"]
+}
+
+err := db.WithContext(ctx).
+    Model(&models.Product{}).
+    Select("id", "name", "sku", "price", "updated_at").
+    Where("company_id = ? AND status = ?", companyID, req.Status).
+    Order(clause.OrderByColumn{Column: sortColumn, Desc: req.SortDir == "desc"}).
+    Offset(offset).
+    Limit(perPage).
+    Find(&products).Error
+```
 
 ### Index Strategy
 
@@ -121,15 +173,16 @@ perPage := req.PerPage
 if perPage < 1 {
     perPage = 20
 }
-if perPage > 100 {
-    perPage = 100  // CRITICAL: Maximum limit
+if perPage > 20 {
+    perPage = 20  // CRITICAL: Maximum limit
 }
-// NEVER allow per_page > 100
+// NEVER allow per_page > 20
 ```
 
 **Pagination Best Practices**:
 - Default: 20 items per page
-- Maximum: 100 items per page
+- Maximum: 20 items per page
+- Query params: `page` and `per_page` only
 - Use cursor-based pagination for large datasets
 - Always include pagination metadata in response
 
@@ -249,6 +302,9 @@ targets := repo.GetBatchTargets(userIDs)  // Single query
 - Compress large responses (gzip)
 - Use pagination for collections
 - Avoid deep nesting (max 3-4 levels)
+- Use separate list/detail DTOs when detail data is too large for list rows
+- Do not send trash data such as unused relations, internal flags, audit payloads, secrets, or fields not requested by the user
+- Put pagination/filter/sort information in `meta`, not duplicated inside each item
 
 ### Lazy Loading
 
@@ -256,6 +312,7 @@ targets := repo.GetBatchTargets(userIDs)  // Single query
 - `?include=relation1,relation2` for optional relations
 - Default: return minimal data
 - Full data: only when explicitly requested
+- `include` values must be whitelisted and protected by authorization/tenant scope
 
 ---
 
@@ -449,10 +506,13 @@ logger.Info("Request processed",
 ### Database
 - [ ] All queries use indexes
 - [ ] No N+1 queries
-- [ ] Pagination limits enforced (max 100)
+- [ ] Pagination limits enforced (max 20)
 - [ ] Query timeouts implemented (30s max)
 - [ ] Connection pool configured
 - [ ] Database aggregation used for summaries
+- [ ] Tenant/company scope applied where applicable
+- [ ] Dynamic sort/filter/include fields are whitelisted
+- [ ] Response DTO columns are selected intentionally
 
 ### Caching
 - [ ] Cache strategy defined for each endpoint

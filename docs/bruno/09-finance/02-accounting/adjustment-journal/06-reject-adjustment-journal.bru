@@ -1,0 +1,41 @@
+meta {
+  name: Reject Adjustment Journal
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{base_url}}/api/v1/finance/accounting/journal-entries/adjustment/:id/reject
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "rejection_reason": "Account mapping error"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Reject adjustment journal entry.
+  Permission required: `adjustment_journal.reject`
+}

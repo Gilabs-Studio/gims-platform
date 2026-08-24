@@ -1,0 +1,45 @@
+meta {
+  name: Create Employee Evaluation
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/evaluation
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "employee_id": "employee-uuid-here",
+    "evaluator_id": "evaluator-uuid-here",
+    "evaluation_period": "Q3 2026",
+    "score": 4.5,
+    "notes": "Excellent performance in sales KPIs"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create employee performance evaluation.
+  Permission required: `evaluation.create`
+}

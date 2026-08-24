@@ -1,0 +1,23 @@
+meta {
+  name: Export Goods Receipts
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{base_url}}/api/v1/purchase/goods-receipt/export
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Export goods receipts to Excel/CSV.
+  Permission required: `goods_receipt.export`
+}

@@ -20,6 +20,7 @@ This document outlines the security standards and best practices implemented in 
 - The API implements the Double-Submit Cookie pattern.
 - A non-HttpOnly cookie `csrf_token` is set by the server.
 - All mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) MUST include an `X-CSRF-Token` header matching the cookie value.
+- `QUERY` is safe and idempotent by definition, so it must not mutate state and must not require CSRF as a write operation. If an endpoint has side effects, it is not allowed to use `QUERY`.
 - The server validates this header in the `CSRF` middleware.
 
 ## 3. SQL Injection Prevention
@@ -28,6 +29,8 @@ This document outlines the security standards and best practices implemented in 
 - **ALWAYS** use parameterized queries for all database operations.
 - Using GORM's built-in methods (e.g., `Where("id = ?", id)`) satisfies this requirement.
 - **NEVER** use `fmt.Sprintf` or string concatenation to build SQL queries.
+- Dynamic filters, sort fields, includes, and aggregation dimensions MUST be selected from a whitelist.
+- Repository methods MUST apply tenant/company scope for tenant-aware domains before returning data.
 
 ### 3.2 Secure Sorting (ORDER BY)
 - Direct string concatenation in `ORDER BY` clauses is a common vector for SQL injection.
@@ -95,11 +98,25 @@ try {
 ### 6.3 Transactional Integrity
 - Critical flows (Login, Token Refresh, Logout) MUST be wrapped in database transactions (`db.Transaction`) to ensure atomicity.
 
-## 7. Permissions-Policy (Feature Policy)
+## 7. Tenant Data Isolation
+
+Tenant isolation is a critical security boundary.
+
+- Tenant/company/user ownership MUST be resolved from trusted auth/session context.
+- Tenant/company IDs from body/query params are untrusted and cannot be the source of authorization.
+- Every tenant-aware repository query MUST include the tenant/company scope for read, update, delete, count, export, cache lookup, and background jobs.
+- Cache keys for tenant-aware data MUST include the tenant/company identifier.
+- File upload/download paths and object keys MUST be tenant-scoped and authorization checked before access.
+- API responses MUST never include data from another tenant, even for admin-style screens unless explicit cross-tenant access is part of the service layer contract.
+- Logs and audit events MUST avoid leaking cross-tenant identifiable information.
+
+Review any missing tenant scope as a critical security issue.
+
+## 8. Permissions-Policy (Feature Policy)
 
 The `Permissions-Policy` HTTP header controls which browser features the application is allowed to use.
 
-### 7.1 Current Policy
+### 8.1 Current Policy
 
 | Feature        | Policy   | Reason                                                   |
 | -------------- | -------- | -------------------------------------------------------- |
@@ -112,7 +129,7 @@ The `Permissions-Policy` HTTP header controls which browser features the applica
 
 > **⚠️ CRITICAL:** `geolocation` and `camera` MUST be set to `(self)`. Setting `()` completely blocks the API at the HTTP level.
 
-## 8. Security Headers
+## 9. Security Headers
 
 The following headers MUST be present on all responses:
 - `Strict-Transport-Security` (HSTS): Enforces HTTPS.
@@ -121,7 +138,14 @@ The following headers MUST be present on all responses:
 - `X-Frame-Options: DENY`: Prevents clickjacking.
 - `Referrer-Policy: strict-origin-when-cross-origin`: Controls referral data.
 
-## 9. Dependency Degradation Safety
+## 10. Dependency Degradation Safety
 - All dependency calls (DB/Redis/external API) MUST use timeout-bound contexts.
 - On dependency timeout/failure, API MUST return controlled error responses (no panic, no process crash).
 - Background workers MUST stop gracefully during shutdown before resource teardown.
+
+## 11. Hardcode Prevention
+
+- Secrets, URLs, CORS origins, storage buckets, timeout values, retry limits, rate limits, and external service settings MUST come from config/env.
+- Business roles, statuses, permissions, and policy constants MUST come from authz catalog, constants modules, or reference data.
+- Handlers/usecases/repositories MUST NOT embed environment-specific behavior.
+- Error responses MUST use stable error codes/keys and must not expose raw SQL errors, stack traces, credentials, tokens, or sensitive payloads in production.

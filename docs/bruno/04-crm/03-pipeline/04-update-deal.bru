@@ -1,0 +1,44 @@
+meta {
+  name: Update Deal
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/crm/deals/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "title": "ERP System Implementation - PT Sentosa (Revised)",
+    "amount": 180000000,
+    "expected_closing_date": "2026-10-15",
+    "probability": 85
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update deal details.
+  Permission required: `crm_deal.update`
+}

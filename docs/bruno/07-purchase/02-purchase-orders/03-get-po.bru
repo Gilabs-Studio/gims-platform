@@ -1,0 +1,23 @@
+meta {
+  name: Get Purchase Order by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/purchase/purchase-orders/:id
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get detailed information of a purchase order.
+  Permission required: `purchase_order.read`
+}

@@ -1,0 +1,50 @@
+meta {
+  name: Create Sales Return
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/sales/returns
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "delivery_order_id": "do-uuid-here",
+    "customer_id": "customer-uuid-here",
+    "return_date": "2026-08-15",
+    "reason": "Wrong item delivered",
+    "items": [
+      {
+        "product_id": "product-uuid-here",
+        "quantity": 2
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new sales return request.
+  Permission required: `sales_return.create`
+}

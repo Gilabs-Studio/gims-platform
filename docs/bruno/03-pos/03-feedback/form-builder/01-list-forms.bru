@@ -1,0 +1,23 @@
+meta {
+  name: List Feedback Forms
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/feedback/forms
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Fetch active and draft feedback forms.
+  Permission required: `feedback.read`
+}

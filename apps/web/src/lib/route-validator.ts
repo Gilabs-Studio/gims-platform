@@ -66,6 +66,8 @@ const EXTRA_VALID_ROUTES = [
   "/travel/travel-planner",
   "/travel/visit-planner",
   // HRD routes
+  "/hrd/payroll",
+  "/hrd/payroll/[id]",
   "/hrd/attendance",
   "/hrd/leave-requests",
   "/hrd/overtime",

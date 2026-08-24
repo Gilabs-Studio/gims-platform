@@ -1,0 +1,23 @@
+meta {
+  name: Get User Settings
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{base_url}}/api/v1/settings
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get current user preferences and application settings.
+  Permission required: `settings.read`
+}

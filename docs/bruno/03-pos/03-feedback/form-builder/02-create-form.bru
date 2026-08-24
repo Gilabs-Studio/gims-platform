@@ -1,0 +1,51 @@
+meta {
+  name: Create Feedback Form
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/feedback/forms
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "title": "Customer Satisfaction Survey",
+    "description": "Please let us know how we did today!",
+    "outlet_id": "outlet-uuid-here",
+    "is_active": true,
+    "questions": [
+      {
+        "question_text": "How was the food quality?",
+        "question_type": "RATING",
+        "is_required": true
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new customer feedback questionnaire form.
+  Permission required: `feedback.create`
+}

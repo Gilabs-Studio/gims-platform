@@ -43,12 +43,7 @@ func (h *RecruitmentRequestHandler) GetAll(c *gin.Context) {
 		positionID = &p
 	}
 
-	var priority *string
-	if p := c.Query("priority"); p != "" {
-		priority = &p
-	}
-
-	requests, meta, err := h.usecase.GetAll(c.Request.Context(), page, perPage, search, status, divisionID, positionID, priority)
+	requests, meta, err := h.usecase.GetAll(c.Request.Context(), page, perPage, search, status, divisionID, positionID)
 	if err != nil {
 		handleRecruitmentError(c, err)
 		return

@@ -1,0 +1,35 @@
+meta {
+  name: Post Adjustment Journal
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/api/v1/finance/accounting/journal-entries/adjustment/:id/post
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Post adjustment journal entry to General Ledger.
+  Permission required: `adjustment_journal.post`
+}

@@ -1,0 +1,31 @@
+meta {
+  name: 08 - Reject Recruitment Request
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/recruitment-requests/:id/reject
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: ae000001-0000-0000-0000-000000000001
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "notes": "Budget constraints for Q3."
+  }
+}
+
+docs {
+  Reject a PENDING recruitment request (transitions status to REJECTED).
+  Permission required: `recruitment.approve`
+}

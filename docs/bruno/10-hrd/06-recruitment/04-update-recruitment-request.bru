@@ -1,0 +1,32 @@
+meta {
+  name: 04 - Update Recruitment Request
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/hrd/recruitment-requests/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: ae000001-0000-0000-0000-000000000001
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "required_count": 3,
+    "job_description": "Updated job description for Senior Software Developer."
+  }
+}
+
+docs {
+  Update an existing recruitment request (only allowed for DRAFT and REJECTED status).
+  Permission required: `recruitment.update`
+}

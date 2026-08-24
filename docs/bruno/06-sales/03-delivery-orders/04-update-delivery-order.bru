@@ -1,0 +1,41 @@
+meta {
+  name: Update Delivery Order
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/sales/delivery-orders/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "tracking_number": "TRK-987654321-UPDATED"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update delivery order details.
+  Permission required: `delivery_order.update`
+}

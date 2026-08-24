@@ -1,0 +1,51 @@
+meta {
+  name: Create Goods Receipt
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/purchase/goods-receipt
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "purchase_order_id": "po-uuid-here",
+    "received_date": "2026-08-15",
+    "delivery_note_number": "DN-SUPP-9921",
+    "warehouse_id": "warehouse-uuid-here",
+    "items": [
+      {
+        "po_item_id": "po-item-uuid-here",
+        "received_quantity": 50,
+        "notes": "Good condition"
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new goods receipt against a Purchase Order.
+  Permission required: `goods_receipt.create`
+}

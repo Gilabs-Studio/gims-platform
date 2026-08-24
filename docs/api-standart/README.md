@@ -15,6 +15,7 @@ This directory contains comprehensive standards and guidelines for backend API d
    - Success and error response patterns
    - Pagination, date/time, data types
    - HTTP status codes
+   - DTO/request/response payload trimming
    - Best practices
 
 2. **[API Error Codes](./api-error-codes.md)**
@@ -36,10 +37,17 @@ This directory contains comprehensive standards and guidelines for backend API d
    - Secure storage and naming
    - Scalability guidelines
 
+5. **[API Configuration & Seed Data Standards](./api-configuration-standards.md)**
+   - Runtime config vs seed data ownership
+   - Pagination, currency, date/time standards
+   - Hardcode prevention rules
+   - Security-aware configuration ownership
+
 ### Enterprise Standards
 
-5. **[API Performance Standards](./api-performance-standards.md)**
+6. **[API Performance Standards](./api-performance-standards.md)**
    - Database query optimization
+   - SQL query standards
    - Caching strategies
    - Response time optimization
    - Memory management
@@ -47,7 +55,7 @@ This directory contains comprehensive standards and guidelines for backend API d
    - Monitoring and observability
    - Load testing requirements
 
-6. **[API Enterprise Scenarios](./api-enterprise-scenarios.md)**
+7. **[API Enterprise Scenarios](./api-enterprise-scenarios.md)**
    - Multi-tenancy
    - Concurrency and race conditions
    - Bulk operations
@@ -59,7 +67,7 @@ This directory contains comprehensive standards and guidelines for backend API d
    - Security scenarios
    - Monitoring and alerting
 
-7. **[API Event-Driven Architecture](./api-event-driven.md)**
+8. **[API Event-Driven Architecture](./api-event-driven.md)**
    - Event structure and naming
    - EventPublisher interface
    - Domain events (User, Role, Auth)
@@ -72,10 +80,12 @@ This directory contains comprehensive standards and guidelines for backend API d
 
 ### For New Developers
 
+- [Change Prompt Templates](../change-prompt-templates.md)
 - [Folder Structure](api-folder-structure.md)
 - [Response Standards](api-response-standards.md)
 - [Error Codes](api-error-codes.md)
 - [Performance Standards](api-performance-standards.md)
+- [Configuration & Seed Data Standards](api-configuration-standards.md)
 - [Security Standards](api-security-standards.md)
 - [Event Driven Architecture](api-event-driven.md)
 - [Enterprise Scenarios](api-enterprise-scenarios.md) for common use cases
@@ -88,6 +98,7 @@ This directory contains comprehensive standards and guidelines for backend API d
 4. Ensure performance requirements from [API Performance Standards](./api-performance-standards.md)
 5. Handle scenarios from [API Enterprise Scenarios](./api-enterprise-scenarios.md)
 6. Implement events following [API Event-Driven Architecture](./api-event-driven.md)
+7. Use [Change Prompt Templates](../change-prompt-templates.md) to define API/Web contracts before implementation
 
 ---
 
@@ -97,12 +108,14 @@ This directory contains comprehensive standards and guidelines for backend API d
 - All endpoints follow the same response format
 - Error handling is consistent across all modules
 - Folder structure is uniform across features
+- HTTP method semantics are explicit, including `QUERY` for safe/idempotent reads that require request body
 
 ### 2. Performance
 - Response time < 200ms (p95)
 - Database queries < 100ms (p95)
 - Proper caching strategy
 - Efficient memory usage
+- SQL queries select only required columns, use index-friendly filters, and avoid N+1 behavior
 
 ### 3. Security
 - **Input Validation & Sanitization**: Strict validation using struct tags (backend) and Zod (frontend).
@@ -111,6 +124,7 @@ This directory contains comprehensive standards and guidelines for backend API d
 - **CSRF Protection**: Double-submit cookie pattern with `X-CSRF-Token` validation.
 - **Authentication & Authorization**: HttpOnly cookies for tokens and role-based access control.
 - **Security Headers**: HSTS, CSP, X-Frame-Options, and nosniff headers.
+- **Tenant Isolation**: Every tenant-aware query must be scoped by trusted tenant/company context.
 
 ### 4. Scalability
 - Support for high traffic (1000+ req/s)
@@ -129,6 +143,42 @@ This directory contains comprehensive standards and guidelines for backend API d
 - Comprehensive error handling
 - Proper logging and monitoring
 - Documentation and comments
+- No business seed data or display defaults inside request-path usecases/handlers
+- Runtime defaults are centralized in config/core helpers
+- DTOs and responses are intentionally shaped; no trash data or sensitive/internal fields are sent to clients
+
+---
+
+## HTTP Method Semantics
+
+Use standard REST methods for their intended behavior:
+
+| Method | Use | Body | Safe | Idempotent |
+| ------ | --- | ---- | ---- | ---------- |
+| `GET` | Simple read/search with query string filters | No | Yes | Yes |
+| `QUERY` | Read/search that needs a request body for complex filters | Yes | Yes | Yes |
+| `POST` | Create resource or execute non-idempotent action | Yes | No | No |
+| `PUT` | Replace/update resource idempotently | Yes | No | Yes |
+| `PATCH` | Partial update | Yes | No | Usually no unless explicitly designed |
+| `DELETE` | Delete resource | Optional | No | Yes when repeated delete is handled safely |
+
+`QUERY` is for read/search operations that carry a request body, do not mutate resource state, are safe, idempotent, retryable after connection failure, and cacheable by specification. Do not use `QUERY` for writes, audit-producing business actions, or operations with side effects.
+
+---
+
+## Change Prompt Checklist
+
+Setiap prompt perubahan fitur/API harus memaksa kontrak data yang jelas sebelum coding:
+
+- Request DTO apa yang dibutuhkan, dan field mana yang ditolak.
+- Response DTO apa yang dikembalikan untuk list, detail, create/update/delete, dan export.
+- Field apa yang sensitif/internal dan wajib dikeluarkan dari response.
+- Apakah relasi perlu `include` whitelist atau cukup ID/ringkasan.
+- Apakah endpoint read kompleks harus memakai `QUERY`, bukan `POST`.
+- Tenant/company/user scope mana yang diterapkan dan dari context mana scope itu diambil.
+- Index dan query pattern apa yang dibutuhkan agar response time tetap cepat.
+
+Jika field tidak dipakai client atau tidak diminta user, jangan masukkan ke response.
 
 ---
 
@@ -138,11 +188,21 @@ This directory contains comprehensive standards and guidelines for backend API d
 - [ ] Follows folder structure standards
 - [ ] Uses standard response format
 - [ ] Uses standard error codes
+- [ ] Uses the correct HTTP method (`QUERY` for safe complex reads with body)
+- [ ] DTOs/responses send only requested/needed data
+- [ ] No business hardcode in request path
+- [ ] No URL, credential, timeout, limit, role, status, or policy hardcode outside config/constants/reference data
+- [ ] Seed/reference/demo data lives in `apps/api/seeders`
+- [ ] Pagination uses `page` and `per_page` with max 20
+- [ ] Currency/date/time uses core helpers/config
 - [ ] Input validation implemented
 - [ ] Error handling comprehensive
 
 ### Performance
 - [ ] Database queries optimized
+- [ ] SQL selects only required columns
+- [ ] Tenant/company scope is applied before fetching data where applicable
+- [ ] Sort/filter columns are whitelisted
 - [ ] Indexes added where needed
 - [ ] Pagination limits enforced
 - [ ] Caching strategy implemented
@@ -160,6 +220,7 @@ This directory contains comprehensive standards and guidelines for backend API d
 - [ ] Authentication required
 - [ ] Authorization checked
 - [ ] Sensitive data not logged
+- [ ] API responses do not expose sensitive/internal/cross-tenant data
 
 ### Resilience & Anti-Crash
 - [ ] Global panic recovery middleware enabled
@@ -176,6 +237,7 @@ This directory contains comprehensive standards and guidelines for backend API d
 - [ ] Race conditions prevented
 - [ ] Audit trail implemented
 - [ ] Soft delete implemented
+- [ ] Migration is backward-compatible and production-safe
 - [ ] Rate limiting configured
 - [ ] Monitoring and alerts set up
 - [ ] Domain events published for mutations
@@ -185,11 +247,12 @@ This directory contains comprehensive standards and guidelines for backend API d
 
 ## Related Documentation
 
+- [Change Prompt Templates](../change-prompt-templates.md)
 - [Frontend Standards](../../.cursor/rules/standart.mdc)
 - [Security Checklist](../../.cursor/rules/standart.mdc#security-checklist)
 - [Postman Collection](../postman/)
 
 ---
 
-**Last Updated**: 2026-04-25  
+**Last Updated**: 2026-07-12  
 **Maintained By**: Development Team

@@ -1,0 +1,23 @@
+meta {
+  name: Get Product by ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/master-data/products/:id
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get detailed information of a product.
+  Permission required: `product.read`
+}

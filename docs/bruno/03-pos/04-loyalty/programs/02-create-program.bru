@@ -1,0 +1,45 @@
+meta {
+  name: Create Loyalty Program
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/loyalty/programs
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "name": "Gold VIP Rewards",
+    "description": "Earn 1 point for every IDR 10,000 spent",
+    "points_ratio": 10000,
+    "min_spend": 50000,
+    "is_active": true
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new loyalty points earning rule program.
+  Permission required: `loyalty.manage`
+}

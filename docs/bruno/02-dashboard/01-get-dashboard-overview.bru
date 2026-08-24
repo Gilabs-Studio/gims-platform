@@ -1,0 +1,23 @@
+meta {
+  name: Get Dashboard Overview
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/general/dashboard/overview
+  body: none
+  auth: none
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get high level metric summaries and active performance widgets for the main dashboard.
+  Permission required: `dashboard.view`
+}

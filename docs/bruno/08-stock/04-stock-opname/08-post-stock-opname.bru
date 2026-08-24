@@ -1,0 +1,42 @@
+meta {
+  name: Post Stock Opname (Adjust Stock)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/api/v1/stock-opnames/:id/status
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "status": "POSTED",
+    "notes": "Post stock adjustments to inventory"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Post approved stock opname discrepancies to recalculate inventory balances.
+  Permission required: `stock_opname.post`
+}

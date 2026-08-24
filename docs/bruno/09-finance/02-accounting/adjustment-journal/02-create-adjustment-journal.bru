@@ -1,0 +1,56 @@
+meta {
+  name: Create Adjustment Journal
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/finance/accounting/journal-entries/adjustment
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "entry_date": "2026-08-15",
+    "description": "Period end inventory valuation adjustment",
+    "lines": [
+      {
+        "account_id": "coa-debit-uuid",
+        "debit": 1500000,
+        "credit": 0,
+        "description": "COGS adjustment"
+      },
+      {
+        "account_id": "coa-credit-uuid",
+        "debit": 0,
+        "credit": 1500000,
+        "description": "Inventory adjustment"
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create an adjustment journal entry.
+  Permission required: `adjustment_journal.create`
+}

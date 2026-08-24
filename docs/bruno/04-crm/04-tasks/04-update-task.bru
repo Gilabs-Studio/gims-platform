@@ -1,0 +1,43 @@
+meta {
+  name: Update Task
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/crm/tasks/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "title": "Follow up quotation for PT Sentosa",
+    "priority": "URGENT",
+    "due_date": "2026-08-18T17:00:00Z"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update CRM task details.
+  Permission required: `crm_task.update`
+}

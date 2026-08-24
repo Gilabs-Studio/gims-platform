@@ -1,0 +1,45 @@
+meta {
+  name: Publish Floor Plan
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/pos/floor-plans/:id/publish
+  body: json
+  auth: none
+}
+
+params:path {
+  id: 1
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "version_notes": "Published updated table layout"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Publish draft floor plan to make it active for POS sessions.
+  Permission required: `pos.layout.update`
+}

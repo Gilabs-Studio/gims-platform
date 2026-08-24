@@ -1,0 +1,48 @@
+meta {
+  name: Update Lead
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/crm/leads/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "company_name": "PT Jaya Abadi",
+    "contact_name": "Budi Santoso",
+    "email": "budi@jayaabadi.com",
+    "phone": "+628129876543",
+    "lead_source_id": "source-uuid",
+    "lead_status_id": "status-uuid",
+    "estimated_value": 75000000,
+    "notes": "Interested in enterprise package"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update lead information.
+  Permission required: `crm_lead.update`
+}

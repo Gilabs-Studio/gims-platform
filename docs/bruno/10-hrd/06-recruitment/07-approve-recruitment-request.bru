@@ -1,0 +1,24 @@
+meta {
+  name: 07 - Approve Recruitment Request
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/recruitment-requests/:id/approve
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: ae000001-0000-0000-0000-000000000001
+}
+
+headers {
+  X-CSRF-Token: {{csrf_token}}
+}
+
+docs {
+  Approve a PENDING recruitment request (transitions status to APPROVED).
+  Permission required: `recruitment.approve`
+}

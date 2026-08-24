@@ -1,0 +1,42 @@
+meta {
+  name: Update Supplier
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/master-data/suppliers/:id
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "phone": "+628111222444",
+    "notes": "Updated phone contact"
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update supplier details.
+  Permission required: `supplier.update`
+}

@@ -1,0 +1,49 @@
+meta {
+  name: Create Stock Movement
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/stock/movements
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "movement_type": "TRANSFER",
+    "source_warehouse_id": "wh-source-uuid",
+    "destination_warehouse_id": "wh-dest-uuid",
+    "items": [
+      {
+        "product_id": "product-uuid-here",
+        "quantity": 25
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new stock movement transaction.
+  Permission required: `stock_movement.create`
+}

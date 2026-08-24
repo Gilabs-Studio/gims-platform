@@ -1,0 +1,46 @@
+meta {
+  name: Process Cash Payment
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/api/v1/pos/orders/:id/payments/cash
+  body: json
+  auth: none
+}
+
+params:path {
+  id: order-uuid-here
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+  X-Idempotency-Key: payment-idempotency-key-123
+}
+
+body:json {
+  {
+    "amount_paid": 100000
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Process cash payment for a POS order and calculate change.
+  Permission required: `pos.order.create`
+}
