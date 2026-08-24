@@ -55,7 +55,7 @@ import type { SalesOrder } from "@/features/sales/order/types";
 import { orderService } from "@/features/sales/order/services/order-service";
 import { useStockLedger } from "../hooks/use-stock-ledger";
 
-type TransactionTypeFilter = "all" | "GR" | "GI" | "OPNAME" | "TRANSFER" | "SO";
+type TransactionTypeFilter = "all" | "GR" | "GI" | "OPNAME" | "TRANSFER" | "SO" | "POS";
 type LedgerBadgeVariant = "success" | "destructive" | "warning" | "info";
 
 const TYPE_OPTIONS: Array<{ value: TransactionTypeFilter; labelKey: string }> =
@@ -66,6 +66,7 @@ const TYPE_OPTIONS: Array<{ value: TransactionTypeFilter; labelKey: string }> =
     { value: "OPNAME", labelKey: "transactionTypes.OPNAME" },
     { value: "TRANSFER", labelKey: "transactionTypes.TRANSFER" },
     { value: "SO", labelKey: "transactionTypes.SO" },
+    { value: "POS", labelKey: "transactionTypes.POS" },
   ];
 
 function getTransactionTypeLabel(
@@ -83,6 +84,8 @@ function getTransactionTypeLabel(
       return t("transactionTypes.TRANSFER");
     case "SO":
       return t("transactionTypes.SO");
+    case "POS":
+      return t("transactionTypes.POS");
     default:
       return t("filter.allTypes");
   }
@@ -262,6 +265,7 @@ export function StockLedgerPage() {
       case "OPNAME": return "warning";
       case "TRANSFER": return "info";
       case "SO": return "info";
+      case "POS": return "destructive";
       default: return "info";
     }
   };
@@ -456,65 +460,58 @@ export function StockLedgerPage() {
       </div>
 
       {/* ── Summary stat cards ── */}
-      {productId && (
-        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-          <StatCard
-            label={t("summary.currentStock")}
-            value={summary.currentStock.toLocaleString("id-ID")}
-            icon={Layers}
-            accent="brand"
-          />
-          <StatCard
-            label={t("summary.currentValue")}
-            value={formatCurrency(summary.currentValue)}
-            icon={TrendingUp}
-            accent="purple"
-          />
-          <StatCard
-            label={t("summary.ledgerEntries")}
-            value={summary.ledgerCount.toLocaleString("id-ID")}
-            icon={Hash}
-          />
-          <StatCard
-            label={t("summary.totalQtyIn")}
-            value={totalQtyIn.toLocaleString("id-ID")}
-            icon={ArrowDownLeft}
-            accent="success"
-          />
-          <StatCard
-            label={t("summary.totalQtyOut")}
-            value={totalQtyOut.toLocaleString("id-ID")}
-            icon={ArrowUpRight}
-            accent="destructive"
-          />
-          <StatCard
-            label={t("summary.latestMovement")}
-            value={
-              summary.latestMovement
-                ? formatLedgerDateTime(summary.latestMovement)
-                : "-"
-            }
-            icon={Clock}
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard
+          label={t("summary.currentStock")}
+          value={
+            selectedProduct
+              ? summary.currentStock.toLocaleString("id-ID")
+              : "-"
+          }
+          icon={Layers}
+          accent="brand"
+        />
+        <StatCard
+          label={t("summary.currentValue")}
+          value={
+            selectedProduct
+              ? formatCurrency(summary.currentValue)
+              : "-"
+          }
+          icon={TrendingUp}
+          accent="purple"
+        />
+        <StatCard
+          label={t("summary.ledgerEntries")}
+          value={summary.ledgerCount.toLocaleString("id-ID")}
+          icon={Hash}
+        />
+        <StatCard
+          label={t("summary.totalQtyIn")}
+          value={totalQtyIn.toLocaleString("id-ID")}
+          icon={ArrowDownLeft}
+          accent="success"
+        />
+        <StatCard
+          label={t("summary.totalQtyOut")}
+          value={totalQtyOut.toLocaleString("id-ID")}
+          icon={ArrowUpRight}
+          accent="destructive"
+        />
+        <StatCard
+          label={t("summary.latestMovement")}
+          value={
+            summary.latestMovement
+              ? formatLedgerDateTime(summary.latestMovement)
+              : "-"
+          }
+          icon={Clock}
+        />
+      </div>
 
       {/* ── Table container ── */}
       <div className="overflow-hidden rounded-2xl border border-border/60 shadow-sm">
-        {!productId ? (
-          /* Empty — no product selected */
-          <div className="flex min-h-80 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border/60 bg-muted/30 text-muted-foreground/60">
-              <ScrollText className="h-6 w-6" />
-            </div>
-            <div className="space-y-1">
-              <h2 className="text-base font-semibold">{t("emptyState.title")}</h2>
-              <p className="max-w-xs text-sm text-muted-foreground">
-                {t("emptyState.description")}
-              </p>
-            </div>
-          </div>
-        ) : ledgerQuery.isError ? (
+        {ledgerQuery.isError ? (
           /* Error state */
           <div className="flex min-h-80 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/8 text-destructive">
@@ -676,7 +673,7 @@ export function StockLedgerPage() {
       </div>
 
       {/* ── Pagination ── */}
-      {pagination && productId && ledgerRows.length > 0 && (
+      {pagination && ledgerRows.length > 0 && (
         <div>
           <DataTablePagination
             pageIndex={pagination.page}
