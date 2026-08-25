@@ -37,6 +37,17 @@ export const roomBookingEn = {
       floorMap: "Visual Map",
       calendarSchedule: "Calendar Schedule",
       roomList: "Live Cards",
+      dayView: "Day",
+      weekView: "Week",
+      monthView: "Month",
+    },
+    sidebar: {
+      searchPlaceholder: "Search room or people...",
+      myCalendars: "Room Calendars",
+      timeInsights: "Time Insights",
+      meetWith: "Meet with...",
+      allDay: "All day",
+      createButton: "Create Booking",
     },
     filterOptions: {
       allLocations: "All Locations",

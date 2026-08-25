@@ -37,6 +37,17 @@ export const roomBookingId = {
       floorMap: "Peta Visual",
       calendarSchedule: "Jadwal Kalender",
       roomList: "Live Cards",
+      dayView: "Hari",
+      weekView: "Minggu",
+      monthView: "Bulan",
+    },
+    sidebar: {
+      searchPlaceholder: "Cari ruangan / orang...",
+      myCalendars: "Daftar Ruangan",
+      timeInsights: "Analisis Waktu",
+      meetWith: "Pesan dengan...",
+      allDay: "Sepanjang hari",
+      createButton: "Buat Booking",
     },
     filterOptions: {
       allLocations: "Semua Lokasi",

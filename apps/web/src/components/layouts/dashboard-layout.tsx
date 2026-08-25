@@ -429,7 +429,9 @@ export const DashboardLayout = memo(function DashboardLayout({
     pathname?.includes("/master-data/geographic") ||
     pathname?.includes("/crm/area-mapping") ||
     pathname?.includes("/travel-planner") ||
-    pathname?.includes("/visit-planner");
+    pathname?.includes("/visit-planner") ||
+    pathname?.includes("/pos/fb/floor-layout") ||
+    pathname?.includes("/room-booking");
   const isDashboardOnboardingMode =
     isGeneralDashboardPage && isTenantOwner && onboardingState?.completed === false;
   const shouldShowDashboardHeader = !isAIChatbotPage && !isFullScreenMapPage;
