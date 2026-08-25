@@ -157,18 +157,20 @@ export function JournalsList() {
 
 
       <div className="flex flex-col sm:flex-row items-end gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Label className="mb-2 block">{t("search")}</Label>
-          <Search className="absolute left-3 top-[34px] -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("search")}
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-9"
-          />
+        <div className="w-full sm:flex-1 max-w-sm space-y-2">
+          <Label>{t("search")}</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={t("search")}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9"
+            />
+          </div>
         </div>
         <div className="w-full sm:w-auto space-y-2">
           <Label>{t("fields.dateRange")}</Label>

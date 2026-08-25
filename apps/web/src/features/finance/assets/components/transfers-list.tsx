@@ -77,7 +77,7 @@ export function TransfersList({ assetId }: Props) {
   };
 
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-lg border bg-card">
       <Table>
         <TableHeader>
           <TableRow>

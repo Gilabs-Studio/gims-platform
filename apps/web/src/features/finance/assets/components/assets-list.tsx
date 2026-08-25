@@ -90,7 +90,7 @@ function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
       );
     case "sold":
       return (
-        <Badge variant="outline" className="text-xs font-medium text-blue-600">
+        <Badge variant="outline" className="text-xs font-medium text-primary">
           <DollarSign className="h-3 w-3 mr-1" />
           {t(`status.${status}`)}
         </Badge>
@@ -258,7 +258,7 @@ export function AssetsList() {
 
 
 
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -347,9 +347,9 @@ export function AssetsList() {
                         if (days <= 30) {
                           badge = <Badge variant="destructive">{`${days}d`}</Badge>;
                         } else if (days <= 60) {
-                          badge = <Badge className="text-yellow-600">{`${days}d`}</Badge>;
+                          badge = <Badge className="text-warning border-warning/20 bg-warning/10">{`${days}d`}</Badge>;
                         } else if (days <= 90) {
-                          badge = <Badge className="text-emerald-600">{`${days}d`}</Badge>;
+                          badge = <Badge className="text-success border-success/20 bg-success/10">{`${days}d`}</Badge>;
                         }
                         return badge;
                       })()
@@ -444,7 +444,7 @@ export function AssetsList() {
                         )}
                         {canUpdate && item.status === "active" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-blue-600 focus:text-blue-600"
+                            className="cursor-pointer text-primary focus:text-primary"
                             onClick={() => {
                               setActionMode("sell");
                               setActionAsset(item);
@@ -457,7 +457,7 @@ export function AssetsList() {
                         )}
                         {canUpdate && item.status === "active" && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+                            className="cursor-pointer text-success focus:text-success"
                             onClick={() => {
                               setActionMode("assign");
                               setActionAsset(item);
@@ -470,7 +470,7 @@ export function AssetsList() {
                         )}
                         {canUpdate && item.status === "active" && item.assigned_to_employee_id && (
                           <DropdownMenuItem
-                            className="cursor-pointer text-orange-600 focus:text-orange-600"
+                            className="cursor-pointer text-warning focus:text-warning"
                             onClick={() => {
                               setActionMode("return");
                               setActionAsset(item);

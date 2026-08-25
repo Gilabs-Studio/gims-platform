@@ -146,7 +146,7 @@ export function PaymentsList() {
         <div className="flex-1" />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

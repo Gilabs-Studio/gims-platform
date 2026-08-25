@@ -67,10 +67,10 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
 
   return (
     <div className="space-y-4">
-      <Card className="bg-green-50 border-green-200">
+      <Card className="bg-success/10 border-success/20">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <CheckCircle className="h-6 w-6 text-green-600" />
+            <CheckCircle className="h-6 w-6 text-success" />
             <div>
               <CardTitle>{t("run")}</CardTitle>
               <CardDescription>{t("successful")}</CardDescription>
@@ -85,11 +85,11 @@ export function BatchDepreciationResults({ data }: BatchDepreciationResultsProps
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t("successful")}</p>
-              <p className="text-2xl font-bold text-green-600">{successful}</p>
+              <p className="text-2xl font-bold text-success">{successful}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t("skipped")}</p>
-              <p className="text-2xl font-bold text-yellow-600">{skipped}</p>
+              <p className="text-2xl font-bold text-warning">{skipped}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t("failed")}</p>

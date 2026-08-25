@@ -45,15 +45,17 @@ export function FilterToolbar({
   return (
     <div className="flex flex-col sm:flex-row items-end gap-4">
       {hasSearch ? (
-        <div className="relative flex-1 max-w-sm">
-          <Label className="mb-2 block">{searchPlaceholder}</Label>
-          <Search className="absolute left-3 top-[34px] -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={searchPlaceholder}
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9"
-          />
+        <div className="w-full sm:flex-1 max-w-sm space-y-2">
+          <Label>{searchPlaceholder}</Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={searchPlaceholder}
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
       ) : null}
 

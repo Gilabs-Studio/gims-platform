@@ -129,7 +129,7 @@ export function BudgetDetailModal({ open, onOpenChange, budget, isLoading }: Bud
             {(budget.items ?? []).length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold mb-2">{t("detail.lineItems")}</h4>
-                <div className="rounded-md border">
+                <div className="rounded-md border bg-card">
                   <Table>
                     <TableHeader>
                       <TableRow>

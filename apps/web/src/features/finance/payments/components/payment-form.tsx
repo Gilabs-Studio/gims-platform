@@ -314,7 +314,7 @@ export function PaymentForm({ open, onOpenChange, mode, id }: Props) {
               </div>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border bg-card">
               <div className="flex items-center justify-between p-3 border-b">
                 <div className="text-sm font-medium">{t("title")}</div>
                 <Button

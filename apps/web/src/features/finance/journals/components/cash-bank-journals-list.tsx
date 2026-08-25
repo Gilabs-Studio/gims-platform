@@ -86,7 +86,7 @@ export function CashBankJournalsList() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold tracking-tight">{t("cashBankTitle")}</h1>
-            <Badge variant="secondary" className="font-normal text-xs bg-amber-500/10 text-amber-600 border-amber-500/20">
+            <Badge variant="secondary" className="font-normal text-xs bg-warning/10 text-warning border-warning/20">
               <Lock className="w-3 h-3 mr-1" />
               {t("cashBank.readOnlyBadge")}
             </Badge>
@@ -100,24 +100,24 @@ export function CashBankJournalsList() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-card/50 backdrop-blur-sm border-emerald-500/20">
+        <Card className="bg-card/50 backdrop-blur-sm border-success/20">
           <CardContent className="p-6">
             <div className="flex flex-row items-center justify-between space-y-0 pb-2">
               <p className="text-sm font-medium">Total Inflow</p>
-              <ArrowDownRight className="h-4 w-4 text-emerald-500" />
+              <ArrowDownRight className="h-4 w-4 text-success" />
             </div>
-            <div className="text-2xl font-bold text-emerald-500 tabular-nums">
+            <div className="text-2xl font-bold text-success tabular-nums">
               {formatCurrency(kpi?.total_inflow ?? 0)}
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-card/50 backdrop-blur-sm border-rose-500/20">
+        <Card className="bg-card/50 backdrop-blur-sm border-destructive/20">
           <CardContent className="p-6">
             <div className="flex flex-row items-center justify-between space-y-0 pb-2">
               <p className="text-sm font-medium">Total Outflow</p>
-              <ArrowUpRight className="h-4 w-4 text-rose-500" />
+              <ArrowUpRight className="h-4 w-4 text-destructive" />
             </div>
-            <div className="text-2xl font-bold text-rose-500 tabular-nums">
+            <div className="text-2xl font-bold text-destructive tabular-nums">
               {formatCurrency(kpi?.total_outflow ?? 0)}
             </div>
           </CardContent>

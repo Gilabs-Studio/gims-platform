@@ -264,7 +264,7 @@ export function AssetDetail({ id }: { id: string }) {
           {depreciations.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4">-</div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -314,7 +314,7 @@ export function AssetDetail({ id }: { id: string }) {
           {transactions.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4">-</div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>

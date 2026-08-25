@@ -1,6 +1,7 @@
 'use client';
 import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { FieldErrors } from 'react-hook-form';
@@ -264,56 +265,83 @@ export function AssetCreateStepper({
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useTranslations("financeAssets");
+
+  const steps: StepperStep[] = [
+    {
+      id: 'basic',
+      title: t('stepper.steps.basic.title'),
+      description: t('stepper.steps.basic.description'),
+    },
+    {
+      id: 'classification',
+      title: t('stepper.steps.classification.title'),
+      description: t('stepper.steps.classification.description'),
+    },
+    {
+      id: 'financial',
+      title: t('stepper.steps.financial.title'),
+      description: t('stepper.steps.financial.description'),
+    },
+    {
+      id: 'depreciation',
+      title: t('stepper.steps.depreciation.title'),
+      description: t('stepper.steps.depreciation.description'),
+    },
+    {
+      id: 'procurement',
+      title: t('stepper.steps.procurement.title'),
+      description: t('stepper.steps.procurement.description'),
+    },
+    {
+      id: 'review',
+      title: t('stepper.steps.review.title'),
+      description: t('stepper.steps.review.description'),
+    },
+  ];
+
   const canCreateAsset = useUserPermission(FINANCE_PERMISSIONS.ASSET.CREATE);
 
-  const { data: categoriesData } = useFinanceAssetCategories({
-    page: 1,
-    per_page: 100,
-    sort_by: 'name',
-    sort_dir: 'asc',
-  });
-  const { data: locationsData } = useFinanceAssetLocations({
-    page: 1,
-    per_page: 100,
-    sort_by: 'name',
-    sort_dir: 'asc',
-  });
+  const { data: categoriesData } = useFinanceAssetCategories({ per_page: 100 });
+  const { data: locationsData } = useFinanceAssetLocations({ per_page: 100 });
 
-  const categoryOptions = categoriesData?.data ?? [];
-  const locationOptions = locationsData?.data ?? [];
+  const categoryOptions = useMemo(
+    () => (categoriesData?.data ?? []).map((cat) => ({ id: cat.id, name: cat.name })),
+    [categoriesData?.data]
+  );
 
-  const form = useForm<FormData>({
+  const locationOptions = useMemo(
+    () => (locationsData?.data ?? []).map((loc) => ({ id: loc.id, name: loc.name })),
+    [locationsData?.data]
+  );
+
+  const form = useForm<AssetFormData>({
     resolver: zodResolver(assetFormSchema),
     defaultValues: {
-      currencyCode: 'IDR',
       assetType: 'TANGIBLE',
+      currencyCode: 'IDR',
+      usefulLifeMonths: 60,
       depreciationMethod: 'SL',
+      acquisitionDate: new Date(),
     },
-    shouldUnregister: false,
-    mode: 'onChange',
   });
+
   const watchedFormData = form.watch();
 
   const handleNext = async () => {
-    // Validate current step fields
-    const fieldsToValidate = STEP_FIELDS[currentStep] ?? [];
-    const isValid = fieldsToValidate.length > 0
-      ? await form.trigger(fieldsToValidate as never, { shouldFocus: true })
-      : true;
-    if (isValid) {
-      setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
-      setError(null);
-    } else {
-      setError(`Please complete the required fields in ${STEPS[currentStep].title}.`);
+    const fieldsToValidate = STEP_FIELDS[currentStep];
+    const isStepValid = await form.trigger(fieldsToValidate as never);
+
+    if (isStepValid) {
+      setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
     }
   };
 
   const handleBack = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 0));
-    setError(null);
   };
 
-  const handleSubmit = async (data: FormData) => {
+  const handleSubmit = async (data: AssetFormData) => {
     try {
       setIsSubmitting(true);
       setError(null);
@@ -327,16 +355,16 @@ export function AssetCreateStepper({
   };
 
   const isFirstStep = currentStep === 0;
-  const isLastStep = currentStep === STEPS.length - 1;
-  const progress = ((currentStep + 1) / STEPS.length) * 100;
+  const isLastStep = currentStep === steps.length - 1;
+  const progress = ((currentStep + 1) / steps.length) * 100;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Asset</DialogTitle>
+          <DialogTitle>{t('stepper.createTitle')}</DialogTitle>
           <DialogDescription>
-            Complete all steps to create a new asset
+            {t('stepper.createDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -344,13 +372,13 @@ export function AssetCreateStepper({
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">
-              Step {currentStep + 1} of {STEPS.length}
+              {t('stepper.stepProgress', { current: currentStep + 1, total: steps.length })}
             </span>
-            <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
+            <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
           </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-600 transition-all duration-300"
+              className="h-full bg-primary transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -358,20 +386,21 @@ export function AssetCreateStepper({
 
         {/* Step Indicator */}
         <div className="flex gap-2 overflow-x-auto pb-4">
-          {STEPS.map((step, index) => (
+          {steps.map((step, index) => (
             <button
               key={step.id}
+              type="button"
               onClick={() => {
                 if (index < currentStep) {
                   setCurrentStep(index);
                 }
               }}
-              className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 index === currentStep
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-primary text-primary-foreground'
                   : index < currentStep
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-gray-100 text-gray-600'
+                  ? 'bg-success/15 text-success'
+                  : 'bg-muted text-muted-foreground'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -388,9 +417,9 @@ export function AssetCreateStepper({
 
         {/* Error Alert */}
         {error && (
-          <Alert className="border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          <Alert className="border-destructive/20 bg-destructive/10">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <AlertDescription className="text-destructive">{error}</AlertDescription>
           </Alert>
         )}
 
@@ -398,10 +427,10 @@ export function AssetCreateStepper({
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           <div>
             <h3 className="text-lg font-semibold mb-2">
-              {STEPS[currentStep].title}
+              {steps[currentStep].title}
             </h3>
-            <p className="text-sm text-gray-600 mb-6">
-              {STEPS[currentStep].description}
+            <p className="text-sm text-muted-foreground mb-6">
+              {steps[currentStep].description}
             </p>
 
             {/* Render current step */}
@@ -424,8 +453,9 @@ export function AssetCreateStepper({
                 variant="outline"
                 onClick={handleBack}
                 disabled={isSubmitting}
+                className="cursor-pointer"
               >
-                Previous
+                {t('stepper.previous')}
               </Button>
             )}
 
@@ -434,21 +464,21 @@ export function AssetCreateStepper({
                 type="button"
                 onClick={handleNext}
                 disabled={isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="cursor-pointer"
               >
-                Next
+                {t('stepper.next')}
               </Button>
             ) : (
               <Button
                 type="submit"
                 disabled={isSubmitting || !canCreateAsset}
-                className="bg-green-600 hover:bg-green-700"
+                className="cursor-pointer bg-success hover:bg-success/90 text-success-foreground"
               >
                 {isSubmitting
-                  ? 'Creating Asset...'
+                  ? t('stepper.creating')
                   : canCreateAsset
-                  ? 'Create Asset'
-                  : 'No permission to create'}
+                  ? t('stepper.createAction')
+                  : t('stepper.noPermission')}
               </Button>
             )}
           </div>
@@ -499,7 +529,7 @@ function AssetStepRenderer({
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
 
-  return <p className="mt-1 text-xs text-red-600">{message}</p>;
+  return <p className="mt-1 text-xs text-destructive">{message}</p>;
 }
 
 // ===== STEP COMPONENTS =====

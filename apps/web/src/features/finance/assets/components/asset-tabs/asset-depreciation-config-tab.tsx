@@ -622,7 +622,7 @@ export function AssetDepreciationConfigTab({
                   "Asset is fully depreciated"}
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>

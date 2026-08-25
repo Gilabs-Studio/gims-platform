@@ -333,7 +333,7 @@ export function BankReconciliationWizard() {
               <p>{t("fields.status")}: {detail?.status ? t(`status.${detail.status}`) : "-"}</p>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-md border bg-card">
               <Table>
                 <TableHeader>
                   <TableRow>

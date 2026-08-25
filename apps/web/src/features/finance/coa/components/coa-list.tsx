@@ -343,11 +343,11 @@ interface SummaryCardProps {
 
 function SummaryCard({ icon, label, value, color }: SummaryCardProps) {
   const colorClasses = {
-    blue: "bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400",
-    green: "bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400",
-    purple: "bg-purple-50 text-purple-600 dark:bg-purple-950/20 dark:text-purple-400",
-    orange: "bg-orange-50 text-orange-600 dark:bg-orange-950/20 dark:text-orange-400",
-    indigo: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/20 dark:text-indigo-400",
+    blue: "bg-primary/10 text-primary",
+    green: "bg-success/10 text-success",
+    purple: "bg-purple/10 text-purple",
+    orange: "bg-warning/10 text-warning",
+    indigo: "bg-cyan/10 text-cyan",
   };
 
   return (

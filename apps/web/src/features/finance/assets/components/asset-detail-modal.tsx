@@ -81,7 +81,7 @@ function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
       return (
         <Badge
           variant="outline"
-          className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-500/20"
+          className="bg-success/15 text-success hover:bg-success/25 border-success/20"
         >
           {t(`status.${status}`)}
         </Badge>
@@ -94,13 +94,13 @@ function getStatusBadge(status: string, t: ReturnType<typeof useTranslations>) {
       );
     case "sold":
       return (
-        <Badge variant="outline" className="text-blue-600 border-blue-500/20">
+        <Badge variant="outline" className="text-primary border-primary/20">
           {t(`status.${status}`)}
         </Badge>
       );
     case "disposed":
       return (
-        <Badge variant="outline" className="text-red-600 border-red-500/20">
+        <Badge variant="outline" className="text-destructive border-destructive/20">
           {t(`status.${status}`)}
         </Badge>
       );
@@ -128,15 +128,15 @@ function formatFileSize(bytes: number | undefined): string {
 function getTransactionIcon(type: string) {
   switch (type?.toLowerCase()) {
     case "acquire":
-      return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      return <CheckCircle2 className="h-4 w-4 text-success" />;
     case "depreciate":
-      return <TrendingDown className="h-4 w-4 text-orange-500" />;
+      return <TrendingDown className="h-4 w-4 text-warning" />;
     case "dispose":
-      return <Archive className="h-4 w-4 text-red-500" />;
+      return <Archive className="h-4 w-4 text-destructive" />;
     case "transfer":
-      return <ChevronRight className="h-4 w-4 text-blue-500" />;
+      return <ChevronRight className="h-4 w-4 text-primary" />;
     case "revalue":
-      return <DollarSign className="h-4 w-4 text-purple-500" />;
+      return <DollarSign className="h-4 w-4 text-purple" />;
     default:
       return <FileText className="h-4 w-4 text-muted-foreground" />;
   }
@@ -296,7 +296,7 @@ export function AssetDetailModal({
                   </DropdownMenuItem>
                   {canDepreciate && asset.status === "active" && (
                     <DropdownMenuItem
-                      className="cursor-pointer text-blue-600 focus:text-blue-600"
+                      className="cursor-pointer text-primary focus:text-primary"
                       onClick={() => onAction?.("depreciate", asset)}
                     >
                       <TrendingDown className="h-4 w-4 mr-2" />
@@ -681,7 +681,7 @@ export function AssetDetailModal({
                         {t("detail.sections.warranty")}
                         {asset.is_under_warranty && (
                           <Badge
-                            className="bg-emerald-500/15 text-emerald-700 border-emerald-500/20"
+                            className="bg-success/15 text-success border-success/20"
                             variant="outline"
                           >
                             <ShieldCheck className="h-3 w-3 mr-1" />
@@ -730,7 +730,7 @@ export function AssetDetailModal({
                         {t("detail.sections.insurance")}
                         {asset.is_insured && (
                           <Badge
-                            className="bg-blue-500/15 text-blue-700 border-blue-500/20"
+                            className="bg-primary/15 text-primary border-primary/20"
                             variant="outline"
                           >
                             {t("detail.fields.isInsured")}
@@ -886,7 +886,7 @@ export function AssetDetailModal({
                                 }
                                 className={
                                   tx.status === "APPROVED"
-                                    ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border-emerald-500/20"
+                                    ? "bg-success/15 text-success hover:bg-success/25 border-success/20"
                                     : ""
                                 }
                               >
@@ -1117,7 +1117,7 @@ export function AssetDetailModal({
                                 </Badge>
                               ) : (
                                 <Badge
-                                  className="bg-emerald-500/15 text-emerald-700 border-emerald-500/20"
+                                  className="bg-success/15 text-success border-success/20"
                                   variant="outline"
                                 >
                                   {t("detail.assignmentHistory.active")}
@@ -1189,10 +1189,10 @@ export function AssetDetailModal({
                                       <TableCell className="text-xs py-1 font-medium">
                                         {change.field}
                                       </TableCell>
-                                      <TableCell className="text-xs py-1 text-red-600/70 line-through">
+                                      <TableCell className="text-xs py-1 text-destructive/70 line-through">
                                         {String(change.old_value ?? "-")}
                                       </TableCell>
-                                      <TableCell className="text-xs py-1 text-emerald-600">
+                                      <TableCell className="text-xs py-1 text-success">
                                         {String(change.new_value ?? "-")}
                                       </TableCell>
                                     </TableRow>

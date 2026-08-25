@@ -159,7 +159,7 @@ export function BankAccountDetailPage({ id }: BankAccountDetailPageProps) {
 
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">{t("detail.transactionHistory")}</h3>
-        <div className="rounded-md border">
+        <div className="rounded-md border bg-card">
           <Table>
             <TableHeader>
               <TableRow>

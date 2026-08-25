@@ -501,4 +501,40 @@ export const financeAssetsId = {
       unknown: "Terjadi kesalahan yang tidak diketahui",
     },
   },
+  stepper: {
+    createTitle: "Buat Aset",
+    createDescription: "Selesaikan semua langkah untuk membuat aset baru",
+    stepProgress: "Langkah {current} dari {total}",
+    previous: "Sebelumnya",
+    next: "Selanjutnya",
+    creating: "Membuat Aset...",
+    createAction: "Buat Aset",
+    noPermission: "Tidak memiliki izin membuat",
+    steps: {
+      basic: {
+        title: "Informasi Dasar",
+        description: "Identifikasi aset dan detail umum",
+      },
+      classification: {
+        title: "Klasifikasi",
+        description: "Tipe aset, kategori, lokasi, dan penugasan",
+      },
+      financial: {
+        title: "Detail Keuangan",
+        description: "Nilai perolehan, metode depresiasi, dan masa manfaat",
+      },
+      depreciation: {
+        title: "Jadwal Depresiasi",
+        description: "Pratinjau jadwal bulanan sebelum membuat aset",
+      },
+      procurement: {
+        title: "Pengadaan",
+        description: "Detail vendor dan dokumen pembelian",
+      },
+      review: {
+        title: "Ulas & Simpan",
+        description: "Verifikasi semua informasi sebelum membuat aset",
+      },
+    },
+  },
 };

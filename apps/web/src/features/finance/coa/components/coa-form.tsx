@@ -131,8 +131,8 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
 
         <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
           {isProtected && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-100">
-              <p className="font-medium">{t("messages.protectedAccount")}</p>
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-warning font-medium">
+              <p>{t("messages.protectedAccount")}</p>
             </div>
           )}
 

@@ -623,9 +623,9 @@ export function AssetDepreciationConfigForm({
               </div>
             </div>
 
-            <Alert variant="default" className="bg-green-50 border-green-200">
-              <Check className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
+            <Alert variant="default" className="bg-success/10 border-success/20">
+              <Check className="h-4 w-4 text-success" />
+              <AlertDescription className="text-success">
                 {t("messages.depreciationCalculationReady") ||
                   "Depreciation calculation is ready to be applied"}
               </AlertDescription>

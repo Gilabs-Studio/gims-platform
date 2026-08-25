@@ -209,7 +209,7 @@ export function JournalDetailModal({ open, onOpenChange, id }: Props) {
               </div>
             ) : null}
 
-            <div className="rounded-md border">
+            <div className="rounded-md border bg-card">
               {lines.length === 0 ? (
                 <div className="py-8 text-center text-muted-foreground">-</div>
               ) : (

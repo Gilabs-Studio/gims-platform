@@ -333,7 +333,7 @@ export function CoaTreeView({
 
   if (isLoading) {
     return (
-      <div className="border rounded-lg overflow-hidden">
+      <div className="rounded-lg border bg-card overflow-hidden">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="px-3 py-2.5 border-b">
             <Skeleton className="h-10 w-full" />
@@ -345,7 +345,7 @@ export function CoaTreeView({
 
   if (filteredData.length === 0) {
     return (
-      <div className="border rounded-lg bg-muted/50 py-12 text-center">
+      <div className="rounded-lg border bg-card py-12 text-center">
         <p className="text-sm text-muted-foreground">{t("messages.noAccounts")}</p>
       </div>
     );

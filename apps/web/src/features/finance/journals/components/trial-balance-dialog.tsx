@@ -94,7 +94,7 @@ export function TrialBalanceDialog({ open, onOpenChange }: Props) {
         ) : query.isError ? (
           <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
         ) : (
-          <div className="rounded-md border">
+          <div className="rounded-md border bg-card">
             <Table>
               <TableHeader>
                 <TableRow>

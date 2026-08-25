@@ -500,4 +500,40 @@ export const financeAssetsEn = {
       unknown: "An unknown error occurred",
     },
   },
+  stepper: {
+    createTitle: "Create Asset",
+    createDescription: "Complete all steps to create a new asset",
+    stepProgress: "Step {current} of {total}",
+    previous: "Previous",
+    next: "Next",
+    creating: "Creating Asset...",
+    createAction: "Create Asset",
+    noPermission: "No permission to create",
+    steps: {
+      basic: {
+        title: "Basic Information",
+        description: "Asset identification and general details",
+      },
+      classification: {
+        title: "Classification",
+        description: "Asset type, category, location, and assignment",
+      },
+      financial: {
+        title: "Financial Details",
+        description: "Cost, depreciation method, and useful life",
+      },
+      depreciation: {
+        title: "Depreciation Schedule",
+        description: "Preview the monthly schedule before creating the asset",
+      },
+      procurement: {
+        title: "Procurement",
+        description: "Vendor details and purchase documents",
+      },
+      review: {
+        title: "Review & Submit",
+        description: "Verify all information before creating the asset",
+      },
+    },
+  },
 };

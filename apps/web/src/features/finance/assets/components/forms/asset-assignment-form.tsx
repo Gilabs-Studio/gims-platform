@@ -230,15 +230,15 @@ export function AssetAssignmentForm({
     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
       {/* Current Assignment Info */}
       {asset?.assigned_to_employee_id && (
-        <Card className="bg-amber-50 border-amber-200">
+        <Card className="bg-warning/10 border-warning/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <User className="h-5 w-5 text-amber-600" />
+              <User className="h-5 w-5 text-warning" />
               <div>
-                <p className="text-sm font-medium text-amber-800">
+                <p className="text-sm font-medium text-warning">
                   {t("fields.currentlyAssigned") || "Currently Assigned"}
                 </p>
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-warning/80">
                   {t("fields.reassignWarning") ||
                     "Assigning to a new employee will update the current assignment"}
                 </p>
