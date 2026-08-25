@@ -191,7 +191,7 @@ export function CompanyMapView() {
                 className="w-full sm:w-auto cursor-pointer whitespace-nowrap"
               >
                 <a
-                  href="https://wa.me/6289607700028?text=Hi%20GiLabs%20Sales%2C%20I%20want%20to%20add%20a%20company%20to%20my%20account."
+                  href="https://wa.me/6289526770703?text=Hi%20GiLabs%20Sales%2C%20I%20want%20to%20add%20a%20company%20to%20my%20account."
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={t("company.contactSales.ariaLabel")}
@@ -230,7 +230,7 @@ export function CompanyMapView() {
                 className="cursor-pointer"
               >
                 <a
-                  href="https://wa.me/6289607700028?text=Hi%20GiLabs%20Sales%2C%20I%20want%20to%20add%20a%20company%20to%20my%20account."
+                  href="https://wa.me/6289526770703?text=Hi%20GiLabs%20Sales%2C%20I%20want%20to%20add%20a%20company%20to%20my%20account."
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={t("company.contactSales.ariaLabel")}

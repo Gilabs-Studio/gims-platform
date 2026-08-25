@@ -158,7 +158,7 @@ func SeedOrganization() error {
 	lngGilabs := 106.8456
 
 	// Only one company is provisioned per tenant. Company creation via UI is disabled.
-	// To add a company, contact GiLabs sales: https://wa.me/6289607700028
+	// To add a company, contact GiLabs sales: https://wa.me/6289526770703
 	companies := []models.Company{
 		{
 			ID:         GiLabsCompanyID,

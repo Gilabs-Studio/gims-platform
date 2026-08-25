@@ -8,7 +8,7 @@ import (
 
 // RegisterCompanyRoutes registers company routes.
 // Company creation is disabled — tenants may only have one company (provisioned via seeder).
-// To add a company, contact GiLabs sales: https://wa.me/6289607700028
+// To add a company, contact GiLabs sales: https://wa.me/6289526770703
 func RegisterCompanyRoutes(rg *gin.RouterGroup, h *handler.CompanyHandler) {
 	g := rg.Group("/companies")
 	g.GET("", middleware.RequirePermission("company.read"), h.List)

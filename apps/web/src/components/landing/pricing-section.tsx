@@ -40,7 +40,7 @@ interface BundleComparisonRow {
   enterprise: ComparisonCellValue;
 }
 
-const CONTACT_SALES_WHATSAPP_URL = "https://wa.me/6289607700028?text=Hi%20SalesView%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
+const CONTACT_SALES_WHATSAPP_URL = "https://wa.me/6289526770703?text=Hi%20SalesView%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
 
 const BUNDLE_COMPARISON_ROWS: BundleComparisonRow[] = [
   { label: "POS", growthSuite: "check", ultimateSuite: "check", enterprise: "check" },

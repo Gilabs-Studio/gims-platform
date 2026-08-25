@@ -82,7 +82,7 @@ const ENTERPRISE_CTA: BundlePlan = {
   ],
 };
 
-const CONTACT_SALES_URL = "https://wa.me/6289607700028?text=Hi%20SalesView%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
+const CONTACT_SALES_URL = "https://wa.me/6289526770703?text=Hi%20SalesView%2C%20I%20want%20to%20consult%20about%20the%20Enterprise%20plan.";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
