@@ -801,7 +801,7 @@ export function AssetForm({ open, onOpenChange, mode, initialData }: Props) {
           </aside>
 
           <div className="border-t px-6 py-4 lg:col-span-2">
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
             <Button
               type="button"
               variant="outline"

@@ -1,0 +1,32 @@
+meta {
+  name: Transfer Asset
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/v1/finance/fixed-assets/assets/{{asset_id}}/transfer
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "to_location_id": "{{location_id}}",
+    "to_department_id": "{{department_id}}",
+    "effective_date": "2026-08-25",
+    "notes": "Transfer asset to Head Office"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Transfer fixed asset to another location or department.
+  Permission required: `asset.update`
+}

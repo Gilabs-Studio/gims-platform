@@ -47,14 +47,20 @@ func (uc *assetCategoryUsecase) Create(ctx context.Context, req *dto.CreateAsset
 		return nil, errors.New("user not authenticated")
 	}
 
-	if _, err := uc.coaRepo.FindByID(ctx, req.AssetAccountID); err != nil {
-		return nil, err
+	if req.AssetAccountID != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, req.AssetAccountID); err != nil {
+			return nil, err
+		}
 	}
-	if _, err := uc.coaRepo.FindByID(ctx, req.AccumulatedDepreciationAccountID); err != nil {
-		return nil, err
+	if req.AccumulatedDepreciationAccountID != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, req.AccumulatedDepreciationAccountID); err != nil {
+			return nil, err
+		}
 	}
-	if _, err := uc.coaRepo.FindByID(ctx, req.DepreciationExpenseAccountID); err != nil {
-		return nil, err
+	if req.DepreciationExpenseAccountID != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, req.DepreciationExpenseAccountID); err != nil {
+			return nil, err
+		}
 	}
 	if req.DisposalGainAccountID != nil && strings.TrimSpace(*req.DisposalGainAccountID) != "" {
 		if _, err := uc.coaRepo.FindByID(ctx, strings.TrimSpace(*req.DisposalGainAccountID)); err != nil {
@@ -109,14 +115,20 @@ func (uc *assetCategoryUsecase) Update(ctx context.Context, id string, req *dto.
 		return nil, err
 	}
 
-	if _, err := uc.coaRepo.FindByID(ctx, req.AssetAccountID); err != nil {
-		return nil, err
+	if req.AssetAccountID != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, req.AssetAccountID); err != nil {
+			return nil, err
+		}
 	}
-	if _, err := uc.coaRepo.FindByID(ctx, req.AccumulatedDepreciationAccountID); err != nil {
-		return nil, err
+	if req.AccumulatedDepreciationAccountID != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, req.AccumulatedDepreciationAccountID); err != nil {
+			return nil, err
+		}
 	}
-	if _, err := uc.coaRepo.FindByID(ctx, req.DepreciationExpenseAccountID); err != nil {
-		return nil, err
+	if req.DepreciationExpenseAccountID != "" {
+		if _, err := uc.coaRepo.FindByID(ctx, req.DepreciationExpenseAccountID); err != nil {
+			return nil, err
+		}
 	}
 	if req.DisposalGainAccountID != nil && strings.TrimSpace(*req.DisposalGainAccountID) != "" {
 		if _, err := uc.coaRepo.FindByID(ctx, strings.TrimSpace(*req.DisposalGainAccountID)); err != nil {

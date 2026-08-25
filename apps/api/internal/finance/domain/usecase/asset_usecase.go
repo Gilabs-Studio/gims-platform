@@ -466,6 +466,7 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 		LifecycleStage:          lifecycle,
 		IsCapitalized:           isCapitalized,
 		IsDepreciable:           isDepreciable,
+		ImageURL:                req.ImageURL,
 		CreatedBy:               &actorID,
 	}
 
@@ -544,20 +545,36 @@ func (uc *assetUsecase) Create(ctx context.Context, req *dto.CreateAssetRequest)
 			return err
 		}
 
+		var tenantUUID *uuid.UUID
+		if tenantID != "" {
+			if parsedTenant, tErr := uuid.Parse(tenantID); tErr == nil {
+				tenantUUID = &parsedTenant
+			}
+		}
+
+		// Always record initial creation audit log
+		if err := tx.Create(&financeModels.AssetAuditLog{
+			ID:          uuid.New(),
+			TenantID:    tenantUUID,
+			AssetID:     assetUUID,
+			Action:      "created",
+			PerformedBy: &actorUUID,
+			IPAddress:   stringPtrFromContext(ctx, "request_ip"),
+			UserAgent:   stringPtrFromContext(ctx, "user_agent"),
+			Metadata: financeModels.MapStringInterface{
+				"source":                 "manual_create",
+				"approval_required":      approvalRequired,
+				"is_capitalized":         isCapitalized,
+				"acquisition_cost_total": totalAcquisitionCost,
+				"code":                   item.Code,
+				"name":                   item.Name,
+			},
+		}).Error; err != nil {
+			return err
+		}
+
 		if approvalRequired {
-			return tx.Create(&financeModels.AssetAuditLog{
-				AssetID:     assetUUID,
-				Action:      "create",
-				PerformedBy: &actorUUID,
-				IPAddress:   stringPtrFromContext(ctx, "request_ip"),
-				UserAgent:   stringPtrFromContext(ctx, "user_agent"),
-				Metadata: financeModels.MapStringInterface{
-					"source":                 "manual_create",
-					"approval_required":      true,
-					"is_capitalized":         isCapitalized,
-					"acquisition_cost_total": totalAcquisitionCost,
-				},
-			}).Error
+			return nil
 		}
 
 		if item.IsDepreciable {
@@ -697,7 +714,82 @@ func (uc *assetUsecase) Update(ctx context.Context, id string, req *dto.UpdateAs
 			Description:     "Asset updated",
 			CreatedBy:       &actorID,
 		}
-		return tx.Create(txRec).Error
+		if err := tx.Create(txRec).Error; err != nil {
+			return err
+		}
+
+		assetUUID, parseErr := uuid.Parse(id)
+		if parseErr == nil {
+			var actorUUID *uuid.UUID
+			if parsedActor, pErr := uuid.Parse(actorID); pErr == nil {
+				actorUUID = &parsedActor
+			}
+			var tenantUUID *uuid.UUID
+			if tenantID != "" {
+				if parsedTenant, tErr := uuid.Parse(tenantID); tErr == nil {
+					tenantUUID = &parsedTenant
+				}
+			}
+
+			auditChanges := make(financeModels.AuditChanges, 0)
+			if existing.Name != strings.TrimSpace(req.Name) {
+				auditChanges = append(auditChanges, financeModels.AuditChange{
+					Field:    "name",
+					OldValue: existing.Name,
+					NewValue: strings.TrimSpace(req.Name),
+				})
+			}
+			if existing.Code != strings.TrimSpace(req.Code) {
+				auditChanges = append(auditChanges, financeModels.AuditChange{
+					Field:    "code",
+					OldValue: existing.Code,
+					NewValue: strings.TrimSpace(req.Code),
+				})
+			}
+			if existing.Description != strings.TrimSpace(req.Description) {
+				auditChanges = append(auditChanges, financeModels.AuditChange{
+					Field:    "description",
+					OldValue: existing.Description,
+					NewValue: strings.TrimSpace(req.Description),
+				})
+			}
+			if existing.AcquisitionCost != req.AcquisitionCost {
+				auditChanges = append(auditChanges, financeModels.AuditChange{
+					Field:    "acquisition_cost",
+					OldValue: existing.AcquisitionCost,
+					NewValue: req.AcquisitionCost,
+				})
+			}
+			if existing.SalvageValue != req.SalvageValue {
+				auditChanges = append(auditChanges, financeModels.AuditChange{
+					Field:    "salvage_value",
+					OldValue: existing.SalvageValue,
+					NewValue: req.SalvageValue,
+				})
+			}
+			if existing.Status != status {
+				auditChanges = append(auditChanges, financeModels.AuditChange{
+					Field:    "status",
+					OldValue: string(existing.Status),
+					NewValue: string(status),
+				})
+			}
+
+			_ = tx.Create(&financeModels.AssetAuditLog{
+				ID:          uuid.New(),
+				TenantID:    tenantUUID,
+				AssetID:     assetUUID,
+				Action:      "updated",
+				PerformedBy: actorUUID,
+				Changes:     auditChanges,
+				IPAddress:   stringPtrFromContext(ctx, "request_ip"),
+				UserAgent:   stringPtrFromContext(ctx, "user_agent"),
+				Metadata: financeModels.MapStringInterface{
+					"source": "manual_update",
+				},
+			}).Error
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -1101,10 +1193,21 @@ func (uc *assetUsecase) EditAsset(ctx context.Context, id string, req *dto.EditA
 			return err
 		}
 
+		var tenantUUID *uuid.UUID
+		if tenantID != "" {
+			if parsedTenant, tErr := uuid.Parse(tenantID); tErr == nil {
+				tenantUUID = &parsedTenant
+			}
+		}
+
 		auditLog := &financeModels.AssetAuditLog{
+			ID:          uuid.New(),
+			TenantID:    tenantUUID,
 			AssetID:     assetUUID,
 			Action:      "updated",
 			PerformedBy: &actorUUID,
+			IPAddress:   stringPtrFromContext(ctx, "request_ip"),
+			UserAgent:   stringPtrFromContext(ctx, "user_agent"),
 			Changes:     auditChangeList,
 			Metadata: financeModels.MapStringInterface{
 				"source":                  "manual_edit",

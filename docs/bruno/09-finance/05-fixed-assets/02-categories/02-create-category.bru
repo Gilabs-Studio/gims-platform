@@ -1,0 +1,32 @@
+meta {
+  name: Create Category
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/finance/fixed-assets/categories
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "code": "CAT_ELECTRONICS",
+    "name": "Electronics & Hardware",
+    "depreciation_method": "SL",
+    "useful_life_months": 48
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new asset category. Used also by inline CreatableCombobox.
+  Permission required: `asset_category.create`
+}

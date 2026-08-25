@@ -55,6 +55,7 @@ type Asset struct {
 	Barcode      *string `gorm:"type:varchar(100);index" json:"barcode,omitempty"`
 	QRCode       *string `gorm:"type:text" json:"qr_code,omitempty"`
 	AssetTag     *string `gorm:"type:varchar(50)" json:"asset_tag,omitempty"`
+	ImageURL     *string `gorm:"type:varchar(500)" json:"image_url,omitempty"`
 
 	// Category & Location
 	CategoryID string         `gorm:"type:uuid;not null;index" json:"category_id"`

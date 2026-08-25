@@ -51,23 +51,51 @@ export function useAssetEdit() {
       );
       return response;
     },
-    onSuccess: (response) => {
-      const data = response.data;
-      toast.success(`Asset "${data.name}" updated successfully`, {
-        description: `${data.changed_fields?.length || 0} field(s) changed`,
-      });
-      // Invalidate queries so detail views refresh
-      try {
-        const id = response.data?.id;
-        if (id) {
-          queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });
-        }
-        queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
-      } catch {
-        // ignore
+    onMutate: async ({ assetId, data }) => {
+      // Cancel outgoing queries for this asset detail
+      await queryClient.cancelQueries({ queryKey: financeAssetKeys.detail(assetId) });
+
+      // Snapshot previous asset detail
+      const previousAsset = queryClient.getQueryData(financeAssetKeys.detail(assetId));
+
+      // Optimistically update cache for instant feedback
+      if (previousAsset) {
+        queryClient.setQueryData(financeAssetKeys.detail(assetId), (old: unknown) => {
+          if (!old || typeof old !== "object") return old;
+          const env = old as { data?: Record<string, unknown> };
+          if (env.data && typeof env.data === "object") {
+            return {
+              ...env,
+              data: {
+                ...env.data,
+                ...data,
+              },
+            };
+          }
+          return {
+            ...old,
+            ...data,
+          };
+        });
       }
+
+      return { previousAsset };
     },
-    onError: (error: unknown) => {
+    onSuccess: (response, variables) => {
+      const resData = response.data as unknown as { data?: EditAssetResponse } & EditAssetResponse;
+      const assetObj = resData?.data ?? resData;
+      const name = assetObj?.name || (assetObj as { asset_name?: string })?.asset_name || "Asset";
+
+      toast.success(`Asset "${name}" updated successfully`, {
+        description: `${assetObj?.changed_fields?.length || 0} field(s) changed`,
+      });
+    },
+    onError: (error: unknown, variables, context) => {
+      // Rollback cache if mutation failed
+      if (context?.previousAsset) {
+        queryClient.setQueryData(financeAssetKeys.detail(variables.assetId), context.previousAsset);
+      }
+
       const errorResponse = getErrorResponse(error);
       const message = errorResponse?.message || (error instanceof Error ? error.message : 'Failed to update asset');
       const code = errorResponse?.code;
@@ -85,6 +113,13 @@ export function useAssetEdit() {
           description: message,
         });
       }
+    },
+    onSettled: (_, __, variables) => {
+      if (variables?.assetId) {
+        queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(variables.assetId) });
+        queryClient.invalidateQueries({ queryKey: financeAssetKeys.auditLogs(variables.assetId) });
+      }
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
     },
   });
 

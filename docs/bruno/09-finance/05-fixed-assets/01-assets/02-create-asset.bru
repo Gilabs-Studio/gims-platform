@@ -1,0 +1,44 @@
+meta {
+  name: Create Fixed Asset
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/finance/fixed-assets/assets
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "MacBook Pro M3 Max 16 inch",
+    "asset_type_id": "FIXED",
+    "category_id": "{{category_id}}",
+    "location_id": "{{location_id}}",
+    "acquisition_date": "2026-08-25",
+    "purchase_price": 45000000,
+    "shipping_cost": 500000,
+    "installation_cost": 0,
+    "tax_amount": 4950000,
+    "other_costs": 0,
+    "acquisition_cost": 50450000,
+    "salvage_value": 5000000,
+    "useful_life_months": 48,
+    "depreciation_method": "SL",
+    "serial_number": "C02G1234MD6R",
+    "image_url": "https://pub-r2.cloudflarestorage.com/uploads/tenant/fixed-assets/asset-photo.webp"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Create a new fixed asset record with cost breakdown and optional initial WebP photo URL.
+  Permission required: `asset.create`
+}

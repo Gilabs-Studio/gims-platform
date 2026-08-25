@@ -1,0 +1,31 @@
+meta {
+  name: Update Fixed Asset
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/api/v1/finance/fixed-assets/assets/{{asset_id}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "MacBook Pro M3 Max 16 inch (Updated)",
+    "description": "Updated asset specifications and condition notes",
+    "serial_number": "C02G1234MD6R"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Update asset details and metadata.
+  Permission required: `asset.update`
+}

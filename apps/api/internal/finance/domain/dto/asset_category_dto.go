@@ -15,9 +15,9 @@ type CreateAssetCategoryRequest struct {
 	DepreciationRate   float64                          `json:"depreciation_rate" binding:"omitempty,gte=0"`
 	IsDepreciable      *bool                            `json:"is_depreciable"`
 
-	AssetAccountID                   string  `json:"asset_account_id" binding:"required,uuid"`
-	AccumulatedDepreciationAccountID string  `json:"accumulated_depreciation_account_id" binding:"required,uuid"`
-	DepreciationExpenseAccountID     string  `json:"depreciation_expense_account_id" binding:"required,uuid"`
+	AssetAccountID                   string  `json:"asset_account_id" binding:"omitempty,uuid"`
+	AccumulatedDepreciationAccountID string  `json:"accumulated_depreciation_account_id" binding:"omitempty,uuid"`
+	DepreciationExpenseAccountID     string  `json:"depreciation_expense_account_id" binding:"omitempty,uuid"`
 	DisposalGainAccountID            *string `json:"disposal_gain_account_id" binding:"omitempty,uuid"`
 	DisposalLossAccountID            *string `json:"disposal_loss_account_id" binding:"omitempty,uuid"`
 
@@ -33,9 +33,9 @@ type UpdateAssetCategoryRequest struct {
 	DepreciationRate   float64                          `json:"depreciation_rate" binding:"omitempty,gte=0"`
 	IsDepreciable      *bool                            `json:"is_depreciable"`
 
-	AssetAccountID                   string  `json:"asset_account_id" binding:"required,uuid"`
-	AccumulatedDepreciationAccountID string  `json:"accumulated_depreciation_account_id" binding:"required,uuid"`
-	DepreciationExpenseAccountID     string  `json:"depreciation_expense_account_id" binding:"required,uuid"`
+	AssetAccountID                   string  `json:"asset_account_id" binding:"omitempty,uuid"`
+	AccumulatedDepreciationAccountID string  `json:"accumulated_depreciation_account_id" binding:"omitempty,uuid"`
+	DepreciationExpenseAccountID     string  `json:"depreciation_expense_account_id" binding:"omitempty,uuid"`
 	DisposalGainAccountID            *string `json:"disposal_gain_account_id" binding:"omitempty,uuid"`
 	DisposalLossAccountID            *string `json:"disposal_loss_account_id" binding:"omitempty,uuid"`
 

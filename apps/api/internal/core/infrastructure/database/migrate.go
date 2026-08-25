@@ -127,6 +127,11 @@ func AutoMigrate() error {
 	_ = DB.Exec(`ALTER TABLE pos_settlement_payouts ADD COLUMN IF NOT EXISTS fee decimal(15,2) NOT NULL DEFAULT 0`)
 	_ = DB.Exec(`ALTER TABLE pos_settlement_payouts ADD COLUMN IF NOT EXISTS vat decimal(15,2) NOT NULL DEFAULT 0`)
 
+	// PRE-MIGRATION: Add image_url column to fixed_assets if missing
+	_ = DB.Exec(`ALTER TABLE fixed_assets ADD COLUMN IF NOT EXISTS image_url varchar(500)`)
+	_ = DB.Exec(`ALTER TABLE asset_audit_logs ADD COLUMN IF NOT EXISTS tenant_id uuid`)
+	_ = DB.Exec(`UPDATE asset_audit_logs l SET tenant_id = a.tenant_id FROM fixed_assets a WHERE l.asset_id = a.id AND l.tenant_id IS NULL`)
+
 	// Perform actual migrations
 	err := migrateWithErrorHandling(
 		// SaaS: Tenant & System Admin tables (must come before domain tables)

@@ -55,9 +55,30 @@ export function useUpdateFinanceAsset() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: AssetInput }) => financeAssetsService.update(id, data),
-    onSuccess: (_, { id }) => {
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: financeAssetKeys.detail(id) });
+      const previousAsset = queryClient.getQueryData(financeAssetKeys.detail(id));
+      if (previousAsset) {
+        queryClient.setQueryData(financeAssetKeys.detail(id), (old: unknown) => {
+          if (!old || typeof old !== "object") return old;
+          const env = old as { data?: Record<string, unknown> };
+          if (env.data && typeof env.data === "object") {
+            return { ...env, data: { ...env.data, ...data } };
+          }
+          return { ...old, ...data };
+        });
+      }
+      return { previousAsset };
+    },
+    onError: (_, { id }, context) => {
+      if (context?.previousAsset) {
+        queryClient.setQueryData(financeAssetKeys.detail(id), context.previousAsset);
+      }
+    },
+    onSettled: (_, __, { id }) => {
       queryClient.invalidateQueries({ queryKey: financeAssetKeys.lists() });
       queryClient.invalidateQueries({ queryKey: financeAssetKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: financeAssetKeys.auditLogs(id) });
     },
   });
 }

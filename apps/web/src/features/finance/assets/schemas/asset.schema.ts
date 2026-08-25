@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const assetFormSchema = z.object({
-  code: z.string().trim().min(1),
+  code: z.string().trim().optional(),
   name: z.string().trim().min(1),
   asset_type_id: z.enum(["FIXED", "CURRENT", "INTANGIBLE", "OTHER"]),
   asset_category_id: z.string().trim().min(1),
@@ -20,7 +20,9 @@ export const assetFormSchema = z.object({
   custodian_user_id: z.string().trim().min(1).optional(),
   assigned_to_employee_id: z.string().trim().min(1).optional(),
   parent_asset_id: z.string().trim().min(1).optional(),
-  // Use vendor name and supplier invoice number instead of IDs in the form
+  serial_number: z.string().trim().optional(),
+  description: z.string().trim().optional(),
+  vendor_id: z.string().trim().optional(),
   vendor_name: z.string().trim().optional(),
   supplier_invoice_number: z.string().trim().optional(),
   // Optional file upload for supplier invoice image (will be handled as File in the form)

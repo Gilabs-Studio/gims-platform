@@ -78,6 +78,7 @@ func (m *AssetMapper) ToResponse(item *financeModels.Asset, withDetails bool) dt
 		Barcode:      item.Barcode,
 		QRCode:       item.QRCode,
 		AssetTag:     item.AssetTag,
+		ImageURL:     item.ImageURL,
 
 		// Category / Location
 		AssetTypeID: getStringValue(item.AssetTypeID),
@@ -287,6 +288,17 @@ func (m *AssetMapper) ToAuditLogResponse(al *financeModels.AssetAuditLog) dto.As
 		Metadata:    al.Metadata,
 		CreatedAt:   al.CreatedAt,
 	}
+
+	if al.User != nil {
+		name := strings.TrimSpace(al.User.Name)
+		if name == "" {
+			name = strings.TrimSpace(al.User.Email)
+		}
+		if name != "" {
+			resp.PerformedByName = &name
+		}
+	}
+
 	return resp
 }
 

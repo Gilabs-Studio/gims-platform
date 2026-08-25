@@ -947,7 +947,7 @@ export function AssetEditForm({
           </Tabs>
 
           {/* Form Actions */}
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-3 justify-end">
             <Button
               type="button"
               variant="outline"

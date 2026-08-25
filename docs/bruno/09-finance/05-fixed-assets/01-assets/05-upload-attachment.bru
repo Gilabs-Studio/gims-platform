@@ -1,0 +1,32 @@
+meta {
+  name: Attach Asset File
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/api/v1/finance/fixed-assets/assets/{{asset_id}}/attachments
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "file_type": "photo",
+    "file_name": "asset-photo.webp",
+    "file_url": "https://pub-r2.cloudflarestorage.com/uploads/tenant/fixed-assets/uuid.webp",
+    "description": "Primary Asset Photo"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Attach uploaded photo or document metadata to fixed asset.
+  Permission required: `asset.update`
+}

@@ -1,0 +1,28 @@
+meta {
+  name: List Categories
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/finance/fixed-assets/categories?page=1&per_page=50
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  per_page: 50
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  List asset categories.
+  Permission required: `asset_category.read`
+}

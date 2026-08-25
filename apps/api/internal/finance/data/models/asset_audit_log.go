@@ -46,12 +46,13 @@ func (ac *AuditChanges) Scan(value interface{}) error {
 // AssetAuditLog represents an audit trail entry for asset changes
 type AssetAuditLog struct {
 	ID          uuid.UUID          `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	TenantID    *uuid.UUID         `gorm:"type:uuid;index:idx_audit_tenant" json:"tenant_id,omitempty"`
 	AssetID     uuid.UUID          `gorm:"type:uuid;not null;index:idx_audit_asset" json:"asset_id"`
 	Action      string             `gorm:"type:varchar(50);not null;index:idx_audit_action" json:"action"` // created, updated, deleted, depreciated, transferred, disposed, sold, revalued, assigned, approved
 	Changes     AuditChanges       `gorm:"type:jsonb" json:"changes,omitempty"`
 	PerformedBy *uuid.UUID         `gorm:"type:uuid;index" json:"performed_by,omitempty"`
 	PerformedAt time.Time          `gorm:"type:timestamptz;default:now();index:idx_audit_date" json:"performed_at"`
-	IPAddress   *string            `gorm:"type:inet" json:"ip_address,omitempty"`
+	IPAddress   *string            `gorm:"type:varchar(100)" json:"ip_address,omitempty"`
 	UserAgent   *string            `gorm:"type:text" json:"user_agent,omitempty"`
 	Metadata    MapStringInterface `gorm:"type:jsonb" json:"metadata,omitempty"` // Additional context data
 	CreatedAt   time.Time          `gorm:"type:timestamptz;default:now()" json:"created_at"`

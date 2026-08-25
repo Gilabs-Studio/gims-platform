@@ -22,6 +22,7 @@ import {
   TrendingDown,
   TrendingUp,
   UserCheck,
+  ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -58,7 +59,6 @@ import {
 import { useFinanceAssetCategories } from "@/features/finance/asset-categories/hooks/use-finance-asset-categories";
 import { useFinanceAssetLocations } from "@/features/finance/asset-locations/hooks/use-finance-asset-locations";
 import { AssetForm } from "./asset-form";
-import { AssetCreateStepper, type AssetFormData } from "@/features/finance/fixed-assets/components/asset-create-stepper";
 import { AssetActionsDialogs } from "./asset-actions-dialogs";
 
 type ActionMode =
@@ -147,7 +147,6 @@ export function AssetsList() {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editing, setEditing] = useState<Asset | null>(null);
-  const [stepperOpen, setStepperOpen] = useState(false);
 
   const createMutation = useCreateFinanceAsset();
 
@@ -217,17 +216,17 @@ export function AssetsList() {
           <div className="flex gap-2">
             <Button
               onClick={() => {
-                // open stepper for guided create
-                setStepperOpen(true);
+                router.push("/finance/assets/new");
               }}
-              className="cursor-pointer"
+              className="cursor-pointer gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-all duration-300 hover:-translate-y-0.5"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4" />
               {t("actions.create")}
             </Button>
             <Button
               variant="outline"
               size="sm"
+              className="cursor-pointer"
               onClick={() => {
                 setFormMode("create");
                 setEditing(null);
@@ -262,6 +261,7 @@ export function AssetsList() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">Image</TableHead>
               <TableHead onClick={() => handleSort("code")} className="cursor-pointer">
                 {t("fields.code")}
               </TableHead>
@@ -287,20 +287,36 @@ export function AssetsList() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={10}>
+                  <TableCell colSpan={11}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   -
                 </TableCell>
               </TableRow>
             ) : (
               rows.map((item) => (
                 <TableRow key={item.id}>
+                  <TableCell className="w-12">
+                    <button
+                      type="button"
+                      onClick={() => handleViewDetail(item.id)}
+                      className="relative block h-9 w-9 overflow-hidden rounded-md border bg-muted/30 cursor-pointer shrink-0 transition-transform hover:scale-105"
+                      title={item.name}
+                    >
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-muted-foreground/50">
+                          <ImageIcon className="h-4 w-4" />
+                        </div>
+                      )}
+                    </button>
+                  </TableCell>
                   <TableCell>
                     <button
                       type="button"
@@ -529,36 +545,6 @@ export function AssetsList() {
         onOpenChange={setFormOpen}
         mode={formMode}
         initialData={editing}
-      />
-
-      <AssetCreateStepper
-        open={stepperOpen}
-        onClose={() => setStepperOpen(false)}
-        onComplete={async (data: AssetFormData) => {
-          try {
-            const payload: Record<string, unknown> = {
-              name: data.name,
-              asset_type_id: data.assetType,
-              asset_category_id: data.categoryId,
-              location_id: data.locationId,
-              acquisition_date: data.acquisitionDate.toISOString().slice(0, 10),
-              acquisition_cost: data.acquisitionCost,
-              purchase_price: data.acquisitionCost,
-              salvage_value: data.salvageValue,
-              currency_code: data.currencyCode,
-              depreciation_method: data.depreciationMethod,
-              useful_life_months: data.usefulLifeMonths,
-              warranty_start: data.warrantyStartDate ? data.warrantyStartDate.toISOString().slice(0, 10) : undefined,
-              warranty_end: data.warrantyEndDate ? data.warrantyEndDate.toISOString().slice(0, 10) : undefined,
-            };
-            await createMutation.mutateAsync(payload as unknown as AssetInput);
-            toast.success(t("toast.created"));
-            setStepperOpen(false);
-          } catch (err) {
-            toast.error(t("toast.failed"));
-            throw err;
-          }
-        }}
       />
 
       <AssetActionsDialogs

@@ -1,0 +1,31 @@
+meta {
+  name: Dispose Asset
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/v1/finance/fixed-assets/assets/{{asset_id}}/dispose
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "disposal_date": "2026-08-25",
+    "proceeds_amount": 1000000,
+    "description": "Asset disposed due to obsolescence"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Dispose fixed asset and calculate gain/loss on disposal.
+  Permission required: `asset.update`
+}

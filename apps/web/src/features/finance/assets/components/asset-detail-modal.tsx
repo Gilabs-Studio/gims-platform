@@ -1161,10 +1161,12 @@ export function AssetDetailModal({
                               {formatDate(log.performed_at)}
                             </span>
                           </div>
-                          {log.performed_by && (
+                          {(log.performed_by_name || log.performed_by_user?.name || log.performed_by) && (
                             <p className="text-xs text-muted-foreground mt-1">
                               {t("detail.auditLog.performedBy")}:{" "}
-                              {log.performed_by}
+                              <span className="font-medium text-foreground font-sans">
+                                {log.performed_by_name || log.performed_by_user?.name || log.performed_by}
+                              </span>
                             </p>
                           )}
                           {log.changes && log.changes.length > 0 && (

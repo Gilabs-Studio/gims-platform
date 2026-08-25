@@ -94,6 +94,7 @@ func (r *assetAuditLogRepository) GetByAssetID(ctx context.Context, assetID stri
 	var logs []models.AssetAuditLog
 
 	query := database.GetDB(ctx, r.db).
+		Preload("User").
 		Where("asset_id = ?", assetID).
 		Order("performed_at DESC")
 

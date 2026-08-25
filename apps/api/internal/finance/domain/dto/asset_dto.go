@@ -35,6 +35,7 @@ type CreateAssetRequest struct {
 	SerialNumber *string `json:"serial_number"`
 	Barcode      *string `json:"barcode"`
 	AssetTag     *string `json:"asset_tag"`
+	ImageURL     *string `json:"image_url"`
 
 	// Cost Breakdown
 	ShippingCost     float64 `json:"shipping_cost" binding:"omitempty,gte=0"`
@@ -408,15 +409,16 @@ type AuditChangeResponse struct {
 }
 
 type AssetAuditLogResponse struct {
-	ID          string                 `json:"id"`
-	AssetID     string                 `json:"asset_id"`
-	Action      string                 `json:"action"`
-	Changes     []AuditChangeResponse  `json:"changes,omitempty"`
-	PerformedBy *string                `json:"performed_by,omitempty"`
-	PerformedAt time.Time              `json:"performed_at"`
-	IPAddress   *string                `json:"ip_address,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt   time.Time              `json:"created_at"`
+	ID              string                 `json:"id"`
+	AssetID         string                 `json:"asset_id"`
+	Action          string                 `json:"action"`
+	Changes         []AuditChangeResponse  `json:"changes,omitempty"`
+	PerformedBy     *string                `json:"performed_by,omitempty"`
+	PerformedByName *string                `json:"performed_by_name,omitempty"`
+	PerformedAt     time.Time              `json:"performed_at"`
+	IPAddress       *string                `json:"ip_address,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt       time.Time              `json:"created_at"`
 }
 
 type AssetAssignmentHistoryResponse struct {
@@ -445,6 +447,7 @@ type AssetResponse struct {
 	Barcode      *string `json:"barcode,omitempty"`
 	QRCode       *string `json:"qr_code,omitempty"`
 	AssetTag     *string `json:"asset_tag,omitempty"`
+	ImageURL     *string `json:"image_url,omitempty"`
 
 	// Category / Location
 	AssetTypeID string                 `json:"asset_type_id"`

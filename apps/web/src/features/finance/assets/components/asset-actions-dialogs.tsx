@@ -458,7 +458,7 @@ export function AssetActionsDialogs({
                 )}
               />
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"
@@ -578,7 +578,7 @@ export function AssetActionsDialogs({
               <Textarea id="transfer_notes" rows={4} {...transferForm.register("notes")} />
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"
@@ -627,7 +627,7 @@ export function AssetActionsDialogs({
                 {...disposeForm.register("description")}
               />
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"
@@ -695,7 +695,7 @@ export function AssetActionsDialogs({
                 {...revalueForm.register("description")}
               />
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"
@@ -761,7 +761,7 @@ export function AssetActionsDialogs({
                 {...adjustForm.register("description")}
               />
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"
@@ -831,7 +831,7 @@ export function AssetActionsDialogs({
                 {...sellForm.register("description")}
               />
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"
@@ -899,7 +899,7 @@ export function AssetActionsDialogs({
                 {...assignForm.register("notes")}
               />
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"
@@ -960,7 +960,7 @@ export function AssetActionsDialogs({
                 {...returnForm.register("notes")}
               />
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button
                 type="button"
                 variant="outline"

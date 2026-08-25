@@ -162,6 +162,12 @@ export interface AssetAuditLog {
     new_value: unknown;
   }>;
   performed_by?: string;
+  performed_by_name?: string;
+  performed_by_user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+  };
   performed_at: string;
   ip_address?: string;
   metadata?: Record<string, unknown>;
@@ -236,6 +242,7 @@ export interface Asset {
   code: string;
   name: string;
   description: string;
+  image_url?: string;
   asset_type_id?: string;
   category_id: string;
   category?: AssetCategoryLite | null;
@@ -245,6 +252,8 @@ export interface Asset {
   location?: AssetLocationLite | null;
   location_name?: string;
   dept_name?: string;
+  department?: { id: string; name: string } | null;
+  custodian_user?: { id: string; name: string } | null;
   acquisition_date: string;
   acquisition_cost: number;
   salvage_value: number;
@@ -393,6 +402,7 @@ export interface AssetInput {
   acquisition_date: string;
   purchase_price?: number;
   acquisition_cost: number;
+  image_url?: string;
 
   // Legacy alias kept for existing forms during migration
   category_id?: string;
