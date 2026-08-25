@@ -178,11 +178,15 @@ export function ApplicantForm({
         toast.success(t("applicants.created"));
       }
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as {
+        response?: { data?: { error?: { message?: string; details?: { message?: string } } } };
+        message?: string;
+      };
       const errorMsg =
-        err?.response?.data?.error?.details?.message ||
-        err?.response?.data?.error?.message ||
-        err?.message ||
+        errorObj?.response?.data?.error?.details?.message ||
+        errorObj?.response?.data?.error?.message ||
+        errorObj?.message ||
         "Gagal menyimpan data pelamar";
 
       if (errorMsg.includes("INVALID_LINKEDIN_URL") || errorMsg.includes("LinkedIn")) {

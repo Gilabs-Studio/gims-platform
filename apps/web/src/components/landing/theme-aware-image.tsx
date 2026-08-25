@@ -1,11 +1,10 @@
 "use client";
 
-import Image, { type ImageProps } from "next/image";
 import { useTheme } from "next-themes";
-
 import { useState } from "react";
+import { ProgressiveImage, type ProgressiveImageProps } from "@/components/ui/progressive-image";
 
-type ThemeAwareImageProps = Omit<ImageProps, "src"> & {
+type ThemeAwareImageProps = Omit<ProgressiveImageProps, "src"> & {
   lightSrc: string;
   darkSrc: string;
   fallback?: React.ReactNode;
@@ -29,7 +28,7 @@ export function ThemeAwareImage({
   }
 
   return (
-    <Image
+    <ProgressiveImage
       {...props}
       src={src}
       alt={alt}
@@ -39,4 +38,5 @@ export function ThemeAwareImage({
     />
   );
 }
+
 

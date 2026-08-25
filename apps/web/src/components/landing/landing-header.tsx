@@ -40,8 +40,8 @@ export function LandingHeader() {
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5 select-none">
             <ThemeAwareImage
-              lightSrc="/salesview%20logo%20light.png"
-              darkSrc="/salesview%20logo%20dark.png"
+              lightSrc="/salesview%20logo%20light.webp"
+              darkSrc="/salesview%20logo%20dark.webp"
               alt="SalesView logo"
               width={180}
               height={48}

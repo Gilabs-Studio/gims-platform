@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { useTheme } from "next-themes";
-import Image from "next/image";
+import { ProgressiveImage } from "@/components/ui/progressive-image";
 
 interface AuthLayoutProps {
   readonly children: ReactNode;
@@ -15,9 +15,9 @@ export function AuthLayout({ children, compact = false }: AuthLayoutProps) {
 
   const bgImageSrc = useMemo(() => {
     if (resolvedTheme === "dark") {
-      return "/login2.png";
+      return "/login2.webp";
     }
-    return "/login.png";
+    return "/login.webp";
   }, [resolvedTheme]);
 
   if (compact) {
@@ -33,7 +33,7 @@ export function AuthLayout({ children, compact = false }: AuthLayoutProps) {
       {/* Left Side - Full Image (2/3) */}
       <div className="hidden lg:block lg:w-2/3 p-6">
         <div className="relative h-full w-full overflow-hidden rounded-lg shadow-lg">
-          <Image
+          <ProgressiveImage
             src={bgImageSrc}
             alt="SalesView Platform"
             fill

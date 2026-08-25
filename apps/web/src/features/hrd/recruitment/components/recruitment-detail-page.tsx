@@ -10,9 +10,6 @@ import {
   Clock,
   FileText,
   CheckCircle2,
-  User,
-  Building2,
-  Banknote,
   Plus,
   Send,
   XCircle,
@@ -24,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency } from "@/lib/utils";
@@ -105,7 +101,7 @@ function getStatusBadge(status: RecruitmentStatus, t: (key: string) => string) {
 }
 
 function getRecruitmentTimelineInfo(
-  t: (key: string, values?: Record<string, any>) => string,
+  t: (key: string, values?: Record<string, string | number>) => string,
   locale: string,
   requestDateStr?: string,
   expectedDateStr?: string,

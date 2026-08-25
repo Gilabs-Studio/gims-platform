@@ -99,7 +99,7 @@ function getEmploymentTypeLabel(type: RecruitmentEmploymentType, t: ReturnType<t
 }
 
 function getRecruitmentTimelineInfo(
-  t: (key: string, values?: Record<string, any>) => string,
+  t: (key: string, values?: Record<string, string | number>) => string,
   locale: string,
   requestDateStr?: string,
   expectedDateStr?: string,
