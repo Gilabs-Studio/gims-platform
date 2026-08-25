@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { useRoomBooking } from "@/features/room-booking/hooks/use-room-booking";
-import { RoomFloorMap } from "@/features/room-booking/components/room-floor-map";
 import { CreateBookingModal } from "@/features/room-booking/components/create-booking-modal";
 import { RoomDetailModal } from "@/features/room-booking/components/room-detail-modal";
 import { MyBookingsDrawer } from "@/features/room-booking/components/my-bookings-drawer";
@@ -74,54 +73,34 @@ export default function RoomBookingClient() {
 
   return (
     <PageMotion className="w-full">
-      {/* Full Page Workspace: Clean 3-Column Anchored Calendar View or Visual Floor Map */}
+      {/* Unified Full-Page 3-Column Anchored Hybrid Workspace */}
       <div className="w-full h-[calc(100vh-1px)] overflow-hidden">
-        {activeTab === "map" ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-card rounded-2xl border border-border/60 shadow-xs">
-              <div>
-                <h1 className="text-xl font-bold text-foreground">Visual Floor Map</h1>
-                <p className="text-xs text-muted-foreground">Interactive layout view of office meeting rooms</p>
-              </div>
-              <button
-                onClick={() => setActiveTab("calendar")}
-                className="px-4 py-2 bg-primary text-primary-foreground font-bold text-xs rounded-lg cursor-pointer hover:bg-primary/90 transition-all"
-              >
-                Back to Calendar View
-              </button>
-            </div>
-
-            <RoomFloorMap
-              rooms={rooms}
-              layoutData={layoutData}
-              zoomLevel={zoomLevel}
-              showGrid={showGrid}
-              onSelectRoom={(room) => openDetailModal(room)}
-              onZoomIn={zoomIn}
-              onZoomOut={zoomOut}
-              onResetZoom={resetZoom}
-              onToggleGrid={toggleGrid}
-            />
-          </div>
-        ) : (
-          <RoomCalendar
-            resources={calendarResources}
-            events={calendarEvents}
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-            onSelectSlot={handleSelectSlot}
-            onOpenCreateModal={() => openCreateModal()}
-            onOpenMyBookingsDrawer={openMyBookingsDrawer}
-            onToggleVisualMap={() => setActiveTab((activeTab as string) === "map" ? "calendar" : "map")}
-            isMapActive={(activeTab as string) === "map"}
-            onSelectEvent={(evt) => {
-              const targetRoom = rooms.find((r) => r.id === evt.roomId);
-              if (targetRoom) {
-                openDetailModal(targetRoom);
-              }
-            }}
-          />
-        )}
+        <RoomCalendar
+          resources={calendarResources}
+          events={calendarEvents}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+          onSelectSlot={handleSelectSlot}
+          onOpenCreateModal={() => openCreateModal()}
+          onOpenMyBookingsDrawer={openMyBookingsDrawer}
+          onToggleVisualMap={() => setActiveTab((activeTab as string) === "map" ? "calendar" : "map")}
+          isMapActive={(activeTab as string) === "map"}
+          rawRooms={rooms}
+          layoutData={layoutData}
+          zoomLevel={zoomLevel}
+          showGrid={showGrid}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onResetZoom={resetZoom}
+          onToggleGrid={toggleGrid}
+          onSelectRoomObj={(room) => openDetailModal(room)}
+          onSelectEvent={(evt) => {
+            const targetRoom = rooms.find((r) => r.id === evt.roomId);
+            if (targetRoom) {
+              openDetailModal(targetRoom);
+            }
+          }}
+        />
       </div>
 
       {/* Modals & Drawers */}

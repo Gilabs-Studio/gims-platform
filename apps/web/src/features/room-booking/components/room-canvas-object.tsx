@@ -67,19 +67,19 @@ function RoomZoneObject({
         y={1}
         width={w - 2}
         height={h - 2}
-        rx={10}
+        rx={12}
         fill={colors.fill}
         stroke={isSelected ? "var(--color-primary, #3b82f6)" : colors.stroke}
-        strokeWidth={isSelected ? 3 : 2}
-        className="transition-all duration-200 group-hover:brightness-95 group-hover:stroke-primary"
+        strokeWidth={isSelected ? 3 : 1.5}
+        className="transition-all duration-200 group-hover:brightness-95 group-hover:stroke-primary shadow-2xs"
       />
 
       {/* Room Code Pill Badge (Top Left) */}
       {object.roomCode && (
         <g transform="translate(12, 12)">
-          <rect x={0} y={0} width={44} height={22} rx={6} fill={colors.badgeFill} fillOpacity={0.9} />
+          <rect x={0} y={0} width={46} height={22} rx={6} fill={colors.badgeFill} fillOpacity={0.95} />
           <text
-            x={22}
+            x={23}
             y={11}
             textAnchor="middle"
             dominantBaseline="central"
@@ -93,13 +93,30 @@ function RoomZoneObject({
         </g>
       )}
 
+      {/* Room Capacity Pill Badge (Top Right) */}
+      <g transform={`translate(${w - 64}, 12)`}>
+        <rect x={0} y={0} width={52} height={22} rx={6} fill="var(--color-card, #ffffff)" fillOpacity={0.9} stroke="var(--color-border, #e2e8f0)" strokeWidth={1} />
+        <text
+          x={26}
+          y={11}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={10}
+          fontWeight="600"
+          fill="var(--color-muted-foreground, #64748b)"
+          className="select-none pointer-events-none"
+        >
+          {object.capacity ? `${object.capacity} seats` : "10 seats"}
+        </text>
+      </g>
+
       {/* Room Title Label (Center) */}
       <text
         x={w / 2}
-        y={h / 2}
+        y={h / 2 - 4}
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize={13}
+        fontSize={14}
         fontWeight="700"
         fill="var(--color-foreground, #0f172a)"
         className="select-none pointer-events-none group-hover:fill-primary"
@@ -108,14 +125,15 @@ function RoomZoneObject({
       </text>
 
       {/* Status Dot & Label (Bottom Center) */}
-      <g transform={`translate(${w / 2 - 32}, ${h - 22})`}>
-        <circle cx={6} cy={6} r={4} fill={colors.badgeFill} />
+      <g transform={`translate(${w / 2 - 38}, ${h - 26})`}>
+        <rect x={0} y={0} width={76} height={20} rx={10} fill="var(--color-card, #ffffff)" fillOpacity={0.95} stroke={colors.stroke} strokeWidth={1} />
+        <circle cx={12} cy={10} r={3.5} fill={colors.badgeFill} className={status === "occupied" ? "animate-pulse" : ""} />
         <text
-          x={14}
-          y={6}
+          x={20}
+          y={10}
           dominantBaseline="central"
           fontSize={10}
-          fontWeight="600"
+          fontWeight="700"
           fill={colors.text}
           className="select-none pointer-events-none capitalize"
         >

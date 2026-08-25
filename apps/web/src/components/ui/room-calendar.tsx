@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { Button } from "./button";
 import { Badge } from "./badge";
+import { RoomFloorMap } from "@/features/room-booking/components/room-floor-map";
+import type { Room, RoomLayoutCanvasData } from "@/features/room-booking/types/room-booking.types";
 
 export interface RoomCalendarResource {
   id: string;
@@ -60,6 +62,15 @@ export interface RoomCalendarProps {
   onOpenMyBookingsDrawer?: () => void;
   onToggleVisualMap?: () => void;
   isMapActive?: boolean;
+  rawRooms?: Room[];
+  layoutData?: RoomLayoutCanvasData;
+  zoomLevel?: number;
+  showGrid?: boolean;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onResetZoom?: () => void;
+  onToggleGrid?: () => void;
+  onSelectRoomObj?: (room: Room) => void;
   startHour?: number; // e.g. 7 (07:00)
   endHour?: number; // e.g. 20 (20:00 / 8 PM)
   className?: string;
@@ -67,7 +78,6 @@ export interface RoomCalendarProps {
 
 export type CalendarViewMode = "day" | "week" | "month";
 
-// Soft pastel color palette for rooms & event blocks matching reference design
 const ROOM_PASTEL_COLORS = [
   {
     dot: "bg-blue-500",
@@ -107,14 +117,12 @@ const ROOM_PASTEL_COLORS = [
   },
 ];
 
-// Helper: Convert "HH:mm" to total minutes
 function timeToMinutes(timeStr: string): number {
   if (!timeStr) return 0;
   const [h, m] = timeStr.split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
 }
 
-// Helper: Format Date to YYYY-MM-DD
 function formatDateKey(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -122,7 +130,6 @@ function formatDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-// Helper: Get start of week (Sunday or Monday based)
 function getStartOfWeek(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
@@ -130,14 +137,12 @@ function getStartOfWeek(date: Date): Date {
   return new Date(d.setDate(diff));
 }
 
-// Helper: Format hour (7 AM up to 8 PM)
 function formatHourLabel(hour: number): string {
   if (hour === 0 || hour === 24) return "12 AM";
   if (hour === 12) return "12 PM";
   return hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
 }
 
-// Helper: Format duration text
 function formatDuration(startTime: string, endTime: string): string {
   const startMin = timeToMinutes(startTime);
   const endMin = timeToMinutes(endTime);
@@ -160,6 +165,15 @@ export function RoomCalendar({
   onOpenMyBookingsDrawer,
   onToggleVisualMap,
   isMapActive = false,
+  rawRooms = [],
+  layoutData,
+  zoomLevel = 1,
+  showGrid = true,
+  onZoomIn = () => {},
+  onZoomOut = () => {},
+  onResetZoom = () => {},
+  onToggleGrid = () => {},
+  onSelectRoomObj,
   startHour = 7,
   endHour = 20,
   className = "",
@@ -174,10 +188,8 @@ export function RoomCalendar({
     () => new Set(resources.map((r) => r.id))
   );
 
-  // Selected event for Right Details Sidebar
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  // Sync selectedRoomIds size when resources count changes during render
   const [prevResourcesLength, setPrevResourcesLength] = useState(resources.length);
   if (resources.length !== prevResourcesLength) {
     setPrevResourcesLength(resources.length);
@@ -186,7 +198,6 @@ export function RoomCalendar({
 
   const currentDate = propSelectedDate || internalDate;
 
-  // Ticker for live red line
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
@@ -222,7 +233,6 @@ export function RoomCalendar({
   const todayStr = formatDateKey(now);
   const isToday = formattedDateString === todayStr;
 
-  // Resources mapped with pastel colors
   const resourcesWithColors = useMemo(() => {
     return resources.map((res, index) => {
       const colorObj = ROOM_PASTEL_COLORS[index % ROOM_PASTEL_COLORS.length];
@@ -230,7 +240,6 @@ export function RoomCalendar({
     });
   }, [resources]);
 
-  // Filtered resources by search
   const filteredResources = useMemo(() => {
     return resourcesWithColors.filter((res) => {
       if (selectedRoomIds.size > 0 && !selectedRoomIds.has(res.id)) return false;
@@ -244,7 +253,6 @@ export function RoomCalendar({
     });
   }, [resourcesWithColors, selectedRoomIds, searchQuery]);
 
-  // Generate 7-day week (Sunday to Saturday)
   const weekDays = useMemo(() => {
     const start = getStartOfWeek(currentDate);
     const days: { date: Date; dateStr: string; dayName: string; dayNum: number; isToday: boolean }[] = [];
@@ -264,7 +272,6 @@ export function RoomCalendar({
     return days;
   }, [currentDate, todayStr]);
 
-  // Hours list (07:00 -> 20:00 / 8 PM)
   const hoursList = useMemo(() => {
     const hours: number[] = [];
     for (let h = startHour; h <= endHour; h++) {
@@ -275,7 +282,6 @@ export function RoomCalendar({
 
   const totalGridMinutes = (endHour - startHour) * 60;
 
-  // Calculate live red line percentage position
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const startMinutes = startHour * 60;
   const isNowWithinRange = nowMinutes >= startMinutes && nowMinutes <= endHour * 60;
@@ -283,7 +289,6 @@ export function RoomCalendar({
     ? ((nowMinutes - startMinutes) / totalGridMinutes) * 100
     : null;
 
-  // Mini Month Calendar calculation
   const miniCalDays = useMemo(() => {
     const year = miniCalDate.getFullYear();
     const month = miniCalDate.getMonth();
@@ -328,7 +333,6 @@ export function RoomCalendar({
     return days;
   }, [miniCalDate]);
 
-  // Toggle room selection
   const toggleRoomSelection = (roomId: string) => {
     setSelectedRoomIds((prev) => {
       const next = new Set(prev);
@@ -341,7 +345,6 @@ export function RoomCalendar({
     });
   };
 
-  // Header date range string
   const headerDateLabel = useMemo(() => {
     if (viewMode === "day") {
       return currentDate.toLocaleDateString("en-US", {
@@ -364,7 +367,6 @@ export function RoomCalendar({
     return currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   }, [viewMode, currentDate, weekDays]);
 
-  // Active selected event object for the right sidebar
   const activeEvent = useMemo(() => {
     if (selectedEventId) {
       const found = events.find((e) => e.id === selectedEventId);
@@ -373,12 +375,10 @@ export function RoomCalendar({
     return events[0] || null;
   }, [selectedEventId, events]);
 
-  // Upcoming bookings list for the right sidebar
   const upcomingEvents = useMemo(() => {
     return events.slice(0, 4);
   }, [events]);
 
-  // Dynamic CSS Grid Columns style for Day View to guarantee rooms NEVER wrap to a second row
   const dayGridColsStyle = useMemo(() => {
     const colCount = Math.max(1, filteredResources.length);
     return {
@@ -388,11 +388,8 @@ export function RoomCalendar({
 
   return (
     <div className={`w-full h-full max-h-[calc(100vh-1px)] flex bg-card rounded-2xl border border-border/60 shadow-xs overflow-hidden ${className}`}>
-      {/* ========================================================================= */}
-      {/* COLUMN 1: LEFT ANCHORED SIDEBAR                                          */}
-      {/* ========================================================================= */}
+      {/* COLUMN 1: LEFT ANCHORED SIDEBAR */}
       <aside className="w-[280px] h-full flex flex-col justify-between border-r border-border/60 bg-background/50 p-4 space-y-3 shrink-0 overflow-hidden">
-        {/* Title */}
         <div className="space-y-0.5 min-w-0">
           <h1 className="text-base font-bold text-foreground tracking-tight leading-tight">
             {t("title")}
@@ -402,7 +399,6 @@ export function RoomCalendar({
           </p>
         </div>
 
-        {/* Full-width + New Booking Primary Button */}
         <Button
           onClick={() => onOpenCreateModal?.()}
           className="w-full h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 shrink-0"
@@ -411,7 +407,6 @@ export function RoomCalendar({
           <span>{t("actions.createBooking")}</span>
         </Button>
 
-        {/* Mini Month Calendar */}
         <div className="space-y-2 bg-card p-3 rounded-xl border border-border/40 shadow-2xs shrink-0">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-bold text-foreground">
@@ -471,7 +466,6 @@ export function RoomCalendar({
           </div>
         </div>
 
-        {/* Quick Search Bar */}
         <div className="relative shrink-0">
           <Search className="h-3.5 w-3.5 absolute left-3 top-2.5 text-muted-foreground" />
           <input
@@ -483,7 +477,6 @@ export function RoomCalendar({
           />
         </div>
 
-        {/* Issue 4 Fix: ROOMS Section fills all available vertical space down to the Visual Map button */}
         <div className="space-y-2 flex-1 overflow-y-auto min-h-0 pr-1">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 sticky top-0 bg-background/90 backdrop-blur-xs py-1 z-10">
             <span>ROOMS ({resources.length})</span>
@@ -528,7 +521,6 @@ export function RoomCalendar({
           </div>
         </div>
 
-        {/* Bottom Switcher Button */}
         <Button
           variant="outline"
           onClick={() => onToggleVisualMap?.()}
@@ -548,422 +540,437 @@ export function RoomCalendar({
         </Button>
       </aside>
 
-      {/* ========================================================================= */}
-      {/* COLUMN 2: CENTER CALENDAR GRID                                            */}
-      {/* ========================================================================= */}
+      {/* COLUMN 2: DYNAMIC CENTER WORKSPACE (CALENDAR OR VISUAL FLOOR MAP) */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-background/30">
-        {/* Center Header Toolbar */}
-        <div className="p-3 border-b border-border/60 flex flex-wrap items-center justify-between gap-3 bg-card shrink-0">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleToday}
-              className="h-8 text-xs font-medium px-3 bg-card border-border/60 hover:bg-accent cursor-pointer"
-            >
-              {t("actions.today")}
-            </Button>
-
-            <div className="flex items-center gap-0.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrev}
-                className="h-8 w-8 p-0 border-border/60 bg-card hover:bg-accent cursor-pointer"
-              >
-                <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNext}
-                className="h-8 w-8 p-0 border-border/60 bg-card hover:bg-accent cursor-pointer"
-              >
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-1 cursor-pointer">
-              <h2 className="text-sm font-bold text-foreground">
-                {headerDateLabel}
-              </h2>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </div>
+        {isMapActive ? (
+          /* Render Redesigned RoomFloorMap directly inside Column 2 */
+          <div className="flex-1 h-full overflow-hidden p-2">
+            <RoomFloorMap
+              rooms={rawRooms}
+              layoutData={layoutData}
+              zoomLevel={zoomLevel}
+              showGrid={showGrid}
+              onSelectRoom={(room) => {
+                onSelectRoomObj?.(room);
+                const matchEvt = events.find((e) => e.roomId === room.id);
+                if (matchEvt) setSelectedEventId(matchEvt.id);
+              }}
+              onZoomIn={onZoomIn}
+              onZoomOut={onZoomOut}
+              onResetZoom={onResetZoom}
+              onToggleGrid={onToggleGrid}
+            />
           </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center rounded-lg border border-border/60 bg-muted/20 p-0.5 text-xs">
-              <button
-                onClick={() => setViewMode("day")}
-                className={`cursor-pointer px-3 py-1 rounded-md font-medium text-xs transition-all ${
-                  viewMode === "day"
-                    ? "bg-card text-foreground shadow-2xs font-bold border border-border/40"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t("tabs.dayView")}
-              </button>
-
-              <button
-                onClick={() => setViewMode("week")}
-                className={`cursor-pointer px-3 py-1 rounded-md font-medium text-xs transition-all ${
-                  viewMode === "week"
-                    ? "bg-card text-foreground shadow-2xs font-bold border border-border/40"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t("tabs.weekView")}
-              </button>
-
-              <button
-                onClick={() => setViewMode("month")}
-                className={`cursor-pointer px-3 py-1 rounded-md font-medium text-xs transition-all ${
-                  viewMode === "month"
-                    ? "bg-card text-foreground shadow-2xs font-bold border border-border/40"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t("tabs.monthView")}
-              </button>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs font-medium gap-1.5 border-border/60 bg-card hover:bg-accent cursor-pointer"
-            >
-              <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>{t("actions.filter")}</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* DAY VIEW MODE (Issue 1 & 2 Fix: Unified single-scroll canvas, room headers NEVER wrap) */}
-        {viewMode === "day" && (
-          <div className="flex-1 flex flex-col h-full overflow-hidden">
-            <div className="flex-1 overflow-auto min-h-0">
-              <div className="inline-block min-w-full align-top">
-                {/* Room Headers Row */}
-                <div
-                  style={dayGridColsStyle}
-                  className="grid sticky top-0 z-20 border-b border-border/60 bg-card shadow-2xs"
+        ) : (
+          /* Render Google Calendar Schedule Grid (Day / Week / Month) */
+          <>
+            {/* Center Header Toolbar */}
+            <div className="p-3 border-b border-border/60 flex flex-wrap items-center justify-between gap-3 bg-card shrink-0">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToday}
+                  className="h-8 text-xs font-medium px-3 bg-card border-border/60 hover:bg-accent cursor-pointer"
                 >
-                  <div className="p-3 border-r border-border/60 flex items-center justify-center text-[10px] font-mono font-semibold text-muted-foreground bg-card">
-                    <Clock className="h-4 w-4" />
-                  </div>
-                  {filteredResources.map((res) => (
-                    <div
-                      key={res.id}
-                      className="p-3 border-r border-border/60 flex items-center justify-between bg-card shrink-0 min-w-[180px]"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <div className="relative h-6 w-6 rounded-md overflow-hidden bg-muted border border-border/40 shrink-0">
-                          {res.imageUrl ? (
-                            <Image src={res.imageUrl} alt={res.name} fill sizes="40px" className="object-cover" />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center text-[9px] font-bold text-primary bg-primary/10">
-                              {res.code?.slice(0, 2) || "RM"}
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-xs font-bold text-foreground truncate">{res.name}</span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground font-medium shrink-0">
-                        {res.capacity} seats
-                      </span>
-                    </div>
-                  ))}
+                  {t("actions.today")}
+                </Button>
+
+                <div className="flex items-center gap-0.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrev}
+                    className="h-8 w-8 p-0 border-border/60 bg-card hover:bg-accent cursor-pointer"
+                  >
+                    <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNext}
+                    className="h-8 w-8 p-0 border-border/60 bg-card hover:bg-accent cursor-pointer"
+                  >
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Button>
                 </div>
 
-                {/* Day Schedule Grid Canvas */}
-                <div
-                  style={dayGridColsStyle}
-                  className="relative grid min-h-full"
-                >
-                  {/* Time Column Axis */}
-                  <div className="border-r border-border/60 bg-muted/10 flex flex-col">
-                    {hoursList.map((hour) => (
-                      <div
-                        key={hour}
-                        className="h-[52px] border-b border-border/30 px-2 py-1 text-right text-[10px] font-mono font-semibold text-muted-foreground"
-                      >
-                        {formatHourLabel(hour)}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Room Column Grids */}
-                  {filteredResources.map((res) => {
-                    const resEvents = events.filter((e) => e.date === formattedDateString && e.roomId === res.id);
-                    return (
-                      <div key={res.id} className="relative border-r border-border/40 flex flex-col bg-card/20 min-w-[180px]">
-                        {hoursList.map((hour) => {
-                          const timeSlot = `${String(hour).padStart(2, "0")}:00`;
-                          return (
-                            <div
-                              key={hour}
-                              onClick={() => onSelectSlot?.(res.id, timeSlot)}
-                              className="h-[52px] border-b border-border/30 hover:bg-primary/5 transition-colors cursor-pointer"
-                            />
-                          );
-                        })}
-
-                        {resEvents.map((evt) => {
-                          const startMin = timeToMinutes(evt.startTime);
-                          const endMin = timeToMinutes(evt.endTime);
-                          const gridStartMin = startHour * 60;
-                          const gridEndMin = endHour * 60;
-                          const clampedStart = Math.max(startMin, gridStartMin);
-                          const clampedEnd = Math.min(endMin, gridEndMin);
-                          const durationMin = clampedEnd - clampedStart;
-                          if (durationMin <= 0) return null;
-
-                          const topPercent = ((clampedStart - gridStartMin) / totalGridMinutes) * 100;
-                          const heightPercent = (durationMin / totalGridMinutes) * 100;
-
-                          return (
-                            <div
-                              key={evt.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedEventId(evt.id);
-                                onSelectEvent?.(evt);
-                              }}
-                              style={{ top: `${topPercent}%`, height: `${heightPercent}%` }}
-                              className={`absolute left-1 right-1 z-10 p-2 rounded-lg transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between ${res.colorObj.cardBg}`}
-                            >
-                              <div className="space-y-0.5 min-w-0">
-                                <h4 className="text-xs font-bold truncate leading-tight">{evt.title}</h4>
-                                <p className="text-[10px] font-medium opacity-85 truncate">{evt.startTime} – {evt.endTime}</p>
-                              </div>
-                              <div className="flex items-center justify-end">
-                                <span className="text-[9px] font-bold flex items-center gap-0.5 opacity-80">
-                                  <Users className="h-2.5 w-2.5" />
-                                  {evt.participantsCount || res.capacity || 8}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-
-                  {/* Live Red Line for Today */}
-                  {isToday && nowPercent !== null && (
-                    <div
-                      style={{ top: `${nowPercent}%` }}
-                      className="absolute left-0 right-0 z-30 pointer-events-none -translate-y-1/2 flex items-center"
-                    >
-                      <div className="h-3 w-3 rounded-full bg-red-500 -ml-1.5 border-2 border-background shadow-xs shrink-0 z-10" />
-                      <div className="w-full border-t-2 border-red-500" />
-                    </div>
-                  )}
+                <div className="flex items-center gap-1 cursor-pointer">
+                  <h2 className="text-sm font-bold text-foreground">
+                    {headerDateLabel}
+                  </h2>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* WEEK VIEW MODE */}
-        {viewMode === "week" && (
-          <div className="flex-1 flex flex-col h-full overflow-hidden">
-            <div className="flex-1 overflow-auto min-h-0">
-              <div className="inline-block min-w-full align-top">
-                <div className="grid grid-cols-[65px_repeat(7,minmax(130px,1fr))] border-b border-border/60 bg-card text-center sticky top-0 z-20 shadow-2xs">
-                  <div className="p-3 border-r border-border/60 flex items-center justify-center text-[10px] font-mono font-semibold text-muted-foreground bg-card">
-                    GMT+07
-                  </div>
-                  {weekDays.map((d) => (
-                    <div
-                      key={d.dateStr}
-                      onClick={() => handleDateChange(d.date)}
-                      className={`p-2 border-r border-border/60 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                        d.dateStr === formattedDateString ? "bg-primary/5" : "hover:bg-muted/10"
-                      }`}
-                    >
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                        {d.dayName}
-                      </span>
-                      <div
-                        className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${
-                          d.isToday
-                            ? "bg-primary text-primary-foreground shadow-xs"
-                            : d.dateStr === formattedDateString
-                            ? "border border-primary text-primary"
-                            : "text-foreground"
-                        }`}
-                      >
-                        {d.dayNum}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="relative grid grid-cols-[65px_repeat(7,minmax(130px,1fr))] min-h-full">
-                  <div className="border-r border-border/60 bg-muted/10 flex flex-col">
-                    {hoursList.map((hour) => (
-                      <div
-                        key={hour}
-                        className="h-[52px] border-b border-border/30 px-2 py-1 text-right text-[10px] font-mono font-semibold text-muted-foreground"
-                      >
-                        {formatHourLabel(hour)}
-                      </div>
-                    ))}
-                  </div>
-
-                  {weekDays.map((d) => {
-                    const dayEvts = events.filter((e) => e.date === d.dateStr);
-
-                    return (
-                      <div
-                        key={d.dateStr}
-                        className={`relative border-r border-border/40 flex flex-col ${
-                          d.dateStr === formattedDateString ? "bg-primary/5" : "bg-card/20"
-                        }`}
-                      >
-                        {hoursList.map((hour) => {
-                          const timeSlot = `${String(hour).padStart(2, "0")}:00`;
-                          const defaultRoomId = filteredResources[0]?.id || "";
-                          return (
-                            <div
-                              key={hour}
-                              onClick={() => onSelectSlot?.(defaultRoomId, timeSlot)}
-                              className="h-[52px] border-b border-border/30 hover:bg-primary/5 transition-colors cursor-pointer"
-                            />
-                          );
-                        })}
-
-                        {dayEvts.map((evt) => {
-                          const targetRoom = resourcesWithColors.find((r) => r.id === evt.roomId) || resourcesWithColors[0];
-                          const startMin = timeToMinutes(evt.startTime);
-                          const endMin = timeToMinutes(evt.endTime);
-                          const gridStartMin = startHour * 60;
-                          const gridEndMin = endHour * 60;
-
-                          const clampedStart = Math.max(startMin, gridStartMin);
-                          const clampedEnd = Math.min(endMin, gridEndMin);
-                          const durationMin = clampedEnd - clampedStart;
-
-                          if (durationMin <= 0) return null;
-
-                          const topPercent = ((clampedStart - gridStartMin) / totalGridMinutes) * 100;
-                          const heightPercent = (durationMin / totalGridMinutes) * 100;
-                          const colorObj = targetRoom?.colorObj || ROOM_PASTEL_COLORS[0];
-                          const isSelected = selectedEventId === evt.id;
-
-                          return (
-                            <div
-                              key={evt.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedEventId(evt.id);
-                                onSelectEvent?.(evt);
-                              }}
-                              style={{
-                                top: `${topPercent}%`,
-                                height: `${heightPercent}%`,
-                              }}
-                              className={`absolute left-1 right-1 z-10 p-2 rounded-lg transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between hover:shadow-md ${colorObj.cardBg} ${
-                                isSelected ? "ring-2 ring-primary shadow-md scale-[1.01]" : ""
-                              }`}
-                            >
-                              <div className="space-y-0.5 min-w-0">
-                                <h4 className="text-xs font-bold truncate leading-tight">
-                                  {evt.title}
-                                </h4>
-                                <p className="text-[10px] font-medium opacity-85 truncate">
-                                  {evt.startTime} – {evt.endTime}
-                                </p>
-                                <p className="text-[10px] font-semibold opacity-90 truncate">
-                                  {targetRoom?.name}
-                                </p>
-                              </div>
-
-                              <div className="flex items-center justify-end">
-                                <span className="text-[9px] font-bold flex items-center gap-0.5 opacity-80 bg-background/40 px-1.5 py-0.5 rounded-md">
-                                  <Users className="h-2.5 w-2.5" />
-                                  {evt.participantsCount || targetRoom?.capacity || 8}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-
-                  {nowPercent !== null && (
-                    <div
-                      style={{ top: `${nowPercent}%` }}
-                      className="absolute left-0 right-0 z-30 pointer-events-none -translate-y-1/2 flex items-center"
-                    >
-                      <div className="h-3 w-3 rounded-full bg-red-500 -ml-1.5 border-2 border-background shadow-xs shrink-0 z-10" />
-                      <div className="w-full border-t-2 border-red-500" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* MONTH VIEW MODE */}
-        {viewMode === "month" && (
-          <div className="flex-1 flex flex-col overflow-y-auto min-h-0 h-full">
-            <div className="grid grid-cols-7 border-b border-border/60 bg-card text-center text-[10px] font-bold text-muted-foreground py-2 shrink-0">
-              <span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span>
-            </div>
-            <div className="grid grid-cols-7 flex-1 auto-rows-fr">
-              {miniCalDays.map((d, idx) => {
-                const dayEvts = events.filter((e) => e.date === d.dateStr);
-                const isSelected = d.dateStr === formattedDateString;
-                const isTodayCell = d.dateStr === todayStr;
-
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => handleDateChange(d.date)}
-                    className={`min-h-[90px] p-1.5 border-r border-b border-border/40 flex flex-col gap-1 cursor-pointer transition-colors ${
-                      isSelected ? "bg-primary/5" : d.isCurrentMonth ? "bg-card hover:bg-muted/10" : "bg-muted/20 opacity-40"
+              <div className="flex items-center gap-2">
+                <div className="flex items-center rounded-lg border border-border/60 bg-muted/20 p-0.5 text-xs">
+                  <button
+                    onClick={() => setViewMode("day")}
+                    className={`cursor-pointer px-3 py-1 rounded-md font-medium text-xs transition-all ${
+                      viewMode === "day"
+                        ? "bg-card text-foreground shadow-2xs font-bold border border-border/40"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                      isTodayCell ? "bg-primary text-primary-foreground" : "text-foreground"
-                    }`}>
-                      {d.dayNum}
-                    </span>
-                    <div className="space-y-1 overflow-y-auto">
-                      {dayEvts.slice(0, 2).map((evt) => {
-                        const targetRoom = resourcesWithColors.find((r) => r.id === evt.roomId) || resourcesWithColors[0];
-                        return (
+                    {t("tabs.dayView")}
+                  </button>
+
+                  <button
+                    onClick={() => setViewMode("week")}
+                    className={`cursor-pointer px-3 py-1 rounded-md font-medium text-xs transition-all ${
+                      viewMode === "week"
+                        ? "bg-card text-foreground shadow-2xs font-bold border border-border/40"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t("tabs.weekView")}
+                  </button>
+
+                  <button
+                    onClick={() => setViewMode("month")}
+                    className={`cursor-pointer px-3 py-1 rounded-md font-medium text-xs transition-all ${
+                      viewMode === "month"
+                        ? "bg-card text-foreground shadow-2xs font-bold border border-border/40"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t("tabs.monthView")}
+                  </button>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs font-medium gap-1.5 border-border/60 bg-card hover:bg-accent cursor-pointer"
+                >
+                  <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>{t("actions.filter")}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* DAY VIEW MODE */}
+            {viewMode === "day" && (
+              <div className="flex-1 flex flex-col h-full overflow-hidden">
+                <div className="flex-1 overflow-auto min-h-0">
+                  <div className="inline-block min-w-full align-top">
+                    <div
+                      style={dayGridColsStyle}
+                      className="grid sticky top-0 z-20 border-b border-border/60 bg-card shadow-2xs"
+                    >
+                      <div className="p-3 border-r border-border/60 flex items-center justify-center text-[10px] font-mono font-semibold text-muted-foreground bg-card">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      {filteredResources.map((res) => (
+                        <div
+                          key={res.id}
+                          className="p-3 border-r border-border/60 flex items-center justify-between bg-card shrink-0 min-w-[180px]"
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <div className="relative h-6 w-6 rounded-md overflow-hidden bg-muted border border-border/40 shrink-0">
+                              {res.imageUrl ? (
+                                <Image src={res.imageUrl} alt={res.name} fill sizes="40px" className="object-cover" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-[9px] font-bold text-primary bg-primary/10">
+                                  {res.code?.slice(0, 2) || "RM"}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs font-bold text-foreground truncate">{res.name}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-medium shrink-0">
+                            {res.capacity} seats
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div
+                      style={dayGridColsStyle}
+                      className="relative grid min-h-full"
+                    >
+                      <div className="border-r border-border/60 bg-muted/10 flex flex-col">
+                        {hoursList.map((hour) => (
                           <div
-                            key={evt.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedEventId(evt.id);
-                              onSelectEvent?.(evt);
-                            }}
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-semibold truncate ${targetRoom.colorObj.cardBg}`}
+                            key={hour}
+                            className="h-[52px] border-b border-border/30 px-2 py-1 text-right text-[10px] font-mono font-semibold text-muted-foreground"
                           >
-                            {evt.startTime} {evt.title}
+                            {formatHourLabel(hour)}
+                          </div>
+                        ))}
+                      </div>
+
+                      {filteredResources.map((res) => {
+                        const resEvents = events.filter((e) => e.date === formattedDateString && e.roomId === res.id);
+                        return (
+                          <div key={res.id} className="relative border-r border-border/40 flex flex-col bg-card/20 min-w-[180px]">
+                            {hoursList.map((hour) => {
+                              const timeSlot = `${String(hour).padStart(2, "0")}:00`;
+                              return (
+                                <div
+                                  key={hour}
+                                  onClick={() => onSelectSlot?.(res.id, timeSlot)}
+                                  className="h-[52px] border-b border-border/30 hover:bg-primary/5 transition-colors cursor-pointer"
+                                />
+                              );
+                            })}
+
+                            {resEvents.map((evt) => {
+                              const startMin = timeToMinutes(evt.startTime);
+                              const endMin = timeToMinutes(evt.endTime);
+                              const gridStartMin = startHour * 60;
+                              const gridEndMin = endHour * 60;
+                              const clampedStart = Math.max(startMin, gridStartMin);
+                              const clampedEnd = Math.min(endMin, gridEndMin);
+                              const durationMin = clampedEnd - clampedStart;
+                              if (durationMin <= 0) return null;
+
+                              const topPercent = ((clampedStart - gridStartMin) / totalGridMinutes) * 100;
+                              const heightPercent = (durationMin / totalGridMinutes) * 100;
+
+                              return (
+                                <div
+                                  key={evt.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEventId(evt.id);
+                                    onSelectEvent?.(evt);
+                                  }}
+                                  style={{ top: `${topPercent}%`, height: `${heightPercent}%` }}
+                                  className={`absolute left-1 right-1 z-10 p-2 rounded-lg transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between ${res.colorObj.cardBg}`}
+                                >
+                                  <div className="space-y-0.5 min-w-0">
+                                    <h4 className="text-xs font-bold truncate leading-tight">{evt.title}</h4>
+                                    <p className="text-[10px] font-medium opacity-85 truncate">{evt.startTime} – {evt.endTime}</p>
+                                  </div>
+                                  <div className="flex items-center justify-end">
+                                    <span className="text-[9px] font-bold flex items-center gap-0.5 opacity-80">
+                                      <Users className="h-2.5 w-2.5" />
+                                      {evt.participantsCount || res.capacity || 8}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}
+
+                      {isToday && nowPercent !== null && (
+                        <div
+                          style={{ top: `${nowPercent}%` }}
+                          className="absolute left-0 right-0 z-30 pointer-events-none -translate-y-1/2 flex items-center"
+                        >
+                          <div className="h-3 w-3 rounded-full bg-red-500 -ml-1.5 border-2 border-background shadow-xs shrink-0 z-10" />
+                          <div className="w-full border-t-2 border-red-500" />
+                        </div>
+                      )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                </div>
+              </div>
+            )}
+
+            {/* WEEK VIEW MODE */}
+            {viewMode === "week" && (
+              <div className="flex-1 flex flex-col h-full overflow-hidden">
+                <div className="flex-1 overflow-auto min-h-0">
+                  <div className="inline-block min-w-full align-top">
+                    <div className="grid grid-cols-[65px_repeat(7,minmax(130px,1fr))] border-b border-border/60 bg-card text-center sticky top-0 z-20 shadow-2xs">
+                      <div className="p-3 border-r border-border/60 flex items-center justify-center text-[10px] font-mono font-semibold text-muted-foreground bg-card">
+                        GMT+07
+                      </div>
+                      {weekDays.map((d) => (
+                        <div
+                          key={d.dateStr}
+                          onClick={() => handleDateChange(d.date)}
+                          className={`p-2 border-r border-border/60 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                            d.dateStr === formattedDateString ? "bg-primary/5" : "hover:bg-muted/10"
+                          }`}
+                        >
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                            {d.dayName}
+                          </span>
+                          <div
+                            className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${
+                              d.isToday
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : d.dateStr === formattedDateString
+                                ? "border border-primary text-primary"
+                                : "text-foreground"
+                            }`}
+                          >
+                            {d.dayNum}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="relative grid grid-cols-[65px_repeat(7,minmax(130px,1fr))] min-h-full">
+                      <div className="border-r border-border/60 bg-muted/10 flex flex-col">
+                        {hoursList.map((hour) => (
+                          <div
+                            key={hour}
+                            className="h-[52px] border-b border-border/30 px-2 py-1 text-right text-[10px] font-mono font-semibold text-muted-foreground"
+                          >
+                            {formatHourLabel(hour)}
+                          </div>
+                        ))}
+                      </div>
+
+                      {weekDays.map((d) => {
+                        const dayEvts = events.filter((e) => e.date === d.dateStr);
+
+                        return (
+                          <div
+                            key={d.dateStr}
+                            className={`relative border-r border-border/40 flex flex-col ${
+                              d.dateStr === formattedDateString ? "bg-primary/5" : "bg-card/20"
+                            }`}
+                          >
+                            {hoursList.map((hour) => {
+                              const timeSlot = `${String(hour).padStart(2, "0")}:00`;
+                              const defaultRoomId = filteredResources[0]?.id || "";
+                              return (
+                                <div
+                                  key={hour}
+                                  onClick={() => onSelectSlot?.(defaultRoomId, timeSlot)}
+                                  className="h-[52px] border-b border-border/30 hover:bg-primary/5 transition-colors cursor-pointer"
+                                />
+                              );
+                            })}
+
+                            {dayEvts.map((evt) => {
+                              const targetRoom = resourcesWithColors.find((r) => r.id === evt.roomId) || resourcesWithColors[0];
+                              const startMin = timeToMinutes(evt.startTime);
+                              const endMin = timeToMinutes(evt.endTime);
+                              const gridStartMin = startHour * 60;
+                              const gridEndMin = endHour * 60;
+
+                              const clampedStart = Math.max(startMin, gridStartMin);
+                              const clampedEnd = Math.min(endMin, gridEndMin);
+                              const durationMin = clampedEnd - clampedStart;
+
+                              if (durationMin <= 0) return null;
+
+                              const topPercent = ((clampedStart - gridStartMin) / totalGridMinutes) * 100;
+                              const heightPercent = (durationMin / totalGridMinutes) * 100;
+                              const colorObj = targetRoom?.colorObj || ROOM_PASTEL_COLORS[0];
+                              const isSelected = selectedEventId === evt.id;
+
+                              return (
+                                <div
+                                  key={evt.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedEventId(evt.id);
+                                    onSelectEvent?.(evt);
+                                  }}
+                                  style={{
+                                    top: `${topPercent}%`,
+                                    height: `${heightPercent}%`,
+                                  }}
+                                  className={`absolute left-1 right-1 z-10 p-2 rounded-lg transition-all duration-200 cursor-pointer overflow-hidden flex flex-col justify-between hover:shadow-md ${colorObj.cardBg} ${
+                                    isSelected ? "ring-2 ring-primary shadow-md scale-[1.01]" : ""
+                                  }`}
+                                >
+                                  <div className="space-y-0.5 min-w-0">
+                                    <h4 className="text-xs font-bold truncate leading-tight">
+                                      {evt.title}
+                                    </h4>
+                                    <p className="text-[10px] font-medium opacity-85 truncate">
+                                      {evt.startTime} – {evt.endTime}
+                                    </p>
+                                    <p className="text-[10px] font-semibold opacity-90 truncate">
+                                      {targetRoom?.name}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center justify-end">
+                                    <span className="text-[9px] font-bold flex items-center gap-0.5 opacity-80 bg-background/40 px-1.5 py-0.5 rounded-md">
+                                      <Users className="h-2.5 w-2.5" />
+                                      {evt.participantsCount || targetRoom?.capacity || 8}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+
+                      {nowPercent !== null && (
+                        <div
+                          style={{ top: `${nowPercent}%` }}
+                          className="absolute left-0 right-0 z-30 pointer-events-none -translate-y-1/2 flex items-center"
+                        >
+                          <div className="h-3 w-3 rounded-full bg-red-500 -ml-1.5 border-2 border-background shadow-xs shrink-0 z-10" />
+                          <div className="w-full border-t-2 border-red-500" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MONTH VIEW MODE */}
+            {viewMode === "month" && (
+              <div className="flex-1 flex flex-col overflow-y-auto min-h-0 h-full">
+                <div className="grid grid-cols-7 border-b border-border/60 bg-card text-center text-[10px] font-bold text-muted-foreground py-2 shrink-0">
+                  <span>SUN</span><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span>
+                </div>
+                <div className="grid grid-cols-7 flex-1 auto-rows-fr">
+                  {miniCalDays.map((d, idx) => {
+                    const dayEvts = events.filter((e) => e.date === d.dateStr);
+                    const isSelected = d.dateStr === formattedDateString;
+                    const isTodayCell = d.dateStr === todayStr;
+
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => handleDateChange(d.date)}
+                        className={`min-h-[90px] p-1.5 border-r border-b border-border/40 flex flex-col gap-1 cursor-pointer transition-colors ${
+                          isSelected ? "bg-primary/5" : d.isCurrentMonth ? "bg-card hover:bg-muted/10" : "bg-muted/20 opacity-40"
+                        }`}
+                      >
+                        <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                          isTodayCell ? "bg-primary text-primary-foreground" : "text-foreground"
+                        }`}>
+                          {d.dayNum}
+                        </span>
+                        <div className="space-y-1 overflow-y-auto">
+                          {dayEvts.slice(0, 2).map((evt) => {
+                            const targetRoom = resourcesWithColors.find((r) => r.id === evt.roomId) || (resourcesWithColors.length > 0 ? resourcesWithColors[0] : undefined);
+                            const cardBg = targetRoom?.colorObj?.cardBg || "bg-primary/10 text-primary";
+                            return (
+                              <div
+                                key={evt.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedEventId(evt.id);
+                                  onSelectEvent?.(evt);
+                                }}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-semibold truncate ${cardBg}`}
+                              >
+                                {evt.startTime} {evt.title}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* ========================================================================= */}
-      {/* COLUMN 3: RIGHT ANCHORED DETAILS & UPCOMING PANEL                         */}
-      {/* ========================================================================= */}
+      {/* COLUMN 3: RIGHT ANCHORED DETAILS & UPCOMING PANEL */}
       <aside className="w-[310px] h-full flex flex-col justify-between border-l border-border/60 bg-background/50 p-4 space-y-4 shrink-0 overflow-hidden min-h-0">
-        {/* Booking Details Section */}
         {activeEvent ? (
           <div className="space-y-3 shrink-0">
             <div className="flex items-center justify-between">
@@ -977,10 +984,22 @@ export function RoomCalendar({
             </div>
 
             <div className="space-y-3 bg-card p-3.5 rounded-xl border border-border/50 shadow-2xs">
-              <Badge variant="success" className="gap-1 px-2.5 py-0.5 text-xs font-semibold">
-                <Check className="h-3 w-3 stroke-[3]" />
-                <span>Confirmed</span>
-              </Badge>
+              {activeEvent.status === "cancelled" ? (
+                <Badge variant="destructive" className="gap-1 px-2.5 py-0.5 text-xs font-semibold">
+                  <X className="h-3 w-3 stroke-[3]" />
+                  <span>Cancelled</span>
+                </Badge>
+              ) : activeEvent.status === "reserved" || activeEvent.status === "pending" ? (
+                <Badge variant="warning" className="gap-1 px-2.5 py-0.5 text-xs font-semibold">
+                  <Clock className="h-3 w-3 stroke-[3]" />
+                  <span>Reserved</span>
+                </Badge>
+              ) : (
+                <Badge variant="success" className="gap-1 px-2.5 py-0.5 text-xs font-semibold">
+                  <Check className="h-3 w-3 stroke-[3]" />
+                  <span>Confirmed</span>
+                </Badge>
+              )}
 
               <h2 className="text-base font-bold text-foreground tracking-tight leading-snug">
                 {activeEvent.title}
@@ -1036,19 +1055,21 @@ export function RoomCalendar({
           </div>
         ) : (
           <div className="p-3 text-center text-xs text-muted-foreground bg-card rounded-xl border border-border/40 shrink-0">
-            Select an event on the calendar to view full details.
+            Select an event on the calendar or floor map to view full details.
           </div>
         )}
 
-        {/* UPCOMING BOOKINGS Section */}
         <div className="space-y-2 flex-1 overflow-y-auto min-h-0 pr-0.5">
           <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 sticky top-0 bg-background/80 backdrop-blur-xs py-0.5 z-10">
             UPCOMING BOOKINGS
           </h4>
 
-          <div className="space-y-2">
             {upcomingEvents.map((evt, idx) => {
-              const targetRoom = resourcesWithColors.find((r) => r.id === evt.roomId) || resourcesWithColors[idx % resourcesWithColors.length];
+              const targetRoom = resourcesWithColors.find((r) => r.id === evt.roomId) || (resourcesWithColors.length > 0 ? resourcesWithColors[idx % resourcesWithColors.length] : undefined);
+              const roomName = targetRoom?.name || evt.roomName || "Meeting Room";
+              const roomImage = targetRoom?.imageUrl;
+              const dotColor = targetRoom?.colorObj?.dot || "bg-primary";
+
               return (
                 <div
                   key={evt.id}
@@ -1057,23 +1078,21 @@ export function RoomCalendar({
                 >
                   <div className="flex items-center gap-2 text-[10px] font-semibold text-muted-foreground">
                     <div className="relative h-4 w-4 rounded overflow-hidden bg-muted border border-border/40 shrink-0">
-                      {targetRoom.imageUrl ? (
-                        <Image src={targetRoom.imageUrl} alt={targetRoom.name} fill sizes="40px" className="object-cover" />
+                      {roomImage ? (
+                        <Image src={roomImage} alt={roomName} fill sizes="40px" className="object-cover" />
                       ) : (
-                        <div className={`h-full w-full ${targetRoom.colorObj.dot}`} />
+                        <div className={`h-full w-full ${dotColor}`} />
                       )}
                     </div>
                     <span>{idx === 0 ? "Tomorrow • 9:30 AM" : `${evt.date} • ${evt.startTime}`}</span>
                   </div>
                   <h5 className="text-xs font-bold text-foreground truncate">{evt.title}</h5>
-                  <p className="text-[10px] text-muted-foreground font-medium">{targetRoom.name}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">{roomName}</p>
                 </div>
               );
             })}
-          </div>
         </div>
 
-        {/* Bottom Action Button */}
         <Button
           variant="outline"
           onClick={() => onOpenMyBookingsDrawer?.()}
