@@ -200,7 +200,7 @@ export function SalesRepDetailPage({
         {/* Right Column - 1/3: Employee Info Sidebar */}
         <div className="space-y-6">
           {/* Employee Information Card */}
-          <div className="rounded-lg border">
+          <div className="rounded-lg border bg-card">
             <div className="px-3 py-3 border-b">
               <h2 className="text-base font-medium">{t("detail.employeeInfo")}</h2>
             </div>
@@ -262,7 +262,7 @@ export function SalesRepDetailPage({
           </div>
 
           {/* Performance Summary Card */}
-          <div className="rounded-lg border">
+          <div className="rounded-lg border bg-card">
             <div className="px-3 py-3 border-b">
               <h2 className="text-base font-medium">{t("detail.performanceSummary")}</h2>
             </div>

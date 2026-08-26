@@ -49,14 +49,14 @@ export function SalesRepStatistics({ statistics }: SalesRepStatisticsProps) {
         const Icon = stat.icon;
 
         return (
-          <div key={index} className="rounded-lg border p-3">
+          <div key={index} className="rounded-xl border bg-card p-5 shadow-xs flex flex-col justify-between hover:border-primary/40 transition-colors">
             <div className="flex items-center justify-between pb-2">
-              <div className="text-sm font-medium text-muted-foreground">
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {stat.label}
               </div>
-              <Icon className="h-4 w-4 text-muted-foreground" />
+              <Icon className="h-4 w-4 text-primary" />
             </div>
-            <div className="text-2xl font-medium">{stat.value}</div>
+            <div className="text-2xl font-bold font-mono tracking-tight">{stat.value}</div>
             {stat.subtitle && (
               <div className="text-xs text-muted-foreground mt-1">
                 {stat.subtitle}

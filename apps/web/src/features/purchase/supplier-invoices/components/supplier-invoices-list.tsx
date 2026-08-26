@@ -321,7 +321,7 @@ export function SupplierInvoicesList() {
         )}
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

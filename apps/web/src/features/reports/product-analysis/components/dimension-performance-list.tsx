@@ -103,7 +103,7 @@ export function DimensionPerformanceList({
       {/* search is rendered in parent header */}
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

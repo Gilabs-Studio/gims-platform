@@ -391,7 +391,7 @@ export function CustomerInvoiceDPList() {
         <div className="text-center py-8 text-destructive">{tCommon("error")}</div>
       ) : null}
 
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>

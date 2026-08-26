@@ -246,25 +246,25 @@ export function SalesOverviewChart({
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
-          <div className="space-y-1">
+          <div className="rounded-lg border bg-card/70 p-3 shadow-2xs space-y-1">
             <p className="text-xs text-muted-foreground">{metricLabels.revenue}</p>
-            <p className="text-lg font-medium">{formatCurrency(totals.revenue)}</p>
+            <p className="text-lg font-semibold font-mono tracking-tight">{formatCurrency(totals.revenue)}</p>
           </div>
-          <div className="space-y-1">
+          <div className="rounded-lg border bg-card/70 p-3 shadow-2xs space-y-1">
             <p className="text-xs text-muted-foreground">{metricLabels.cash_in}</p>
-            <p className="text-lg font-medium">{formatCurrency(totals.cash_in)}</p>
+            <p className="text-lg font-semibold font-mono tracking-tight">{formatCurrency(totals.cash_in)}</p>
           </div>
-          <div className="space-y-1">
+          <div className="rounded-lg border bg-card/70 p-3 shadow-2xs space-y-1">
             <p className="text-xs text-muted-foreground">{metricLabels.orders}</p>
-            <p className="text-lg font-medium">{formatNumber(totals.orders)}</p>
+            <p className="text-lg font-semibold font-mono tracking-tight">{formatNumber(totals.orders)}</p>
           </div>
-          <div className="space-y-1">
+          <div className="rounded-lg border bg-card/70 p-3 shadow-2xs space-y-1">
             <p className="text-xs text-muted-foreground">{metricLabels.visits}</p>
-            <p className="text-lg font-medium">{formatNumber(totals.visits)}</p>
+            <p className="text-lg font-semibold font-mono tracking-tight">{formatNumber(totals.visits)}</p>
           </div>
-          <div className="space-y-1">
+          <div className="rounded-lg border bg-card/70 p-3 shadow-2xs space-y-1">
             <p className="text-xs text-muted-foreground">{metricLabels.deliveries}</p>
-            <p className="text-lg font-medium">{formatNumber(totals.deliveries)}</p>
+            <p className="text-lg font-semibold font-mono tracking-tight">{formatNumber(totals.deliveries)}</p>
           </div>
         </div>
       </CardHeader>
