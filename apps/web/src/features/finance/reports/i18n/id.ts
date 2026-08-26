@@ -156,4 +156,8 @@ export const financeReportsId = {
   company_id_label: "Company ID",
   fiscal_year_id_label: "Fiscal Year ID",
   fiscal_year_placeholder: "FY-2026",
+  tooltip_balance_sheet_table: "Rincian lengkap posisi keuangan Aset, Kewajiban, dan Ekuitas",
+  total_liabilities_equity: "Total Kewajiban & Ekuitas",
+  bs_balanced_badge: "Seimbang",
+  bs_unbalanced_badge: "Tidak Seimbang",
 };
