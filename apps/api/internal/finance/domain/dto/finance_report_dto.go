@@ -111,3 +111,69 @@ type ProfitAndLossResponse struct {
 	PreviousPeriod   *ProfitAndLossComparison `json:"previous_period,omitempty"`
 	YearToDate       *ProfitAndLossComparison `json:"year_to_date,omitempty"`
 }
+
+type CashFlowSummaryResponse struct {
+	NetCashFlow              float64 `json:"net_cash_flow"`
+	NetCashFlowGrowthPercent float64 `json:"net_cash_flow_growth_percent"`
+	CashInflow               float64 `json:"cash_inflow"`
+	CashInflowGrowthPercent  float64 `json:"cash_inflow_growth_percent"`
+	CashOutflow              float64 `json:"cash_outflow"`
+	CashOutflowGrowthPercent float64 `json:"cash_outflow_growth_percent"`
+	EndingCashBalance        float64 `json:"ending_cash_balance"`
+	EndingCashBalanceDate    string  `json:"ending_cash_balance_date"`
+	PreviousPeriodName       string  `json:"previous_period_name"`
+}
+
+type CashFlowTrendPoint struct {
+	Period      string  `json:"period"`
+	Label       string  `json:"label"`
+	CashInflow  float64 `json:"cash_inflow"`
+	CashOutflow float64 `json:"cash_outflow"`
+	NetCashFlow float64 `json:"net_cash_flow"`
+}
+
+type CashFlowTrendResponse struct {
+	Months []CashFlowTrendPoint `json:"months"`
+}
+
+type CashFlowYtdSummaryResponse struct {
+	TotalCashInflow    float64 `json:"total_cash_inflow"`
+	TotalCashOutflow   float64 `json:"total_cash_outflow"`
+	NetCashFlow        float64 `json:"net_cash_flow"`
+	OpeningCashBalance float64 `json:"opening_cash_balance"`
+	OpeningCashDate    string  `json:"opening_cash_date"`
+	EndingCashBalance  float64 `json:"ending_cash_balance"`
+	EndingCashDate     string  `json:"ending_cash_date"`
+}
+
+type MultiPeriodRow struct {
+	AccountID   string             `json:"account_id,omitempty"`
+	Code        string             `json:"code"`
+	Name        string             `json:"name"`
+	AccountType string             `json:"account_type,omitempty"`
+	Amounts     map[string]float64 `json:"amounts"`
+	Drilldown   *Drilldown         `json:"drilldown,omitempty"`
+}
+
+type MultiPeriodSection struct {
+	Name   string             `json:"name"`
+	Items  []MultiPeriodRow   `json:"items"`
+	Totals map[string]float64 `json:"totals"`
+}
+
+type PeriodMeta struct {
+	Key      string `json:"key"`
+	Label    string `json:"label"`
+	SubLabel string `json:"sub_label"`
+}
+
+type CashFlowStatementTableResponse struct {
+	Periods            []PeriodMeta       `json:"periods"`
+	Operating          MultiPeriodSection `json:"operating"`
+	Investing          MultiPeriodSection `json:"investing"`
+	Financing          MultiPeriodSection `json:"financing"`
+	NetIncreaseCash    map[string]float64 `json:"net_increase_cash"`
+	OpeningCashBalance map[string]float64 `json:"opening_cash_balance"`
+	EndingCashBalance  map[string]float64 `json:"ending_cash_balance"`
+}
+

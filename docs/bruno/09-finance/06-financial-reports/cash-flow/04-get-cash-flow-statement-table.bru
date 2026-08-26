@@ -1,0 +1,28 @@
+meta {
+  name: Get Cash Flow Statement Table
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/api/v1/finance/reports/cash-flow/statement?start_date=2026-05-01&end_date=2026-05-31
+  body: none
+  auth: none
+}
+
+params:query {
+  start_date: 2026-05-01
+  end_date: 2026-05-31
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get detailed 4-period comparison table data for Cash Flow Statement (Current Month, M-1, M-2, YTD).
+  Permission required: `cash_flow_statement.read`
+}

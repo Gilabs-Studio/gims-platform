@@ -24,6 +24,10 @@ type FinanceReportUsecase interface {
 	GetProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitAndLossResponse, error)
 	GetTrialBalance(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.TrialBalanceResponse, error)
 	GetCashFlow(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowReport, error)
+	GetCashFlowSummary(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowSummaryResponse, error)
+	GetCashFlowTrend(ctx context.Context, endDate time.Time, months int, companyID, fiscalYearID *string) (*dto.CashFlowTrendResponse, error)
+	GetCashFlowYtdSummary(ctx context.Context, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowYtdSummaryResponse, error)
+	GetCashFlowStatementTable(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowStatementTableResponse, error)
 	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) ([]byte, error)
 	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string, includeZero bool) ([]byte, error)
 	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]byte, error)
@@ -887,6 +891,352 @@ func (uc *financeReportUsecase) GetCashFlow(ctx context.Context, startDate, endD
 		EndingCash:        roundMoney(endingCash),
 		IsReconciled:      isReconciled,
 		ReconciliationGap: reconciliationGap,
+	}, nil
+}
+
+var indoMonths = map[time.Month]string{
+	time.January:   "Jan",
+	time.February:  "Feb",
+	time.March:     "Mar",
+	time.April:     "Apr",
+	time.May:       "Mei",
+	time.June:      "Jun",
+	time.July:      "Jul",
+	time.August:    "Agu",
+	time.September: "Sep",
+	time.October:   "Okt",
+	time.November:  "Nov",
+	time.December:  "Des",
+}
+
+func formatMonthYearIndo(t time.Time) string {
+	return fmt.Sprintf("%s %d", indoMonths[t.Month()], t.Year())
+}
+
+func formatDateIndo(t time.Time) string {
+	return fmt.Sprintf("%02d %s %d", t.Day(), indoMonths[t.Month()], t.Year())
+}
+
+func calcGrowthPercent(current, previous float64) float64 {
+	if previous == 0 {
+		if current > 0 {
+			return 100.0
+		}
+		if current < 0 {
+			return -100.0
+		}
+		return 0.0
+	}
+	return roundMoney(((current - previous) / math.Abs(previous)) * 100)
+}
+
+func (uc *financeReportUsecase) getPeriodCashInflowOutflow(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (inflow float64, outflow float64, err error) {
+	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+	companyID = normalizeReportScopeID(companyID)
+	fiscalYearID = normalizeReportScopeID(fiscalYearID)
+
+	query := uc.db.WithContext(ctx).
+		Preload("JournalEntry").
+		Preload("ChartOfAccount").
+		Joins("JOIN journal_entries je ON je.id = journal_lines.journal_entry_id").
+		Where("je.status = ?", financeModels.JournalStatusPosted).
+		Where("je.entry_date >= ?", startDate).
+		Where("je.entry_date <= ?", endDate).
+		Where("je.deleted_at IS NULL").
+		Where("journal_lines.deleted_at IS NULL").
+		Where("je.source = ? OR je.source = ?", financeModels.JournalSourceOperational, financeModels.JournalSourceValuation)
+	if companyID != nil {
+		query = query.Where("je.company_id = ?", *companyID)
+	}
+	if fiscalYearID != nil {
+		query = query.Where("je.fiscal_year_id = ?", *fiscalYearID)
+	}
+
+	var lines []financeModels.JournalLine
+	if err := query.Find(&lines).Error; err != nil {
+		return 0, 0, err
+	}
+
+	for _, line := range lines {
+		if isCashFlowExcludedEntry(line.JournalEntry) {
+			continue
+		}
+		if line.ChartOfAccount != nil && line.ChartOfAccount.Type == financeModels.AccountTypeCashBank {
+			if line.Debit > 0 {
+				inflow += line.Debit
+			}
+			if line.Credit > 0 {
+				outflow += line.Credit
+			}
+		}
+	}
+
+	return roundMoney(inflow), roundMoney(outflow), nil
+}
+
+func (uc *financeReportUsecase) getEndingCashBalanceAsOf(ctx context.Context, asOfDate time.Time, companyID, fiscalYearID *string) (float64, error) {
+	allCoas, err := uc.coaRepo.FindAll(ctx, false)
+	if err != nil {
+		return 0, err
+	}
+	cashAccountIDs := make([]string, 0)
+	for _, coa := range allCoas {
+		if coa.Type == financeModels.AccountTypeCashBank {
+			cashAccountIDs = append(cashAccountIDs, coa.ID)
+		}
+	}
+	if len(cashAccountIDs) == 0 {
+		return 0, nil
+	}
+
+	startDate := time.Date(1970, 1, 1, 0, 0, 0, 0, asOfDate.Location())
+	endDate := time.Date(asOfDate.Year(), asOfDate.Month(), asOfDate.Day(), 23, 59, 59, 999999999, asOfDate.Location())
+	balances, err := uc.reportRepo.GetAccountBalancesByAccounts(ctx, cashAccountIDs, startDate, endDate, normalizeReportScopeID(companyID), normalizeReportScopeID(fiscalYearID))
+	if err != nil {
+		return 0, err
+	}
+
+	totalEnding := 0.0
+	for _, id := range cashAccountIDs {
+		totalEnding += balances[id].ClosingBalance
+	}
+	return roundMoney(totalEnding), nil
+}
+
+func (uc *financeReportUsecase) GetCashFlowSummary(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowSummaryResponse, error) {
+	inflow0, outflow0, err := uc.getPeriodCashInflowOutflow(ctx, startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		return nil, err
+	}
+	netCashFlow0 := roundMoney(inflow0 - outflow0)
+
+	durationDays := int(endDate.Sub(startDate).Hours()/24) + 1
+	if durationDays < 1 {
+		durationDays = 30
+	}
+	prevEnd := startDate.AddDate(0, 0, -1)
+	prevStart := prevEnd.AddDate(0, 0, -(durationDays - 1))
+
+	inflow1, outflow1, err := uc.getPeriodCashInflowOutflow(ctx, prevStart, prevEnd, companyID, fiscalYearID)
+	if err != nil {
+		inflow1, outflow1 = 0, 0
+	}
+	netCashFlow1 := roundMoney(inflow1 - outflow1)
+
+	endingCash, err := uc.getEndingCashBalanceAsOf(ctx, endDate, companyID, fiscalYearID)
+	if err != nil {
+		endingCash = 0
+	}
+
+	return &dto.CashFlowSummaryResponse{
+		NetCashFlow:              netCashFlow0,
+		NetCashFlowGrowthPercent: calcGrowthPercent(netCashFlow0, netCashFlow1),
+		CashInflow:               inflow0,
+		CashInflowGrowthPercent:  calcGrowthPercent(inflow0, inflow1),
+		CashOutflow:              outflow0,
+		CashOutflowGrowthPercent: calcGrowthPercent(outflow0, outflow1),
+		EndingCashBalance:        endingCash,
+		EndingCashBalanceDate:    formatDateIndo(endDate),
+		PreviousPeriodName:       formatMonthYearIndo(prevEnd),
+	}, nil
+}
+
+func (uc *financeReportUsecase) GetCashFlowTrend(ctx context.Context, endDate time.Time, months int, companyID, fiscalYearID *string) (*dto.CashFlowTrendResponse, error) {
+	if months <= 0 {
+		months = 6
+	}
+
+	points := make([]dto.CashFlowTrendPoint, 0, months)
+	for i := months - 1; i >= 0; i-- {
+		targetMonthDate := endDate.AddDate(0, -i, 0)
+		startOfMonth := time.Date(targetMonthDate.Year(), targetMonthDate.Month(), 1, 0, 0, 0, 0, endDate.Location())
+		endOfMonth := startOfMonth.AddDate(0, 1, -1)
+
+		inflow, outflow, err := uc.getPeriodCashInflowOutflow(ctx, startOfMonth, endOfMonth, companyID, fiscalYearID)
+		if err != nil {
+			inflow, outflow = 0, 0
+		}
+		net := roundMoney(inflow - outflow)
+
+		points = append(points, dto.CashFlowTrendPoint{
+			Period:      startOfMonth.Format("2006-01"),
+			Label:       formatMonthYearIndo(startOfMonth),
+			CashInflow:  inflow,
+			CashOutflow: outflow,
+			NetCashFlow: net,
+		})
+	}
+
+	return &dto.CashFlowTrendResponse{Months: points}, nil
+}
+
+func (uc *financeReportUsecase) GetCashFlowYtdSummary(ctx context.Context, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowYtdSummaryResponse, error) {
+	ytdStart := time.Date(endDate.Year(), time.January, 1, 0, 0, 0, 0, endDate.Location())
+
+	inflow, outflow, err := uc.getPeriodCashInflowOutflow(ctx, ytdStart, endDate, companyID, fiscalYearID)
+	if err != nil {
+		return nil, err
+	}
+	net := roundMoney(inflow - outflow)
+
+	openingCash, err := uc.getEndingCashBalanceAsOf(ctx, ytdStart.AddDate(0, 0, -1), companyID, fiscalYearID)
+	if err != nil {
+		openingCash = 0
+	}
+
+	endingCash, err := uc.getEndingCashBalanceAsOf(ctx, endDate, companyID, fiscalYearID)
+	if err != nil {
+		endingCash = 0
+	}
+
+	return &dto.CashFlowYtdSummaryResponse{
+		TotalCashInflow:    inflow,
+		TotalCashOutflow:   outflow,
+		NetCashFlow:        net,
+		OpeningCashBalance: openingCash,
+		OpeningCashDate:    formatDateIndo(ytdStart),
+		EndingCashBalance:  endingCash,
+		EndingCashDate:     formatDateIndo(endDate),
+	}, nil
+}
+
+func (uc *financeReportUsecase) GetCashFlowStatementTable(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowStatementTableResponse, error) {
+	m0Start := startDate
+	m0End := endDate
+
+	m1End := m0Start.AddDate(0, 0, -1)
+	m1Start := time.Date(m1End.Year(), m1End.Month(), 1, 0, 0, 0, 0, endDate.Location())
+
+	m2End := m1Start.AddDate(0, 0, -1)
+	m2Start := time.Date(m2End.Year(), m2End.Month(), 1, 0, 0, 0, 0, endDate.Location())
+
+	ytdStart := time.Date(endDate.Year(), time.January, 1, 0, 0, 0, 0, endDate.Location())
+	ytdEnd := endDate
+
+	type rangePair struct {
+		key      string
+		start    time.Time
+		end      time.Time
+		label    string
+		subLabel string
+	}
+
+	ranges := []rangePair{
+		{
+			key:      "m0",
+			start:    m0Start,
+			end:      m0End,
+			label:    formatMonthYearIndo(m0End),
+			subLabel: fmt.Sprintf("%s - %s", m0Start.Format("02 Jan"), m0End.Format("02 Jan")),
+		},
+		{
+			key:      "m1",
+			start:    m1Start,
+			end:      m1End,
+			label:    formatMonthYearIndo(m1End),
+			subLabel: fmt.Sprintf("%s - %s", m1Start.Format("02 Jan"), m1End.Format("02 Jan")),
+		},
+		{
+			key:      "m2",
+			start:    m2Start,
+			end:      m2End,
+			label:    formatMonthYearIndo(m2End),
+			subLabel: fmt.Sprintf("%s - %s", m2Start.Format("02 Jan"), m2End.Format("02 Jan")),
+		},
+		{
+			key:      "ytd",
+			start:    ytdStart,
+			end:      ytdEnd,
+			label:    fmt.Sprintf("YTD %d", ytdEnd.Year()),
+			subLabel: fmt.Sprintf("%s - %s", ytdStart.Format("02 Jan"), ytdEnd.Format("02 Jan")),
+		},
+	}
+
+	periodsMeta := make([]dto.PeriodMeta, 0, len(ranges))
+	for _, r := range ranges {
+		periodsMeta = append(periodsMeta, dto.PeriodMeta{
+			Key:      r.key,
+			Label:    r.label,
+			SubLabel: r.subLabel,
+		})
+	}
+
+	reports := make(map[string]*dto.CashFlowReport, len(ranges))
+	for _, r := range ranges {
+		rep, err := uc.GetCashFlow(ctx, r.start, r.end, companyID, fiscalYearID)
+		if err != nil {
+			rep = &dto.CashFlowReport{}
+		}
+		reports[r.key] = rep
+	}
+
+	buildMultiSection := func(name string, extractSection func(r *dto.CashFlowReport) dto.CashFlowSection) dto.MultiPeriodSection {
+		rowsMap := make(map[string]*dto.MultiPeriodRow)
+		totals := make(map[string]float64)
+
+		for _, r := range ranges {
+			sec := extractSection(reports[r.key])
+			totals[r.key] = sec.Amount
+
+			for _, item := range sec.Items {
+				itemKey := item.Code
+				row := rowsMap[itemKey]
+				if row == nil {
+					row = &dto.MultiPeriodRow{
+						AccountID:   item.AccountID,
+						Code:        item.Code,
+						Name:        item.Name,
+						AccountType: item.AccountType,
+						Amounts:     make(map[string]float64),
+						Drilldown:   item.Drilldown,
+					}
+					rowsMap[itemKey] = row
+				}
+				row.Amounts[r.key] = item.Amount
+			}
+		}
+
+		itemsList := make([]dto.MultiPeriodRow, 0, len(rowsMap))
+		for _, row := range rowsMap {
+			for _, r := range ranges {
+				if _, ok := row.Amounts[r.key]; !ok {
+					row.Amounts[r.key] = 0
+				}
+			}
+			itemsList = append(itemsList, *row)
+		}
+		sort.Slice(itemsList, func(i, j int) bool { return itemsList[i].Code < itemsList[j].Code })
+
+		return dto.MultiPeriodSection{
+			Name:   name,
+			Items:  itemsList,
+			Totals: totals,
+		}
+	}
+
+	opSection := buildMultiSection("A. CASH FLOW FROM OPERATING ACTIVITIES", func(r *dto.CashFlowReport) dto.CashFlowSection { return r.Operating })
+	invSection := buildMultiSection("B. CASH FLOW FROM INVESTING ACTIVITIES", func(r *dto.CashFlowReport) dto.CashFlowSection { return r.Investing })
+	finSection := buildMultiSection("C. CASH FLOW FROM FINANCING ACTIVITIES", func(r *dto.CashFlowReport) dto.CashFlowSection { return r.Financing })
+
+	netIncrease := make(map[string]float64)
+	openingBalances := make(map[string]float64)
+	endingBalances := make(map[string]float64)
+
+	for _, r := range ranges {
+		rep := reports[r.key]
+		netIncrease[r.key] = rep.NetChange
+		openingBalances[r.key] = rep.BeginningCash
+		endingBalances[r.key] = rep.EndingCash
+	}
+
+	return &dto.CashFlowStatementTableResponse{
+		Periods:            periodsMeta,
+		Operating:          opSection,
+		Investing:          invSection,
+		Financing:          finSection,
+		NetIncreaseCash:    netIncrease,
+		OpeningCashBalance: openingBalances,
+		EndingCashBalance:  endingBalances,
 	}, nil
 }
 

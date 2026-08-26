@@ -158,6 +158,67 @@ func (h *FinanceReportHandler) CashFlow(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *FinanceReportHandler) CashFlowSummary(c *gin.Context) {
+	startDate := parseDateWithAliases(c, []string{"from_date", "start_date"}, apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+	fiscalYearID := parseOptionalFiscalYearID(c)
+
+	res, err := h.uc.GetCashFlowSummary(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "CASH_FLOW_SUMMARY_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *FinanceReportHandler) CashFlowTrend(c *gin.Context) {
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+	fiscalYearID := parseOptionalFiscalYearID(c)
+	monthsStr := c.Query("months")
+	months := 6
+	if monthsStr != "" {
+		if m, err := strconv.Atoi(monthsStr); err == nil && m > 0 {
+			months = m
+		}
+	}
+
+	res, err := h.uc.GetCashFlowTrend(c.Request.Context(), endDate, months, companyID, fiscalYearID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "CASH_FLOW_TREND_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *FinanceReportHandler) CashFlowYtdSummary(c *gin.Context) {
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+	fiscalYearID := parseOptionalFiscalYearID(c)
+
+	res, err := h.uc.GetCashFlowYtdSummary(c.Request.Context(), endDate, companyID, fiscalYearID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "CASH_FLOW_YTD_SUMMARY_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *FinanceReportHandler) CashFlowStatementTable(c *gin.Context) {
+	startDate := parseDateWithAliases(c, []string{"from_date", "start_date"}, apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+	fiscalYearID := parseOptionalFiscalYearID(c)
+
+	res, err := h.uc.GetCashFlowStatementTable(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "CASH_FLOW_STATEMENT_TABLE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())

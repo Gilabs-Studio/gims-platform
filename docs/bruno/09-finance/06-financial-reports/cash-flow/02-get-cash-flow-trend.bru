@@ -1,0 +1,28 @@
+meta {
+  name: Get Cash Flow Trend
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/api/v1/finance/reports/cash-flow/trend?end_date=2026-05-31&months=6
+  body: none
+  auth: none
+}
+
+params:query {
+  end_date: 2026-05-31
+  months: 6
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Get monthly trend chart series data (Cash Inflow, Cash Outflow, Net Cash Flow) for the Cash Flow Trend chart widget.
+  Permission required: `cash_flow_statement.read`
+}

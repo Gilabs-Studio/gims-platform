@@ -29,4 +29,8 @@ func RegisterFinanceReportExRoutes(rg *gin.RouterGroup, h *handler.FinanceReport
 	g.GET("/export/profit-loss", middleware.RequirePermission(profitLossReportExport), h.ExportProfitAndLoss)
 	g.GET("/cash-flow-statement", middleware.RequirePermission(cashFlowReportRead), h.CashFlow)
 	g.GET("/cash-flow", middleware.RequirePermission(cashFlowReportRead), h.CashFlow)
+	g.GET("/cash-flow/summary", middleware.RequirePermission(cashFlowReportRead), h.CashFlowSummary)
+	g.GET("/cash-flow/trend", middleware.RequirePermission(cashFlowReportRead), h.CashFlowTrend)
+	g.GET("/cash-flow/ytd-summary", middleware.RequirePermission(cashFlowReportRead), h.CashFlowYtdSummary)
+	g.GET("/cash-flow/statement", middleware.RequirePermission(cashFlowReportRead), h.CashFlowStatementTable)
 }
