@@ -7,8 +7,6 @@ import type {
   ListJournalEntriesParams,
   ListValuationRunsParams,
   RunValuationInput,
-  TrialBalanceParams,
-  TrialBalanceResponse,
   UpdateJournalEntryInput,
   ValuationPreview,
   ValuationApiResponse,
@@ -308,18 +306,6 @@ export const financeJournalsService = {
   ): Promise<ApiResponse<ValuationRun>> => {
     const response = await apiClient.get<ApiResponse<ValuationRun>>(
       `${BASE_URL}/valuation/runs/${id}`,
-    );
-    return response.data;
-  },
-
-  trialBalance: async (
-    params?: TrialBalanceParams,
-  ): Promise<ApiResponse<TrialBalanceResponse>> => {
-    const response = await apiClient.get<ApiResponse<TrialBalanceResponse>>(
-      `/finance/reports/trial-balance`,
-      {
-        params,
-      },
     );
     return response.data;
   },

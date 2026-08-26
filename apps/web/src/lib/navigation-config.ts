@@ -600,13 +600,6 @@ export const navigationConfig: NavItem[] = [
             permission: FINANCE_PERMISSIONS.REPORT.GENERAL_LEDGER_READ,
           },
           {
-            name: "Trial Balance",
-            i18nKey: "trialBalance",
-            url: "/finance/reports/trial-balance",
-            icon: "scale",
-            permission: FINANCE_PERMISSIONS.REPORT.TRIAL_BALANCE_READ,
-          },
-          {
             name: "Balance Sheet",
             i18nKey: "balanceSheet",
             url: "/finance/reports/balance-sheet",

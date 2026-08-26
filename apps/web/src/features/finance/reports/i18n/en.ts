@@ -157,6 +157,7 @@ export const financeReportsEn = {
   fiscal_year_id_label: "Fiscal Year ID",
   fiscal_year_placeholder: "FY-2026",
   tooltip_balance_sheet_table: "Complete details of financial position: Assets, Liabilities, and Equity",
+  tooltip_gl_table: "Complete details of opening balance, total debit/credit movements, and closing balance per account",
   total_liabilities_equity: "Total Liabilities & Equity",
   bs_balanced_badge: "Balanced",
   bs_unbalanced_badge: "Unbalanced",

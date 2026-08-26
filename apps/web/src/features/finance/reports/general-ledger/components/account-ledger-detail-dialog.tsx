@@ -11,10 +11,6 @@ function formatDate(value: string | null | undefined): string {
   return formatDateUtil(value);
 }
 
-// Ensure the same logic is used... wait, I need access to journal opening logic too.
-// Let's pass 'onViewJournal' and 'onViewSource' to keep the component dumb.
-// Actually, let's keep the logic outside or pass it in.
-
 interface Props {
   account: GeneralLedgerAccount | null;
   open: boolean;
@@ -62,6 +58,10 @@ export function AccountLedgerDetailDialog({ account, open, onOpenChange, onViewJ
               ) : (
                 account.transactions.map((transaction, idx) => {
                   const canOpenSource = transaction.reference_type ? canResolveSourceDetail(transaction.reference_type) : false;
+                  const debitVal = transaction.debit ?? 0;
+                  const creditVal = transaction.credit ?? 0;
+                  const runningBal = transaction.running_balance ?? 0;
+
                   return (
                     <TableRow key={`${transaction.journal_id}-${transaction.id}-${idx}`}>
                       <TableCell className="text-xs">{formatDate(transaction.entry_date)}</TableCell>
@@ -70,9 +70,15 @@ export function AccountLedgerDetailDialog({ account, open, onOpenChange, onViewJ
                       </TableCell>
                       <TableCell className="text-sm">{transaction.description || "-"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{transaction.memo || "-"}</TableCell>
-                      <TableCell className="text-right text-xs font-mono">{formatCurrency(transaction.debit)}</TableCell>
-                      <TableCell className="text-right text-xs font-mono">{formatCurrency(transaction.credit)}</TableCell>
-                      <TableCell className="text-right text-xs font-mono font-semibold">{formatCurrency(transaction.running_balance)}</TableCell>
+                      <TableCell className={`text-right text-xs font-mono ${debitVal > 0 ? "text-success" : "text-foreground"}`}>
+                        {formatCurrency(debitVal)}
+                      </TableCell>
+                      <TableCell className={`text-right text-xs font-mono ${creditVal > 0 ? "text-destructive" : "text-foreground"}`}>
+                        {formatCurrency(creditVal)}
+                      </TableCell>
+                      <TableCell className={`text-right text-xs font-mono font-semibold ${runningBal < 0 ? "text-destructive" : runningBal > 0 ? "text-success" : "text-foreground"}`}>
+                        {formatCurrency(runningBal)}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           {canOpenSource && onViewSource && (

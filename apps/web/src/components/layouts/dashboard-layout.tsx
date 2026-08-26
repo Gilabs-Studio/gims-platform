@@ -85,7 +85,6 @@ function mapFinanceMenuUrl(url?: string): string | undefined {
     "/finance/fixed-assets/depreciation-schedule": "/finance/asset-batch-depreciation",
     "/finance/fixed-assets/disposal": "/finance/asset-disposal",
     "/finance/fixed-assets/revaluation": "/finance/asset-revaluation",
-    "/finance/reports/trial-balance": "/finance/reports/general-ledger",
   };
 
   return mappings[url] ?? url;

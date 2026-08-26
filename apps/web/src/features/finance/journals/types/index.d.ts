@@ -116,28 +116,6 @@ export interface CreateJournalEntryInput {
 
 export type UpdateJournalEntryInput = CreateJournalEntryInput;
 
-export interface TrialBalanceParams {
-  start_date?: string;
-  end_date?: string;
-  company_id?: string;
-}
-
-export interface TrialBalanceRow {
-  chart_of_account_id: string;
-  code: string;
-  name: string;
-  type: string;
-  debit_total: number;
-  credit_total: number;
-  balance: number;
-}
-
-export interface TrialBalanceResponse {
-  start_date?: string | null;
-  end_date?: string | null;
-  rows: TrialBalanceRow[];
-}
-
 // ===== Valuation Run Types =====
 
 export type ValuationRunStatus =

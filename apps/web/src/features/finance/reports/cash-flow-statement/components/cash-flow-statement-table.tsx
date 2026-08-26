@@ -127,7 +127,7 @@ export function CashFlowStatementTable({ params }: CashFlowStatementTableProps) 
                     <TableCell
                       key={p.key}
                       className={`text-right py-2.5 font-mono text-xs sm:text-sm tabular-nums ${
-                        isNegative ? "text-destructive" : "text-foreground"
+                        val < 0 ? "text-destructive" : val > 0 ? "text-success" : "text-foreground"
                       }`}
                     >
                       {formatAccountingCurrency(val)}

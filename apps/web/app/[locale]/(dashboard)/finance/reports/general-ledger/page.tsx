@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PermissionGuard } from "@/features/auth/components/permission-guard";
 import { PageMotion } from "@/components/motion";
+import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 const GeneralLedgerView = dynamic(
   () =>
@@ -46,7 +47,7 @@ function ReportSkeleton() {
 
 export default function GeneralLedgerPage() {
   return (
-    <PermissionGuard requiredPermission="general_ledger_report.read">
+    <PermissionGuard requiredPermission={FINANCE_PERMISSIONS.REPORT.GENERAL_LEDGER_READ}>
       <PageMotion>
         <Suspense fallback={<ReportSkeleton />}>
           <GeneralLedgerView />

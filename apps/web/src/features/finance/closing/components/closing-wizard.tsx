@@ -369,7 +369,7 @@ function StepPreCheck({
                 "There are differences between opening and closing balances. Please review the trial balance."}
             </p>
             <Button asChild variant="outline" size="sm" className="mt-3 cursor-pointer">
-              <Link href="/finance/reports/trial-balance">
+              <Link href="/finance/reports/general-ledger">
                 {t("wizard.precheck.openTrialBalance") || "Open Trial Balance"}
               </Link>
             </Button>
@@ -432,7 +432,7 @@ function StepReview({
               : t("wizard.review.showDifferencesOnly") || "Show Differences Only"}
           </Button>
           <Button asChild type="button" variant="outline" size="sm" className="cursor-pointer">
-            <Link href="/finance/reports/trial-balance">
+            <Link href="/finance/reports/general-ledger">
               {t("wizard.review.openTrialBalance") || "Open Trial Balance"}
             </Link>
           </Button>

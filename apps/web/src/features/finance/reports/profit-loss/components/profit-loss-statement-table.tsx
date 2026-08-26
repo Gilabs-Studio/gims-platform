@@ -135,7 +135,7 @@ export function ProfitLossStatementTable({ params }: ProfitLossStatementTablePro
             <TableCell
               key={p.key}
               className={`text-right py-2.5 font-mono text-xs sm:text-sm tabular-nums ${
-                isNegativeValue ? "text-destructive font-medium" : "text-foreground"
+                isNegativeValue ? "text-destructive font-medium" : val > 0 ? "text-success font-medium" : "text-foreground"
               }`}
             >
               {formatAccountingCurrency(val)}
@@ -283,7 +283,7 @@ export function ProfitLossStatementTable({ params }: ProfitLossStatementTablePro
                     );
                   }
                   return (
-                    <TableCell key={p.key} className="text-right py-4 font-mono text-xs sm:text-sm tabular-nums font-extrabold text-primary">
+                    <TableCell key={p.key} className={`text-right py-4 font-mono text-xs sm:text-sm tabular-nums font-extrabold ${val < 0 ? "text-destructive" : val > 0 ? "text-success" : "text-foreground"}`}>
                       {formatAccountingCurrency(val)}
                     </TableCell>
                   );

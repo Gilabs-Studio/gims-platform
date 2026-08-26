@@ -58,7 +58,6 @@ const EXTRA_VALID_ROUTES = [
   "/finance/settings/inventory",
   "/finance/settings/opening-balance",
   "/finance/reports/general-ledger",
-  "/finance/reports/trial-balance",
   "/finance/reports/balance-sheet",
   "/finance/reports/profit-loss",
   "/finance/reports/cash-flow-statement",

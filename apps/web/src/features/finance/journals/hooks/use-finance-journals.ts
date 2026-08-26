@@ -9,7 +9,6 @@ import type {
   ListJournalEntriesParams,
   ListValuationRunsParams,
   RunValuationInput,
-  TrialBalanceParams,
   UpdateJournalEntryInput,
   ListCashBankSubLedgerParams,
   AdjustmentApprovalActionInput,
@@ -36,8 +35,6 @@ export const financeJournalKeys = {
     [...financeJournalKeys.all, "cash-bank-subledger", params] as const,
   details: () => [...financeJournalKeys.all, "detail"] as const,
   detail: (id: string) => [...financeJournalKeys.details(), id] as const,
-  trialBalance: (params?: TrialBalanceParams) =>
-    [...financeJournalKeys.all, "trial-balance", params] as const,
   valuationRuns: () => [...financeJournalKeys.all, "valuation-runs"] as const,
   valuationRunList: (params?: ListValuationRunsParams) =>
     [...financeJournalKeys.valuationRuns(), "list", params] as const,
@@ -387,17 +384,6 @@ export function useValuationRunDetail(id: string) {
   });
 }
 
-export function useTrialBalance(
-  params?: TrialBalanceParams,
-  options?: { enabled?: boolean },
-) {
-  return useQuery({
-    queryKey: financeJournalKeys.trialBalance(params),
-    queryFn: () => financeJournalsService.trialBalance(params),
-    enabled: options?.enabled !== undefined ? options.enabled : true,
-    staleTime: 60_000,
-  });
-}
 
 export function useValuationReconciliation(id: string, options?: { enabled?: boolean }) {
   return useQuery({

@@ -26,7 +26,6 @@ import {
 import { JournalForm } from "./journal-form";
 import { JournalDetailModal } from "./journal-detail-modal";
 import { canResolveJournalSourceDetail, JournalSourceDetailModal } from "./journal-source-detail-modal";
-import { TrialBalanceDialog } from "./trial-balance-dialog";
 import { JournalTable, mapJournalToUnifiedRow } from "./journal-table";
 import type { UnifiedJournalRow } from "./journal-table";
 import { JournalActionMenu } from "./journal-action-menu";
@@ -50,7 +49,6 @@ export function JournalsList() {
   const initialOpenJournalId = getInitialOpenJournalFromURL();
 
   const canCreate = useUserPermission(FINANCE_PERMISSIONS.JOURNAL.CREATE);
-  const canViewTrialBalance = useUserPermission(FINANCE_PERMISSIONS.REPORT.TRIAL_BALANCE_READ);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -76,7 +74,6 @@ export function JournalsList() {
   const [isReferenceModalOpen, setIsReferenceModalOpen] = useState(false);
 
   const [viewOpen, setViewOpen] = useState<boolean>(!!initialOpenJournalId);
-  const [trialBalanceOpen, setTrialBalanceOpen] = useState(false);
 
   const [deletingItem, setDeletingItem] = useState<JournalEntry | null>(null);
 
@@ -126,35 +123,23 @@ export function JournalsList() {
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
 
-        {(canCreate || canViewTrialBalance) && (
+        {canCreate && (
           <div className="flex items-center gap-2">
-            {canViewTrialBalance && (
-              <Button
-                variant="outline"
-                className="cursor-pointer"
-                onClick={() => setTrialBalanceOpen(true)}
-              >
-                {t("actions.trialBalance")}
-              </Button>
-            )}
-            {canCreate && (
-              <Button
-                onClick={() => {
-                  setViewOpen(false);
-                  setFormMode("create");
-                  setSelectedFormId(null);
-                  setFormOpen(true);
-                }}
-                className="cursor-pointer"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t("actions.create")}
-              </Button>
-            )}
+            <Button
+              onClick={() => {
+                setViewOpen(false);
+                setFormMode("create");
+                setSelectedFormId(null);
+                setFormOpen(true);
+              }}
+              className="cursor-pointer"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {t("actions.create")}
+            </Button>
           </div>
         )}
       </div>
-
 
       <div className="flex flex-col sm:flex-row items-end gap-4">
         <div className="w-full sm:flex-1 max-w-sm space-y-2">
@@ -301,8 +286,6 @@ export function JournalsList() {
         }}
         row={selectedReferenceRow}
       />
-
-      <TrialBalanceDialog open={trialBalanceOpen} onOpenChange={setTrialBalanceOpen} />
 
       <DeleteDialog
         open={!!deletingItem}

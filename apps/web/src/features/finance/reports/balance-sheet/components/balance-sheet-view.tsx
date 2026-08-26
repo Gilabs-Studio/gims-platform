@@ -402,7 +402,9 @@ export function BalanceSheetView() {
                             <TableCell className="py-2.5 text-xs sm:text-sm font-medium text-foreground">
                               {a.name}
                             </TableCell>
-                            <TableCell className="text-right py-2.5 font-mono text-xs sm:text-sm tabular-nums text-foreground font-medium">
+                            <TableCell className={`text-right py-2.5 font-mono text-xs sm:text-sm tabular-nums font-medium ${
+                              (a.amount ?? 0) < 0 ? "text-destructive" : (a.amount ?? 0) > 0 ? "text-success" : "text-foreground"
+                            }`}>
                               {formatCurrency(a.amount ?? 0)}
                             </TableCell>
                           </TableRow>
@@ -453,7 +455,9 @@ export function BalanceSheetView() {
                             <TableCell className="py-2.5 text-xs sm:text-sm font-medium text-foreground">
                               {l.name}
                             </TableCell>
-                            <TableCell className="text-right py-2.5 font-mono text-xs sm:text-sm tabular-nums text-foreground font-medium">
+                            <TableCell className={`text-right py-2.5 font-mono text-xs sm:text-sm tabular-nums font-medium ${
+                              (l.amount ?? 0) < 0 ? "text-destructive" : (l.amount ?? 0) > 0 ? "text-success" : "text-foreground"
+                            }`}>
                               {formatCurrency(l.amount ?? 0)}
                             </TableCell>
                           </TableRow>
@@ -504,7 +508,9 @@ export function BalanceSheetView() {
                             <TableCell className="py-2.5 text-xs sm:text-sm font-medium text-foreground">
                               {e.name}
                             </TableCell>
-                            <TableCell className="text-right py-2.5 font-mono text-xs sm:text-sm tabular-nums text-foreground font-medium">
+                            <TableCell className={`text-right py-2.5 font-mono text-xs sm:text-sm tabular-nums font-medium ${
+                              (e.amount ?? 0) < 0 ? "text-destructive" : (e.amount ?? 0) > 0 ? "text-success" : "text-foreground"
+                            }`}>
                               {formatCurrency(e.amount ?? 0)}
                             </TableCell>
                           </TableRow>

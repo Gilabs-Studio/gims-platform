@@ -129,13 +129,12 @@ export const FINANCE_PERMISSIONS = {
   REPORT: {
     GENERAL_LEDGER_READ: "general_ledger_report.read",
     GENERAL_LEDGER_EXPORT: "general_ledger_report.export",
-    TRIAL_BALANCE_READ: "trial_balance_report.read",
-    TRIAL_BALANCE_EXPORT: "trial_balance_report.export",
     BALANCE_SHEET_READ: "balance_sheet_report.read",
     BALANCE_SHEET_EXPORT: "balance_sheet_report.export",
     PROFIT_LOSS_READ: "profit_loss_report.read",
     PROFIT_LOSS_EXPORT: "profit_loss_report.export",
     CASH_FLOW_STATEMENT_READ: "cash_flow_statement.read",
+    CASH_FLOW_STATEMENT_EXPORT: "cash_flow_statement.export",
   },
   INVENTORY_SETTINGS: {
     READ: "inventory_settings.read",
