@@ -129,7 +129,7 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
         </DialogHeader>
@@ -238,7 +238,7 @@ export function BankAccountForm({ open, onOpenChange, mode, id, onCreated }: Pro
             />
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:space-x-3">
             <Button
               type="button"
               variant="outline"

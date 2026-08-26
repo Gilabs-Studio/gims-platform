@@ -121,7 +121,7 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent size="lg">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
         </DialogHeader>
@@ -263,7 +263,7 @@ export function TaxInvoiceForm({ open, onOpenChange, mode, initialData }: Props)
             <Textarea id="notes" rows={4} {...form.register("notes")} />
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:space-x-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer" disabled={isSubmitting}>
               {t("form.cancel")}
             </Button>

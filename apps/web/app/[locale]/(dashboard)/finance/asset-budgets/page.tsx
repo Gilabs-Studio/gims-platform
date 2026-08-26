@@ -6,7 +6,7 @@ export default function AssetBudgetsPage() {
   return (
     <PermissionGuard requiredPermission="asset_budget.read">
       <PageMotion>
-        <div className="p-6">
+        <div>
           <Card>
             <CardHeader>
               <CardTitle>Asset Budgets</CardTitle>

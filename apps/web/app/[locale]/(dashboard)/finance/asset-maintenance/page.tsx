@@ -6,7 +6,7 @@ export default function AssetMaintenancePage() {
   return (
     <PermissionGuard requiredPermission="asset_maintenance.read">
       <PageMotion>
-        <div className="p-6">
+        <div>
           <Card>
             <CardHeader>
               <CardTitle>Asset Maintenance</CardTitle>

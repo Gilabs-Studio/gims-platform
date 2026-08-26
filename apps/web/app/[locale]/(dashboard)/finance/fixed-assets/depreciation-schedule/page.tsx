@@ -94,7 +94,7 @@ export default function DepreciationSchedulePage() {
 
   return (
     <PermissionGuard requiredPermission={FINANCE_PERMISSIONS.ASSET.DEPRECIATE}>
-      <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
+      <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-8 text-white shadow-2xl">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute left-0 top-0 h-40 w-40 rounded-full bg-cyan-400 blur-3xl" />
@@ -311,7 +311,7 @@ export default function DepreciationSchedulePage() {
               </AlertDescription>
             </Alert>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3 sm:space-x-3">
             <Button variant="outline" onClick={() => setRunConfirmOpen(false)}>{tCommon('actions.cancel')}</Button>
             <Button onClick={() => runMutation.mutate()} disabled={runMutation.isPending}>
               {runMutation.isPending ? `${t('buttons.generatePending')}...` : t('buttons.generatePending')}
@@ -342,7 +342,7 @@ export default function DepreciationSchedulePage() {
               </AlertDescription>
             </Alert>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-3 sm:space-x-3">
             <Button variant="outline" onClick={() => setApproveConfirmOpen(false)}>{tCommon('actions.cancel')}</Button>
             <Button onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending || pendingCount === 0}>
               {approveMutation.isPending ? `${t('buttons.approvePosting')}...` : t('buttons.approvePosting')}

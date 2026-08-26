@@ -124,7 +124,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>{mode === "create" ? t("form.createTitle") : t("form.editTitle")}</DialogTitle>
         </DialogHeader>
@@ -267,7 +267,7 @@ export function CoaForm({ open, onOpenChange, mode, initialData, parentOptions }
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:space-x-3">
             <Button
               type="button"
               variant="outline"

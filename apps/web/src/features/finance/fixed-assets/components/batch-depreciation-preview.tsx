@@ -112,10 +112,10 @@ export function BatchDepreciationPreview({
           <CardTitle>{t("period")}</CardTitle>
           <CardDescription>{t("selectPeriod")}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="month">{t("month")}</Label>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+            <div className="space-y-2">
+              <Label htmlFor="month" className="text-sm font-medium">{t("month")}</Label>
               <Select
                 value={month}
                 onValueChange={onMonthChange}
@@ -132,8 +132,8 @@ export function BatchDepreciationPreview({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="year">{t("year")}</Label>
+            <div className="space-y-2">
+              <Label htmlFor="year" className="text-sm font-medium">{t("year")}</Label>
               <Select
                 value={year}
                 onValueChange={onYearChange}
@@ -152,22 +152,25 @@ export function BatchDepreciationPreview({
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-3 pt-2">
             <Button
+              type="button"
               onClick={onPreview}
               disabled={!month || !year || isLoadingPreview || !canDepreciate}
               variant="outline"
+              className="cursor-pointer"
             >
               {isLoadingPreview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {canDepreciate ? t("preview") : t("preview")}
+              {t("preview")}
             </Button>
             <Button
+              type="button"
               onClick={onRun}
               disabled={!previewData || isRunning || !canDepreciate}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isRunning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {canDepreciate ? t("run") : t("run")}
+              {t("run")}
             </Button>
           </div>
 

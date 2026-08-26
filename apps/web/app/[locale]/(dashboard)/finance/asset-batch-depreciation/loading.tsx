@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function BatchDepreciationLoading() {
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <div className="space-y-2">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-96" />

@@ -265,7 +265,7 @@ export function BudgetForm({ open, onOpenChange, mode, id, initialData }: Props)
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-3 sm:space-x-3">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer" disabled={isSubmitting}>
                 {t("form.cancel")}
               </Button>

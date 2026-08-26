@@ -5,7 +5,7 @@ import { PageMotion } from "@/components/motion";
 
 export default function GeneralLedgerLoading() {
   return (
-    <PageMotion className="p-6 space-y-6">
+    <PageMotion className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-2">
           <Skeleton className="h-9 w-64" />

@@ -44,7 +44,7 @@ export default function AssetBatchDepreciationPage() {
   return (
     <PermissionGuard requiredPermission="asset.depreciate">
       <PageMotion>
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Batch Depreciation</h1>
             <p className="text-muted-foreground">Run or preview depreciation for all assets in a given period.</p>

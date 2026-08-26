@@ -17,7 +17,7 @@ export default function AssetDisposalPage() {
   return (
     <PermissionGuard requiredPermission="asset.dispose">
       <PageMotion>
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Asset Disposal</h1>
             <p className="text-muted-foreground">Manage asset disposal, write-off, and retirement workflows.</p>

@@ -68,7 +68,7 @@ export function ClosingForm({ open, onOpenChange }: Props) {
             <Textarea id="notes" rows={4} {...form.register("notes")} />
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:space-x-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
               {t("form.cancel")}
             </Button>

@@ -128,7 +128,7 @@ export function TrialBalanceDialog({ open, onOpenChange }: Props) {
           </div>
         )}
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-3 sm:space-x-3">
           <Button type="button" variant="outline" className="cursor-pointer" onClick={() => onOpenChange(false)}>
             {tCommon("close")}
           </Button>

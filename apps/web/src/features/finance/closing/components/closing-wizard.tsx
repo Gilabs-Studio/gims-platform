@@ -186,7 +186,7 @@ export function ClosingWizard({ open, onOpenChange, closing }: ClosingWizardProp
         </div>
 
         {/* Footer */}
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-3 sm:space-x-3">
           {step !== "complete" && (
             <Button
               type="button"

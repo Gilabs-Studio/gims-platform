@@ -368,7 +368,7 @@ function DialogApprove({
         <DialogHeader>
           <DialogTitle>{t("actions.approve")}</DialogTitle>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-3 sm:space-x-3">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
             {t("form.cancel")}
           </Button>
@@ -401,7 +401,7 @@ function DialogConfirm({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-3 sm:space-x-3">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
             {t("form.cancel")}
           </Button>
@@ -443,7 +443,7 @@ function DialogYearEndClose({
             onChange={(e) => setFiscalYear(Number(e.target.value))}
           />
         </div>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-3 sm:space-x-3">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="cursor-pointer">
             {t("form.cancel")}
           </Button>
