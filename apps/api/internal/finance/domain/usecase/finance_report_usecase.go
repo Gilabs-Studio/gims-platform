@@ -28,6 +28,10 @@ type FinanceReportUsecase interface {
 	GetCashFlowTrend(ctx context.Context, endDate time.Time, months int, companyID, fiscalYearID *string) (*dto.CashFlowTrendResponse, error)
 	GetCashFlowYtdSummary(ctx context.Context, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowYtdSummaryResponse, error)
 	GetCashFlowStatementTable(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.CashFlowStatementTableResponse, error)
+	GetProfitLossSummary(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitLossSummaryResponse, error)
+	GetProfitLossTrend(ctx context.Context, endDate time.Time, months int, companyID, fiscalYearID *string) (*dto.ProfitLossTrendResponse, error)
+	GetProfitLossRevenueVsExpense(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitLossRevenueVsExpenseResponse, error)
+	GetProfitLossStatementTable(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitLossStatementTableResponse, error)
 	ExportGeneralLedger(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID, accountID *string) ([]byte, error)
 	ExportBalanceSheet(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string, includeZero bool) ([]byte, error)
 	ExportProfitAndLoss(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) ([]byte, error)
@@ -1440,4 +1444,306 @@ func (uc *financeReportUsecase) ExportProfitAndLoss(ctx context.Context, startDa
 
 	buf, _ := f.WriteToBuffer()
 	return buf.Bytes(), nil
+}
+
+func (uc *financeReportUsecase) GetProfitLossSummary(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitLossSummaryResponse, error) {
+	currPL, err := uc.GetProfitAndLoss(ctx, startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		return nil, err
+	}
+
+	duration := endDate.Sub(startDate)
+	prevEnd := startDate.AddDate(0, 0, -1)
+	prevStart := prevEnd.Add(-duration)
+
+	prevPL, err := uc.GetProfitAndLoss(ctx, prevStart, prevEnd, companyID, fiscalYearID)
+	if err != nil {
+		prevPL = &dto.ProfitAndLossResponse{}
+	}
+
+	revGrowth := 0.0
+	if prevPL != nil && prevPL.RevenueTotal > 0 {
+		revGrowth = roundMoney(((currPL.RevenueTotal - prevPL.RevenueTotal) / prevPL.RevenueTotal) * 100)
+	}
+
+	grossProfit := roundMoney(currPL.GrossProfit)
+	netProfit := roundMoney(currPL.NetProfit)
+	opProfit := roundMoney(currPL.GrossProfit - currPL.ExpenseTotal)
+
+	grossMargin := 0.0
+	opMargin := 0.0
+	netMargin := 0.0
+	if currPL.RevenueTotal > 0 {
+		grossMargin = roundMoney((grossProfit / currPL.RevenueTotal) * 100)
+		opMargin = roundMoney((opProfit / currPL.RevenueTotal) * 100)
+		netMargin = roundMoney((netProfit / currPL.RevenueTotal) * 100)
+	}
+
+	prevName := prevStart.Format("Jan 2006")
+
+	return &dto.ProfitLossSummaryResponse{
+		TotalRevenue:           currPL.RevenueTotal,
+		RevenueGrowthPercent:   revGrowth,
+		GrossProfit:            grossProfit,
+		GrossProfitMargin:      grossMargin,
+		OperatingProfit:        opProfit,
+		OperatingProfitMargin:  opMargin,
+		NetProfit:              netProfit,
+		NetProfitMargin:        netMargin,
+		PreviousPeriodName:     prevName,
+	}, nil
+}
+
+func (uc *financeReportUsecase) GetProfitLossTrend(ctx context.Context, endDate time.Time, months int, companyID, fiscalYearID *string) (*dto.ProfitLossTrendResponse, error) {
+	if months <= 0 {
+		months = 6
+	}
+
+	res := &dto.ProfitLossTrendResponse{
+		Months: make([]dto.ProfitLossTrendPoint, 0, months),
+	}
+
+	for i := months - 1; i >= 0; i-- {
+		refDate := endDate.AddDate(0, -i, 0)
+		startOfMonth := time.Date(refDate.Year(), refDate.Month(), 1, 0, 0, 0, 0, refDate.Location())
+		endOfMonth := startOfMonth.AddDate(0, 1, -1)
+
+		pl, err := uc.GetProfitAndLoss(ctx, startOfMonth, endOfMonth, companyID, fiscalYearID)
+		if err != nil {
+			pl = &dto.ProfitAndLossResponse{}
+		}
+
+		res.Months = append(res.Months, dto.ProfitLossTrendPoint{
+			Period:      startOfMonth.Format("2006-01"),
+			Label:       startOfMonth.Format("Jan 2006"),
+			Revenue:     pl.RevenueTotal,
+			GrossProfit: pl.GrossProfit,
+			NetProfit:   pl.NetProfit,
+		})
+	}
+
+	return res, nil
+}
+
+func (uc *financeReportUsecase) GetProfitLossRevenueVsExpense(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitLossRevenueVsExpenseResponse, error) {
+	pl, err := uc.GetProfitAndLoss(ctx, startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		return nil, err
+	}
+
+	totRev := pl.RevenueTotal
+	cogs := pl.COGSTotal
+	opEx := pl.ExpenseTotal
+
+	otherInc := 0.0
+	otherExp := 0.0
+
+	cogsPct := 0.0
+	opExPct := 0.0
+	otherIncPct := 0.0
+	otherExpPct := 0.0
+
+	if totRev > 0 {
+		cogsPct = roundMoney((cogs / totRev) * 100)
+		opExPct = roundMoney((opEx / totRev) * 100)
+		otherIncPct = roundMoney((otherInc / totRev) * 100)
+		otherExpPct = roundMoney((otherExp / totRev) * 100)
+	}
+
+	return &dto.ProfitLossRevenueVsExpenseResponse{
+		TotalRevenue:             totRev,
+		COGS:                     cogs,
+		COGSPercent:              cogsPct,
+		OperatingExpenses:        opEx,
+		OperatingExpensesPercent: opExPct,
+		OtherIncome:              otherInc,
+		OtherIncomePercent:       otherIncPct,
+		OtherExpenses:            otherExp,
+		OtherExpensesPercent:     otherExpPct,
+	}, nil
+}
+
+func (uc *financeReportUsecase) GetProfitLossStatementTable(ctx context.Context, startDate, endDate time.Time, companyID, fiscalYearID *string) (*dto.ProfitLossStatementTableResponse, error) {
+	m0Start := time.Date(endDate.Year(), endDate.Month(), 1, 0, 0, 0, 0, endDate.Location())
+	m0End := endDate
+
+	m1Start := m0Start.AddDate(0, -1, 0)
+	m1End := m0Start.AddDate(0, 0, -1)
+
+	m2Start := m0Start.AddDate(0, -2, 0)
+	m2End := m1Start.AddDate(0, 0, -1)
+
+	ytdStart := time.Date(endDate.Year(), time.January, 1, 0, 0, 0, 0, endDate.Location())
+	ytdEnd := endDate
+
+	yoyStart := time.Date(endDate.Year()-1, endDate.Month(), 1, 0, 0, 0, 0, endDate.Location())
+	yoyEnd := time.Date(endDate.Year()-1, endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, endDate.Location())
+
+	periods := []dto.PeriodMeta{
+		{Key: "m0", Label: m0Start.Format("Jan 2006"), SubLabel: fmt.Sprintf("(01 %s - %d %s)", m0Start.Format("Jan"), m0End.Day(), m0End.Format("Jan"))},
+		{Key: "m1", Label: m1Start.Format("Jan 2006"), SubLabel: fmt.Sprintf("(01 %s - %d %s)", m1Start.Format("Jan"), m1End.Day(), m1End.Format("Jan"))},
+		{Key: "m2", Label: m2Start.Format("Jan 2006"), SubLabel: fmt.Sprintf("(01 %s - %d %s)", m2Start.Format("Jan"), m2End.Day(), m2End.Format("Jan"))},
+		{Key: "ytd", Label: fmt.Sprintf("YTD %d", endDate.Year()), SubLabel: fmt.Sprintf("(01 Jan - %d %s)", ytdEnd.Day(), ytdEnd.Format("Jan"))},
+		{Key: "yoy", Label: "YoY Growth", SubLabel: fmt.Sprintf("(vs %s %d)", yoyStart.Format("Jan"), yoyStart.Year())},
+	}
+
+	p0, _ := uc.GetProfitAndLoss(ctx, m0Start, m0End, companyID, fiscalYearID)
+	p1, _ := uc.GetProfitAndLoss(ctx, m1Start, m1End, companyID, fiscalYearID)
+	p2, _ := uc.GetProfitAndLoss(ctx, m2Start, m2End, companyID, fiscalYearID)
+	pytd, _ := uc.GetProfitAndLoss(ctx, ytdStart, ytdEnd, companyID, fiscalYearID)
+	pyoy, _ := uc.GetProfitAndLoss(ctx, yoyStart, yoyEnd, companyID, fiscalYearID)
+
+	pMap := map[string]*dto.ProfitAndLossResponse{
+		"m0":  p0,
+		"m1":  p1,
+		"m2":  p2,
+		"ytd": pytd,
+		"yoy": pyoy,
+	}
+
+	buildSection := func(secName string, getRows func(pl *dto.ProfitAndLossResponse) []dto.ReportRow) dto.MultiPeriodSection {
+		accountMap := make(map[string]dto.MultiPeriodRow)
+		for key, pl := range pMap {
+			if pl == nil {
+				continue
+			}
+			rows := getRows(pl)
+			for _, r := range rows {
+				mRow, ok := accountMap[r.Code]
+				if !ok {
+					mRow = dto.MultiPeriodRow{
+						AccountID:   r.AccountID,
+						Code:        r.Code,
+						Name:        r.Name,
+						AccountType: r.AccountType,
+						Amounts:     make(map[string]float64),
+						Drilldown:   r.Drilldown,
+					}
+				}
+				if key != "yoy" {
+					mRow.Amounts[key] = r.Amount
+				}
+				accountMap[r.Code] = mRow
+			}
+		}
+
+		items := make([]dto.MultiPeriodRow, 0, len(accountMap))
+		for _, item := range accountMap {
+			m0Val := item.Amounts["m0"]
+			yoyVal := 0.0
+			for _, r := range getRows(pMap["yoy"]) {
+				if r.Code == item.Code && r.Amount > 0 {
+					yoyVal = roundMoney(((m0Val - r.Amount) / r.Amount) * 100)
+					break
+				}
+			}
+			item.Amounts["yoy"] = yoyVal
+			items = append(items, item)
+		}
+
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].Code < items[j].Code
+		})
+
+		totals := make(map[string]float64)
+		for _, key := range []string{"m0", "m1", "m2", "ytd"} {
+			tot := 0.0
+			for _, item := range items {
+				tot += item.Amounts[key]
+			}
+			totals[key] = roundMoney(tot)
+		}
+		if pMap["yoy"] != nil {
+			yoyTot := 0.0
+			for _, r := range getRows(pMap["yoy"]) {
+				yoyTot += r.Amount
+			}
+			if yoyTot > 0 {
+				totals["yoy"] = roundMoney(((totals["m0"] - yoyTot) / yoyTot) * 100)
+			}
+		}
+
+		return dto.MultiPeriodSection{
+			Name:   secName,
+			Items:  items,
+			Totals: totals,
+		}
+	}
+
+	revSec := buildSection("REVENUE", func(pl *dto.ProfitAndLossResponse) []dto.ReportRow {
+		if pl == nil {
+			return nil
+		}
+		return pl.Revenues
+	})
+
+	cogsSec := buildSection("COST OF GOODS SOLD", func(pl *dto.ProfitAndLossResponse) []dto.ReportRow {
+		if pl == nil {
+			return nil
+		}
+		return pl.COGS
+	})
+
+	opExSec := buildSection("OPERATING EXPENSES", func(pl *dto.ProfitAndLossResponse) []dto.ReportRow {
+		if pl == nil {
+			return nil
+		}
+		return pl.Expenses
+	})
+
+	otherIncSec := buildSection("OTHER INCOME", func(pl *dto.ProfitAndLossResponse) []dto.ReportRow {
+		return nil
+	})
+
+	otherExpSec := buildSection("OTHER EXPENSES", func(pl *dto.ProfitAndLossResponse) []dto.ReportRow {
+		return nil
+	})
+
+	grossProfitMap := make(map[string]float64)
+	grossMarginMap := make(map[string]float64)
+	opProfitMap := make(map[string]float64)
+	opMarginMap := make(map[string]float64)
+	netProfitMap := make(map[string]float64)
+	netMarginMap := make(map[string]float64)
+
+	for _, key := range []string{"m0", "m1", "m2", "ytd"} {
+		rev := revSec.Totals[key]
+		cogs := cogsSec.Totals[key]
+		opEx := opExSec.Totals[key]
+
+		gp := roundMoney(rev - cogs)
+		opP := roundMoney(gp - opEx)
+		netP := opP
+
+		grossProfitMap[key] = gp
+		opProfitMap[key] = opP
+		netProfitMap[key] = netP
+
+		if rev > 0 {
+			grossMarginMap[key] = roundMoney((gp / rev) * 100)
+			opMarginMap[key] = roundMoney((opP / rev) * 100)
+			netMarginMap[key] = roundMoney((netP / rev) * 100)
+		}
+	}
+
+	if revSec.Totals["yoy"] != 0 {
+		grossProfitMap["yoy"] = revSec.Totals["yoy"]
+		opProfitMap["yoy"] = revSec.Totals["yoy"]
+		netProfitMap["yoy"] = revSec.Totals["yoy"]
+	}
+
+	return &dto.ProfitLossStatementTableResponse{
+		Periods:          periods,
+		Revenue:          revSec,
+		COGS:             cogsSec,
+		GrossProfit:      grossProfitMap,
+		GrossMargin:      grossMarginMap,
+		OperatingExpense: opExSec,
+		OperatingProfit:  opProfitMap,
+		OperatingMargin:  opMarginMap,
+		OtherIncome:      otherIncSec,
+		OtherExpense:     otherExpSec,
+		NetProfit:        netProfitMap,
+		NetMargin:        netMarginMap,
+	}, nil
 }

@@ -1,222 +1,144 @@
 "use client";
-import { FINANCE_PERMISSIONS } from "@/features/finance/permissions";
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Download, Filter, SlidersHorizontal } from "lucide-react";
 import type { DateRange } from "react-day-picker";
-import { toast } from "sonner";
 
-import { Card } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useUserPermission } from "@/hooks/use-user-permission";
-import { useExportProgress } from "@/lib/use-export-progress";
-import { formatCurrency } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-import { useProfitAndLoss } from "../hooks/use-profit-loss";
-import type { ReportRow } from "../types";
-import { ExportButton } from "@/features/finance/journals/components/export-button";
-import { FilterToolbar } from "@/features/finance/journals/components/filter-toolbar";
+import { ProfitLossKpiCards } from "./profit-loss-kpi-cards";
+import { ProfitLossTrendChart } from "./profit-loss-trend-chart";
+import { RevenueVsExpenseChart } from "./revenue-vs-expense-chart";
+import { ProfitLossStatementTable } from "./profit-loss-statement-table";
+import type { ProfitLossQueryParams } from "../types";
 
-function toApiDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+function toApiDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 export function ProfitLossView() {
   const t = useTranslations("financeReports");
-  const tCommon = useTranslations("common");
-  const canExport = useUserPermission(FINANCE_PERMISSIONS.REPORT.PROFIT_LOSS_EXPORT);
 
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const [pickerRange, setPickerRange] = useState<DateRange | undefined>({
-    from: new Date(now.getFullYear(), 0, 1),
+    from: new Date(now.getFullYear(), now.getMonth(), 1),
     to: now,
   });
-  const [openSections, setOpenSections] = useState({
-    revenue: true,
-    expenses: true,
-  });
+  const [companyID, setCompanyID] = useState<string>("");
+  const [fiscalYearID, setFiscalYearID] = useState<string>("");
 
-  const dateRange = useMemo(() => ({
-    start_date: pickerRange?.from ? toApiDate(pickerRange.from) : toApiDate(new Date(now.getFullYear(), 0, 1)),
-    end_date: pickerRange?.to ? toApiDate(pickerRange.to) : toApiDate(now),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [pickerRange]);
+  const queryParams: ProfitLossQueryParams = useMemo(
+    () => ({
+      from_date: pickerRange?.from ? toApiDate(pickerRange.from) : toApiDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+      to_date: pickerRange?.to ? toApiDate(pickerRange.to) : toApiDate(now),
+      company_id: companyID.trim() || undefined,
+      fiscal_year_id: fiscalYearID.trim() || undefined,
+    }),
+    [pickerRange, now, companyID, fiscalYearID],
+  );
 
-  const { data, isLoading, isError } = useProfitAndLoss(dateRange);
-  const report = data?.data;
-  const exportProgress = useExportProgress();
-
-  const netProfit = report?.net_profit ?? 0;
-
-  const handleExport = async () => {
-    try {
-      await exportProgress.runWithProgress({
-        endpoint: "/finance/reports/export/profit-loss",
-        params: dateRange,
-      });
-    } catch {
-      toast.error(tCommon("exportFailed"));
-    }
+  const handleExport = () => {
+    const url = `/api/v1/finance/reports/profit-loss/export?from_date=${queryParams.from_date}&to_date=${queryParams.to_date}`;
+    window.open(url, "_blank");
   };
 
-  const metrics = [
-    { label: t("total_revenue"), value: formatCurrency(report?.revenue_total ?? 0), Icon: TrendingUp, desc: t("total_revenue_desc"), valueClass: "" },
-    { label: t("total_expenses"), value: formatCurrency(report?.expense_total ?? 0), Icon: TrendingDown, desc: t("total_expenses_desc"), valueClass: "" },
-    {
-      label: t("net_profit_loss"),
-      value: formatCurrency(netProfit),
-      Icon: Wallet,
-      desc: t("net_profit_loss_desc"),
-      valueClass: netProfit >= 0 ? "text-success" : "text-destructive",
-    },
-  ];
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 pb-12">
+      {/* Top Header Row with Title & Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Title & Subtitle */}
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">{t("pl_title")}</h1>
-          <p className="text-muted-foreground">{t("pl_description")}</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+            {t("pl_title")}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {t("pl_description")}
+          </p>
+        </div>
+
+        {/* Right Actions: Date Range Picker, Filter Popover, Export */}
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          {/* Date Range Picker */}
+          <DateRangePicker dateRange={pickerRange} onDateChange={setPickerRange} />
+
+          {/* Filter Popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="cursor-pointer gap-1.5 text-xs font-semibold h-9">
+                <Filter className="w-3.5 h-3.5" />
+                <span>{t("filters")}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-4 space-y-4" align="end">
+              <div className="flex items-center justify-between border-b pb-2">
+                <div className="flex items-center gap-1.5 font-semibold text-sm">
+                  <SlidersHorizontal className="w-4 h-4 text-primary" />
+                  <span>{t("filter_reports")}</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">{t("company_id_label")}</label>
+                  <Input
+                    value={companyID}
+                    onChange={(e) => setCompanyID(e.target.value)}
+                    placeholder={t("company_id_placeholder")}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">{t("fiscal_year_id_label")}</label>
+                  <Input
+                    value={fiscalYearID}
+                    onChange={(e) => setFiscalYearID(e.target.value)}
+                    placeholder={t("fiscal_year_placeholder")}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              {(companyID || fiscalYearID) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setCompanyID("");
+                    setFiscalYearID("");
+                  }}
+                  className="w-full text-xs cursor-pointer text-muted-foreground hover:text-foreground"
+                >
+                  {t("reset_filter")}
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          {/* Export Button */}
+          <Button variant="outline" size="sm" onClick={handleExport} className="cursor-pointer gap-1.5 text-xs font-semibold h-9">
+            <Download className="w-3.5 h-3.5" />
+            <span>{t("export")}</span>
+          </Button>
         </div>
       </div>
 
-      <FilterToolbar>
-        <DateRangePicker dateRange={pickerRange} onDateChange={setPickerRange} />
-        {canExport ? (
-          <ExportButton label={exportProgress.label(t("export"))} onClick={handleExport} disabled={exportProgress.isExporting} />
-        ) : null}
-      </FilterToolbar>
+      {/* Widget 1: Top 4 KPI Cards */}
+      <ProfitLossKpiCards params={queryParams} />
 
-      {/* Summary metrics */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-        {metrics.map(({ label, value, Icon, desc, valueClass }) => (
-          <Card key={label} className="flex flex-col justify-between shadow-sm p-5 space-y-4 rounded-xl">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-full text-primary">
-                <Icon className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{label}</p>
-                <p className={`text-2xl font-bold tracking-tight ${valueClass ?? ""}`}>{value}</p>
-                <p className="text-xs text-muted-foreground mt-1">{desc}</p>
-              </div>
-            </div>
-          </Card>
-        ))}
+      {/* Widget 2 & 3: Middle Grid (Profit Trend Chart & Revenue vs Expense Chart) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+        <div className="lg:col-span-1">
+          <ProfitLossTrendChart params={queryParams} />
+        </div>
+        <div className="lg:col-span-1">
+          <RevenueVsExpenseChart params={queryParams} />
+        </div>
       </div>
 
-      {isLoading && (
-        <div className="space-y-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      )}
-
-      {isError && <div className="text-center py-8 text-destructive">{tCommon("error")}</div>}
-
-      {report && (
-        <div className="space-y-6">
-          {/* Revenue */}
-          <Collapsible
-            open={openSections.revenue}
-            onOpenChange={(open) => setOpenSections((prev) => ({ ...prev, revenue: open }))}
-          >
-            <div className="rounded-md border bg-card">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between p-3 bg-muted/50 font-semibold rounded-t-md cursor-pointer"
-                >
-                  <span>{t("revenue")}</span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${openSections.revenue ? "rotate-180" : ""}`} />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("account_code")}</TableHead>
-                      <TableHead>{t("account_name")}</TableHead>
-                      <TableHead className="text-right">{t("balance")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {report.revenues?.map((r: ReportRow, idx: number) => (
-                      <TableRow key={`${r.code}-${idx}`}>
-                        <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                        <TableCell>{r.name}</TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">{formatCurrency(r.amount ?? 0)}</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="font-bold bg-muted/30">
-                      <TableCell colSpan={2}>{t("total_revenue")}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.revenue_total ?? 0)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
-
-          {/* Expenses */}
-          <Collapsible
-            open={openSections.expenses}
-            onOpenChange={(open) => setOpenSections((prev) => ({ ...prev, expenses: open }))}
-          >
-            <div className="rounded-md border bg-card">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between p-3 bg-muted/50 font-semibold rounded-t-md cursor-pointer"
-                >
-                  <span>{t("expenses")}</span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${openSections.expenses ? "rotate-180" : ""}`} />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("account_code")}</TableHead>
-                      <TableHead>{t("account_name")}</TableHead>
-                      <TableHead className="text-right">{t("balance")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {report.expenses?.map((e: ReportRow, idx: number) => (
-                      <TableRow key={`${e.code}-${idx}`}>
-                        <TableCell className="font-mono text-xs">{e.code}</TableCell>
-                        <TableCell>{e.name}</TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">{formatCurrency(e.amount ?? 0)}</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="font-bold bg-muted/30">
-                      <TableCell colSpan={2}>{t("total_expenses")}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums">{formatCurrency(report.expense_total ?? 0)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
-
-          {/* Net Profit/Loss */}
-          <div className="rounded-md border p-4 bg-muted/20">
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-bold">{t("net_profit_loss")}</span>
-              <span className={`text-lg font-bold font-mono tabular-nums ${netProfit >= 0 ? "text-success" : "text-destructive"}`}>
-                {formatCurrency(netProfit)}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Widget 4: Bottom Multi-period Statement Table */}
+      <ProfitLossStatementTable params={queryParams} />
     </div>
   );
 }
-

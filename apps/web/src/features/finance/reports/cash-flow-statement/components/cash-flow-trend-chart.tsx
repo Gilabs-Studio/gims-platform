@@ -49,7 +49,7 @@ export function CashFlowTrendChart({ params }: CashFlowTrendChartProps) {
 
   return (
     <Card className="flex flex-col h-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex flex-row items-center justify-between pb-4">
         <div className="flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">{t("cash_flow_trend")}</CardTitle>
           <TooltipProvider>
@@ -57,13 +57,13 @@ export function CashFlowTrendChart({ params }: CashFlowTrendChartProps) {
               <TooltipTrigger asChild>
                 <Info className="w-4 h-4 text-muted-foreground/70 cursor-pointer" />
               </TooltipTrigger>
-              <TooltipContent>Tren perbandingan arus kas masuk, kas keluar, dan saldo net setiap bulan</TooltipContent>
+              <TooltipContent>{t("tooltip_cash_flow_trend")}</TooltipContent>
             </UiTooltip>
           </TooltipProvider>
         </div>
         <Select value={months.toString()} onValueChange={(val) => setMonths(Number(val))}>
           <SelectTrigger className="w-[140px] h-8 text-xs cursor-pointer">
-            <SelectValue placeholder="Pilih Periode" />
+            <SelectValue placeholder={t("select_period_placeholder")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="6" className="cursor-pointer">{t("last_6_months")}</SelectItem>

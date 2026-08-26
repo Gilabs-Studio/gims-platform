@@ -1,0 +1,22 @@
+meta {
+  name: Get Profit & Loss Trend
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/finance/reports/profit-loss/trend?to_date=2026-05-31&months=6
+  body: none
+  auth: bearer
+}
+
+params:query {
+  to_date: 2026-05-31
+  months: 6
+  ~company_id: 
+  ~fiscal_year_id: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

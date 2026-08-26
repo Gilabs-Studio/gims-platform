@@ -177,3 +177,54 @@ type CashFlowStatementTableResponse struct {
 	EndingCashBalance  map[string]float64 `json:"ending_cash_balance"`
 }
 
+type ProfitLossSummaryResponse struct {
+	TotalRevenue           float64 `json:"total_revenue"`
+	RevenueGrowthPercent   float64 `json:"revenue_growth_percent"`
+	GrossProfit            float64 `json:"gross_profit"`
+	GrossProfitMargin      float64 `json:"gross_profit_margin"`
+	OperatingProfit        float64 `json:"operating_profit"`
+	OperatingProfitMargin  float64 `json:"operating_profit_margin"`
+	NetProfit              float64 `json:"net_profit"`
+	NetProfitMargin        float64 `json:"net_profit_margin"`
+	PreviousPeriodName     string  `json:"previous_period_name"`
+}
+
+type ProfitLossTrendPoint struct {
+	Period      string  `json:"period"`
+	Label       string  `json:"label"`
+	Revenue     float64 `json:"revenue"`
+	GrossProfit float64 `json:"gross_profit"`
+	NetProfit   float64 `json:"net_profit"`
+}
+
+type ProfitLossTrendResponse struct {
+	Months []ProfitLossTrendPoint `json:"months"`
+}
+
+type ProfitLossRevenueVsExpenseResponse struct {
+	TotalRevenue            float64 `json:"total_revenue"`
+	COGS                    float64 `json:"cogs"`
+	COGSPercent             float64 `json:"cogs_percent"`
+	OperatingExpenses       float64 `json:"operating_expenses"`
+	OperatingExpensesPercent float64 `json:"operating_expenses_percent"`
+	OtherIncome             float64 `json:"other_income"`
+	OtherIncomePercent      float64 `json:"other_income_percent"`
+	OtherExpenses           float64 `json:"other_expenses"`
+	OtherExpensesPercent    float64 `json:"other_expenses_percent"`
+}
+
+type ProfitLossStatementTableResponse struct {
+	Periods          []PeriodMeta       `json:"periods"`
+	Revenue          MultiPeriodSection `json:"revenue"`
+	COGS             MultiPeriodSection `json:"cogs"`
+	GrossProfit      map[string]float64 `json:"gross_profit"`
+	GrossMargin      map[string]float64 `json:"gross_margin"`
+	OperatingExpense MultiPeriodSection `json:"operating_expense"`
+	OperatingProfit  map[string]float64 `json:"operating_profit"`
+	OperatingMargin  map[string]float64 `json:"operating_margin"`
+	OtherIncome      MultiPeriodSection `json:"other_income"`
+	OtherExpense     MultiPeriodSection `json:"other_expense"`
+	NetProfit        map[string]float64 `json:"net_profit"`
+	NetMargin        map[string]float64 `json:"net_margin"`
+}
+

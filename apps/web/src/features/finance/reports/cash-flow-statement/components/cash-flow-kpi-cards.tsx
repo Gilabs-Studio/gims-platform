@@ -66,10 +66,10 @@ export function CashFlowKpiCards({ params }: CashFlowKpiCardsProps) {
                   <TooltipTrigger asChild>
                     <Info className="w-3.5 h-3.5 text-muted-foreground/70 cursor-pointer" />
                   </TooltipTrigger>
-                  <TooltipContent>Selisih total arus kas masuk dan kas keluar</TooltipContent>
+                  <TooltipContent>{t("tooltip_net_cash_flow")}</TooltipContent>
                 </Tooltip>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
                 {formatCurrency(summary.net_cash_flow)}
               </div>
               <div className="flex items-center gap-1 text-xs font-semibold">
@@ -103,10 +103,10 @@ export function CashFlowKpiCards({ params }: CashFlowKpiCardsProps) {
                   <TooltipTrigger asChild>
                     <Info className="w-3.5 h-3.5 text-muted-foreground/70 cursor-pointer" />
                   </TooltipTrigger>
-                  <TooltipContent>Total pemasukan kas dalam periode ini</TooltipContent>
+                  <TooltipContent>{t("tooltip_cash_inflow")}</TooltipContent>
                 </Tooltip>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
                 {formatCurrency(summary.cash_inflow)}
               </div>
               <div className="flex items-center gap-1 text-xs font-semibold">
@@ -140,10 +140,10 @@ export function CashFlowKpiCards({ params }: CashFlowKpiCardsProps) {
                   <TooltipTrigger asChild>
                     <Info className="w-3.5 h-3.5 text-muted-foreground/70 cursor-pointer" />
                   </TooltipTrigger>
-                  <TooltipContent>Total pengeluaran kas dalam periode ini</TooltipContent>
+                  <TooltipContent>{t("tooltip_cash_outflow")}</TooltipContent>
                 </Tooltip>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
                 {formatCurrency(summary.cash_outflow)}
               </div>
               <div className="flex items-center gap-1 text-xs font-semibold">
@@ -177,13 +177,13 @@ export function CashFlowKpiCards({ params }: CashFlowKpiCardsProps) {
                   <TooltipTrigger asChild>
                     <Info className="w-3.5 h-3.5 text-muted-foreground/70 cursor-pointer" />
                   </TooltipTrigger>
-                  <TooltipContent>Saldo akhir kas dan bank pada tanggal laporan</TooltipContent>
+                  <TooltipContent>{t("tooltip_ending_cash_balance")}</TooltipContent>
                 </Tooltip>
               </div>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
                 {formatCurrency(summary.ending_cash_balance)}
               </div>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground font-mono">
                 Per {summary.ending_cash_balance_date || t("ending")}
               </div>
             </div>

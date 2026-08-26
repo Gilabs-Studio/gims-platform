@@ -1,0 +1,22 @@
+meta {
+  name: Get Profit & Loss Summary
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/finance/reports/profit-loss/summary?from_date=2026-05-01&to_date=2026-05-31
+  body: none
+  auth: bearer
+}
+
+params:query {
+  from_date: 2026-05-01
+  to_date: 2026-05-31
+  ~company_id: 
+  ~fiscal_year_id: 
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

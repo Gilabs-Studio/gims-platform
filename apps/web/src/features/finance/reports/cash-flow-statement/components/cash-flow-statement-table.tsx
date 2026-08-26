@@ -44,7 +44,7 @@ export function CashFlowStatementTable({ params }: CashFlowStatementTableProps) 
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
           <Skeleton className="h-6 w-48" />
         </CardHeader>
         <CardContent className="space-y-3">
@@ -162,7 +162,7 @@ export function CashFlowStatementTable({ params }: CashFlowStatementTableProps) 
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between pb-4">
         <div className="flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">{t("cf_title")}</CardTitle>
           <TooltipProvider>
@@ -170,7 +170,7 @@ export function CashFlowStatementTable({ params }: CashFlowStatementTableProps) 
               <TooltipTrigger asChild>
                 <Info className="w-4 h-4 text-muted-foreground/70 cursor-pointer" />
               </TooltipTrigger>
-              <TooltipContent>Rincian lengkap arus kas aktivitas operasi, investasi, dan pendanaan</TooltipContent>
+              <TooltipContent>{t("tooltip_cash_flow_statement_table")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

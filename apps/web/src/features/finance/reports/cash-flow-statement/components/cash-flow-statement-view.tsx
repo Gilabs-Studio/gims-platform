@@ -82,7 +82,7 @@ export function CashFlowStatementView() {
               </div>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Company ID</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("company_id_label")}</label>
                   <Input
                     value={companyID}
                     onChange={(e) => setCompanyID(e.target.value)}
@@ -91,11 +91,11 @@ export function CashFlowStatementView() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Fiscal Year ID</label>
+                  <label className="text-xs font-medium text-muted-foreground">{t("fiscal_year_id_label")}</label>
                   <Input
                     value={fiscalYearID}
                     onChange={(e) => setFiscalYearID(e.target.value)}
-                    placeholder="FY-2026"
+                    placeholder={t("fiscal_year_placeholder")}
                     className="h-8 text-xs"
                   />
                 </div>

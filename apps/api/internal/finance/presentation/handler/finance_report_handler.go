@@ -219,6 +219,68 @@ func (h *FinanceReportHandler) CashFlowStatementTable(c *gin.Context) {
 	response.SuccessResponse(c, res, nil)
 }
 
+func (h *FinanceReportHandler) ProfitLossSummary(c *gin.Context) {
+	startDate := parseDateWithAliases(c, []string{"from_date", "start_date"}, apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+	fiscalYearID := parseOptionalFiscalYearID(c)
+
+	res, err := h.uc.GetProfitLossSummary(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "PROFIT_LOSS_SUMMARY_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *FinanceReportHandler) ProfitLossTrend(c *gin.Context) {
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+	fiscalYearID := parseOptionalFiscalYearID(c)
+	monthsStr := c.Query("months")
+	months := 6
+	if monthsStr != "" {
+		if m, err := strconv.Atoi(monthsStr); err == nil && m > 0 {
+			months = m
+		}
+	}
+
+	res, err := h.uc.GetProfitLossTrend(c.Request.Context(), endDate, months, companyID, fiscalYearID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "PROFIT_LOSS_TREND_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *FinanceReportHandler) ProfitLossRevenueVsExpense(c *gin.Context) {
+	startDate := parseDateWithAliases(c, []string{"from_date", "start_date"}, apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+	fiscalYearID := parseOptionalFiscalYearID(c)
+
+	res, err := h.uc.GetProfitLossRevenueVsExpense(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "PROFIT_LOSS_REVENUE_VS_EXPENSE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
+func (h *FinanceReportHandler) ProfitLossStatementTable(c *gin.Context) {
+	startDate := parseDateWithAliases(c, []string{"from_date", "start_date"}, apptime.Now().AddDate(0, -1, 0))
+	endDate := parseDateWithAliases(c, []string{"to_date", "end_date"}, apptime.Now())
+	companyID := parseOptionalCompanyID(c)
+	fiscalYearID := parseOptionalFiscalYearID(c)
+
+	res, err := h.uc.GetProfitLossStatementTable(c.Request.Context(), startDate, endDate, companyID, fiscalYearID)
+	if err != nil {
+		response.ErrorResponse(c, http.StatusInternalServerError, "PROFIT_LOSS_STATEMENT_TABLE_FAILED", err.Error(), nil, nil)
+		return
+	}
+	response.SuccessResponse(c, res, nil)
+}
+
 func (h *FinanceReportHandler) ExportGeneralLedger(c *gin.Context) {
 	startDate := parseDateOrDefault(c, "start_date", apptime.Now().AddDate(0, -1, 0))
 	endDate := parseDateOrDefault(c, "end_date", apptime.Now())

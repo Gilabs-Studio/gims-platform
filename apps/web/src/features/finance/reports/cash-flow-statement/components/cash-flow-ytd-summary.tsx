@@ -22,7 +22,7 @@ export function CashFlowYtdSummary({ params }: CashFlowYtdSummaryProps) {
 
   return (
     <Card className="flex flex-col h-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+      <CardHeader className="flex flex-row items-center justify-between pb-4">
         <div className="flex items-center gap-1.5">
           <CardTitle className="text-base font-semibold">{t("cash_flow_summary_ytd")}</CardTitle>
           <TooltipProvider>
@@ -30,7 +30,7 @@ export function CashFlowYtdSummary({ params }: CashFlowYtdSummaryProps) {
               <TooltipTrigger asChild>
                 <Info className="w-4 h-4 text-muted-foreground/70 cursor-pointer" />
               </TooltipTrigger>
-              <TooltipContent>Ringkasan akumulasi arus kas dari awal tahun (Year-To-Date)</TooltipContent>
+              <TooltipContent>{t("tooltip_cash_flow_summary_ytd")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -92,7 +92,7 @@ export function CashFlowYtdSummary({ params }: CashFlowYtdSummaryProps) {
 
             {/* Opening Cash Balance */}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
+              <span className="text-muted-foreground font-mono">
                 {t("opening_cash_balance")} ({ytd.opening_cash_date || "01 Jan"})
               </span>
               <span className="font-semibold text-foreground font-mono">
@@ -102,7 +102,7 @@ export function CashFlowYtdSummary({ params }: CashFlowYtdSummaryProps) {
 
             {/* Ending Cash Balance Container Box */}
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 flex items-center justify-between">
-              <span className="font-bold text-foreground text-sm">
+              <span className="font-bold text-foreground text-sm font-mono">
                 {t("ending_cash_balance")} ({ytd.ending_cash_date || t("ending")})
               </span>
               <span className="font-extrabold text-primary font-mono text-lg">
