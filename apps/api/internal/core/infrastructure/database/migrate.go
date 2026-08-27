@@ -659,10 +659,18 @@ func AutoMigrate() error {
 		log.Printf("Warning: failed to drop deprecated companies.director_id column: %v", err)
 	}
 
-	if err := syncGeneratedTenantRolesFromPlanTemplates(); err != nil {
-		log.Printf("Warning: generated tenant role sync from plan templates failed (non-fatal): %v", err)
+	if err := ensureBankReconciliationIndexes(); err != nil {
+		log.Printf("Warning: bank reconciliation index migration failed (non-fatal): %v", err)
 	}
 
+	return nil
+}
+
+func ensureBankReconciliationIndexes() error {
+	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_bank_reconciliations_company_id ON bank_reconciliations (company_id)`).Error
+	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_bank_reconciliations_bank_account_id ON bank_reconciliations (bank_account_id)`).Error
+	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_bank_reconciliations_statement_date ON bank_reconciliations (statement_date)`).Error
+	_ = DB.Exec(`CREATE INDEX IF NOT EXISTS idx_bank_statement_lines_bank_reconciliation_id ON bank_statement_lines (bank_reconciliation_id)`).Error
 	return nil
 }
 

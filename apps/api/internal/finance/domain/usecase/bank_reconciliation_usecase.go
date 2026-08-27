@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ledongthuc/pdf"
+
 	"github.com/gilabs/gims/api/internal/core/apptime"
 	coreModels "github.com/gilabs/gims/api/internal/core/data/models"
 	financeModels "github.com/gilabs/gims/api/internal/finance/data/models"
@@ -62,9 +64,13 @@ func (u *bankReconciliationUsecase) ImportStatement(ctx context.Context, req *dt
 	}
 
 	var bankAccount coreModels.BankAccount
-	if err := u.db.WithContext(ctx).First(&bankAccount, "id = ? AND company_id = ?", strings.TrimSpace(req.BankAccountID), strings.TrimSpace(req.CompanyID)).Error; err != nil {
+	if err := u.db.WithContext(ctx).First(&bankAccount, "id = ?", strings.TrimSpace(req.BankAccountID)).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("selected bank account was not found")
+		}
 		return nil, err
 	}
+	req.CompanyID = bankAccount.CompanyID
 
 	parsedLines, err := parseBankStatementLines(req.FileFormat, fileBytes)
 	if err != nil {
@@ -458,6 +464,7 @@ func (u *bankReconciliationUsecase) GetFormData(ctx context.Context, companyID s
 			{Value: "csv", Label: "CSV (Comma-Separated)"},
 			{Value: "mt940", Label: "MT940 (SWIFT)"},
 			{Value: "ofx", Label: "OFX (Open Financial Exchange)"},
+			{Value: "pdf", Label: "PDF (Bank Statement)"},
 		},
 	}, nil
 }
@@ -478,14 +485,15 @@ func (u *bankReconciliationUsecase) computeBookBalance(ctx context.Context, bank
 	}
 	query := `
 		SELECT COALESCE(
-			SUM(COALESCE(jel.debit_amount, 0)) - SUM(COALESCE(jel.credit_amount, 0)),
+			SUM(COALESCE(jl.debit, 0)) - SUM(COALESCE(jl.credit, 0)),
 			0
 		) AS balance
-		FROM journal_entry_lines jel
-		JOIN journal_entries je ON je.id = jel.journal_entry_id
-		WHERE jel.account_id = ?
+		FROM journal_lines jl
+		JOIN journal_entries je ON je.id = jl.journal_entry_id
+		WHERE jl.chart_of_account_id = ?
 		  AND je.status = 'posted'
 		  AND je.deleted_at IS NULL
+		  AND jl.deleted_at IS NULL
 	`
 	if err := u.db.WithContext(ctx).Raw(query, *bankAccount.ChartOfAccountID).Scan(&balance).Error; err != nil {
 		return 0, err
@@ -558,6 +566,8 @@ func parseBankStatementLines(fileFormat string, fileBytes []byte) ([]parsedState
 		return parseMT940Statement(fileBytes)
 	case "ofx":
 		return parseOFXStatement(fileBytes)
+	case "pdf":
+		return parsePDFStatement(fileBytes)
 	default:
 		return nil, errors.New("invalid file format")
 	}
@@ -713,13 +723,331 @@ func extractFirstAmount(payload string) float64 {
 	return 0
 }
 
+var indoMonthMap = map[string]time.Month{
+	"jan": time.January, "januari": time.January,
+	"feb": time.February, "februari": time.February,
+	"mar": time.March, "maret": time.March,
+	"apr": time.April, "april": time.April,
+	"mei": time.May,
+	"jun": time.June, "juni": time.June,
+	"jul": time.July, "juli": time.July,
+	"agt": time.August, "agu": time.August, "agustus": time.August,
+	"sep": time.September, "september": time.September,
+	"okt": time.October, "oktober": time.October,
+	"nov": time.November, "november": time.November,
+	"des": time.December, "desember": time.December,
+}
+
 func tryParseDate(value string) (time.Time, error) {
 	value = strings.TrimSpace(value)
-	layouts := []string{"2006-01-02", "02-01-2006", "02/01/2006", "2006/01/02"}
+	if value == "" {
+		return time.Time{}, errors.New("empty date")
+	}
+
+	layouts := []string{"2006-01-02", "02-01-2006", "02/01/2006", "2006/01/02", "10/01/2024", "01/10/2024", "02 Jan 2006", "02-Jan-2006"}
 	for _, layout := range layouts {
 		if t, err := time.Parse(layout, value); err == nil {
 			return t, nil
 		}
 	}
+
+	cleanVal := strings.ReplaceAll(value, "-", " ")
+	cleanVal = strings.ReplaceAll(cleanVal, "/", " ")
+	parts := strings.Fields(cleanVal)
+	if len(parts) >= 3 {
+		day, errDay := strconv.Atoi(parts[0])
+		mStr := strings.ToLower(parts[1])
+		year, errYear := strconv.Atoi(parts[2])
+
+		if errDay == nil && errYear == nil && day >= 1 && day <= 31 && year >= 2000 && year <= 2100 {
+			if m, ok := indoMonthMap[mStr]; ok {
+				return time.Date(year, m, day, 0, 0, 0, 0, time.UTC), nil
+			}
+		}
+	}
+
 	return time.Time{}, fmt.Errorf("invalid date: %s", value)
+}
+
+func parsePDFStatement(fileBytes []byte) ([]parsedStatementLine, error) {
+	extractedText := extractPDFText(fileBytes)
+	if strings.TrimSpace(extractedText) == "" {
+		return nil, errors.New("parse error: unable to extract text from PDF statement")
+	}
+
+	lines := make([]parsedStatementLine, 0)
+	rawLines := strings.Split(extractedText, "\n")
+	for _, l := range rawLines {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		parsed, ok := tryParsePDFLine(l)
+		if ok {
+			lines = append(lines, parsed)
+		}
+	}
+
+	if len(lines) == 0 {
+		tokens := strings.Fields(extractedText)
+		type dateMatch struct {
+			idx     int
+			length  int
+			dateVal time.Time
+		}
+		var matches []dateMatch
+
+		for i := 0; i < len(tokens); i++ {
+			var dateVal time.Time
+			var dateLen = 0
+
+			if i+2 < len(tokens) {
+				candidate3 := tokens[i] + " " + tokens[i+1] + " " + tokens[i+2]
+				if d, err := tryParseDate(candidate3); err == nil {
+					dateVal = d
+					dateLen = 3
+				}
+			}
+			if dateLen == 0 {
+				if d, err := tryParseDate(tokens[i]); err == nil {
+					dateVal = d
+					dateLen = 1
+				}
+			}
+
+			if dateLen > 0 {
+				matches = append(matches, dateMatch{idx: i, length: dateLen, dateVal: dateVal})
+				i += dateLen - 1
+			}
+		}
+
+		for mIdx, m := range matches {
+			endIdx := len(tokens)
+			if mIdx+1 < len(matches) {
+				endIdx = matches[mIdx+1].idx
+			}
+			blockTokens := tokens[m.idx+m.length : endIdx]
+			parsed, ok := tryParsePDFLineWithDate(m.dateVal, blockTokens)
+			if ok {
+				lines = append(lines, parsed)
+			}
+		}
+	}
+
+	if len(lines) == 0 {
+		return nil, errors.New("parse error: no valid statement lines found in PDF")
+	}
+
+	return lines, nil
+}
+
+func extractPDFText(fileBytes []byte) string {
+	r, err := pdf.NewReader(bytes.NewReader(fileBytes), int64(len(fileBytes)))
+	if err == nil {
+		var sb strings.Builder
+		for pageIndex := 1; pageIndex <= r.NumPage(); pageIndex++ {
+			p := r.Page(pageIndex)
+			if p.V.IsNull() {
+				continue
+			}
+			text, err := p.GetPlainText(nil)
+			if err == nil && len(strings.TrimSpace(text)) > 0 {
+				sb.WriteString(text)
+				sb.WriteString("\n")
+			}
+		}
+		extracted := sb.String()
+		if len(strings.TrimSpace(extracted)) > 10 {
+			return extracted
+		}
+	}
+
+	var sb strings.Builder
+	content := string(fileBytes)
+
+	inParen := false
+	escaped := false
+	var token strings.Builder
+
+	for i := 0; i < len(content); i++ {
+		ch := content[i]
+		if inParen {
+			if escaped {
+				token.WriteByte(ch)
+				escaped = false
+			} else if ch == '\\' {
+				escaped = true
+			} else if ch == ')' {
+				inParen = false
+				txt := token.String()
+				if len(strings.TrimSpace(txt)) > 0 {
+					sb.WriteString(txt)
+					sb.WriteString(" ")
+				}
+				token.Reset()
+			} else {
+				token.WriteByte(ch)
+			}
+		} else {
+			if ch == '(' {
+				inParen = true
+			} else if ch == '\n' || ch == '\r' {
+				sb.WriteString(" ")
+			}
+		}
+	}
+
+	rawExtracted := sb.String()
+	if len(strings.TrimSpace(rawExtracted)) < 10 {
+		var fallbackSb strings.Builder
+		for _, line := range strings.Split(content, "\n") {
+			cleanLine := strings.Map(func(r rune) rune {
+				if r >= 32 && r <= 126 {
+					return r
+				}
+				return -1
+			}, line)
+			if len(cleanLine) > 5 {
+				fallbackSb.WriteString(cleanLine)
+				fallbackSb.WriteString("\n")
+			}
+		}
+		return fallbackSb.String()
+	}
+
+	return rawExtracted
+}
+
+func tryParsePDFLine(line string) (parsedStatementLine, bool) {
+	parts := strings.Fields(line)
+	if len(parts) < 3 {
+		return parsedStatementLine{}, false
+	}
+
+	var date time.Time
+	var dateIdx = -1
+	for idx, p := range parts {
+		if d, err := tryParseDate(p); err == nil {
+			date = d
+			dateIdx = idx
+			break
+		}
+	}
+
+	if dateIdx < 0 {
+		return parsedStatementLine{}, false
+	}
+
+	return tryParsePDFLineWithDate(date, parts[dateIdx+1:])
+}
+
+func parseFlexibleAmount(s string) (float64, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, false
+	}
+	if strings.HasPrefix(s, "$") || strings.HasPrefix(s, "Rp") {
+		idxDigit := strings.IndexAny(s, "0123456789")
+		if idxDigit >= 0 {
+			s = s[idxDigit:]
+		}
+	}
+
+	hasDot := strings.Contains(s, ".")
+	hasComma := strings.Contains(s, ",")
+
+	clean := s
+	if hasDot && hasComma {
+		lastDot := strings.LastIndex(s, ".")
+		lastComma := strings.LastIndex(s, ",")
+		if lastDot > lastComma {
+			clean = strings.ReplaceAll(s, ",", "")
+		} else {
+			clean = strings.ReplaceAll(s, ".", "")
+			clean = strings.ReplaceAll(clean, ",", ".")
+		}
+	} else if hasComma {
+		clean = strings.ReplaceAll(s, ",", ".")
+	} else if hasDot {
+		dotIdx := strings.LastIndex(s, ".")
+		digitsAfterDot := len(s) - dotIdx - 1
+		if digitsAfterDot == 3 {
+			clean = strings.ReplaceAll(s, ".", "")
+		}
+	}
+
+	val, err := strconv.ParseFloat(clean, 64)
+	if err == nil && val > 0 {
+		return val, true
+	}
+	return 0, false
+}
+
+func tryParsePDFLineWithDate(dateVal time.Time, parts []string) (parsedStatementLine, bool) {
+	if len(parts) == 0 {
+		return parsedStatementLine{}, false
+	}
+
+	var amount float64
+	var direction = financeModels.BankStatementLineDirectionDebit
+	var ref = ""
+	var descParts []string
+
+	for idx := 0; idx < len(parts); idx++ {
+		p := parts[idx]
+
+		if p == "-" || p == "+" {
+			if idx+1 < len(parts) {
+				nextP := parts[idx+1]
+				if val, ok := parseFlexibleAmount(nextP); ok {
+					amount = val
+					if p == "-" {
+						direction = financeModels.BankStatementLineDirectionDebit
+					} else {
+						direction = financeModels.BankStatementLineDirectionCredit
+					}
+					idx++
+					continue
+				}
+			}
+		}
+
+		if amount == 0 {
+			if val, ok := parseFlexibleAmount(p); ok {
+				amount = val
+			}
+		}
+
+		upperP := strings.ToUpper(p)
+		if upperP == "DEBIT" || upperP == "DB" || upperP == "OUT" || upperP == "PAYMENT" {
+			direction = financeModels.BankStatementLineDirectionDebit
+		} else if upperP == "CREDIT" || upperP == "CR" || upperP == "IN" || upperP == "DEPOSIT" {
+			direction = financeModels.BankStatementLineDirectionCredit
+		} else if strings.Contains(p, "@") || strings.Contains(p, "INV-") || strings.HasPrefix(p, "REF-") || strings.HasPrefix(p, "TXN-") || strings.HasPrefix(p, "HS-") || strings.HasPrefix(p, "PS-") || strings.HasPrefix(p, "TKP") {
+			if ref == "" {
+				ref = p
+			} else {
+				descParts = append(descParts, p)
+			}
+		} else {
+			descParts = append(descParts, p)
+		}
+	}
+
+	if amount <= 0 {
+		return parsedStatementLine{}, false
+	}
+
+	desc := strings.Join(descParts, " ")
+	if desc == "" {
+		desc = "PDF Transaction"
+	}
+
+	return parsedStatementLine{
+		Date:        dateVal,
+		Reference:   ref,
+		Description: desc,
+		Amount:      amount,
+		Direction:   direction,
+	}, true
 }

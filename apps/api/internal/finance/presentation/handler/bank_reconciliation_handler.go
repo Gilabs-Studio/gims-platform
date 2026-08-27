@@ -27,6 +27,10 @@ func (h *BankReconciliationHandler) Import(c *gin.Context) {
 		return
 	}
 
+	if strings.TrimSpace(req.CompanyID) == "" {
+		req.CompanyID = strings.TrimSpace(c.GetString("company_id"))
+	}
+
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		response.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "file is required", nil, nil)

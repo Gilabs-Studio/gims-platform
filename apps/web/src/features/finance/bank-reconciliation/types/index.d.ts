@@ -21,7 +21,15 @@ export interface ApiResponse<T> {
 }
 
 export type BankReconciliationStatus = "in_progress" | "reconciled" | "locked";
-export type BankStatementLineStatus = "unmatched" | "auto_matched" | "manual_matched" | "excluded";
+export type BankStatementLineStatus =
+  | "unmatched"
+  | "auto_matched"
+  | "manual_matched"
+  | "date_mismatch"
+  | "missing"
+  | "duplicate"
+  | "excluded";
+
 export type BankStatementDirection = "debit" | "credit";
 
 export interface BankStatementLine {
@@ -36,6 +44,23 @@ export interface BankStatementLine {
   exclude_reason?: string;
 }
 
+export interface LedgerTransaction {
+  id: string;
+  vendor: string;
+  invoice_number: string;
+  status: "Matched" | "Date" | "Missing" | "Duplicate";
+  amount: number;
+  raised_date: string;
+}
+
+export interface StatementComparisonLine {
+  vendor: string;
+  invoice_number: string;
+  statement_period: string;
+  amount: number;
+  raised_date: string;
+}
+
 export interface BankReconciliation {
   id: string;
   company_id: string;
@@ -44,7 +69,7 @@ export interface BankReconciliation {
   statement_balance: number;
   book_balance: number;
   difference: number;
-  file_format: "csv" | "mt940" | "ofx";
+  file_format: "csv" | "mt940" | "ofx" | "pdf";
   file_name: string;
   status: BankReconciliationStatus;
   reconciled_by?: string | null;
@@ -63,7 +88,7 @@ export interface BankReconciliationFormData {
     name: string;
     last_reconciliation_date?: string | null;
   }>;
-  file_formats: Array<{ value: "csv" | "mt940" | "ofx"; label: string }>;
+  file_formats: Array<{ value: "csv" | "mt940" | "ofx" | "pdf"; label: string }>;
 }
 
 export interface AutoMatchResult {
@@ -92,7 +117,7 @@ export interface ImportBankStatementInput {
   bank_account_id: string;
   statement_date: string;
   statement_balance?: number;
-  file_format: "csv" | "mt940" | "ofx";
+  file_format: "csv" | "mt940" | "ofx" | "pdf";
   file: File;
 }
 

@@ -1,0 +1,23 @@
+meta {
+  name: Import Bank Statement
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/finance/bank-reconciliations/import
+  body: multipartForm
+  auth: bearer
+}
+
+body:multipart-form {
+  company_id: {{companyId}}
+  bank_account_id: {{bankAccountId}}
+  statement_date: 2026-10-01
+  file_format: pdf
+  file: @file(samples/statement.pdf)
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Confirm Bank Reconciliation
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/v1/finance/bank-reconciliations/:id/confirm
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: {{reconciliationId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

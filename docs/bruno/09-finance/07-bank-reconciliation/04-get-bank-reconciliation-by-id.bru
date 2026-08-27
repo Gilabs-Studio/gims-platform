@@ -1,0 +1,19 @@
+meta {
+  name: Get Bank Reconciliation By ID
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/finance/bank-reconciliations/:id
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: {{reconciliationId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

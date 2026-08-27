@@ -1,0 +1,19 @@
+meta {
+  name: Get Bank Reconciliation Form Data
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/finance/bank-reconciliations/form-data
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~company_id: {{companyId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

@@ -1,0 +1,26 @@
+meta {
+  name: Match Statement Line
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/finance/bank-reconciliations/:id/line/:line_id/match
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: {{reconciliationId}}
+  line_id: {{lineId}}
+}
+
+body:json {
+  {
+    "cash_bank_transaction_id": "{{cashBankTransactionId}}"
+  }
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

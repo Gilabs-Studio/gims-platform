@@ -1,0 +1,19 @@
+meta {
+  name: Auto Match Bank Statement Lines
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/finance/bank-reconciliations/:id/auto-match
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: {{reconciliationId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

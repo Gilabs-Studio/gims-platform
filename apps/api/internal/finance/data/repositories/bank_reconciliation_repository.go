@@ -77,7 +77,7 @@ func (r *bankReconciliationRepository) List(ctx context.Context, params BankReco
 	var items []financeModels.BankReconciliation
 	var total int64
 
-	q := database.GetDB(ctx, r.db).Model(&financeModels.BankReconciliation{})
+	q := database.GetDB(ctx, r.db).Model(&financeModels.BankReconciliation{}).Preload("Lines")
 	q = security.ApplyScopeFilter(q, ctx, security.FinanceScopeQueryOptions())
 
 	if companyID := strings.TrimSpace(params.CompanyID); companyID != "" {

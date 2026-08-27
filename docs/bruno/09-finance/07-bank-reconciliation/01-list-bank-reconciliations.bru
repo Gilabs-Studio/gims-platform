@@ -1,0 +1,25 @@
+meta {
+  name: List Bank Reconciliations
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/v1/finance/bank-reconciliations?page=1&per_page=20
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 1
+  per_page: 20
+  ~company_id: {{companyId}}
+  ~bank_account_id: {{bankAccountId}}
+  ~status: in_progress
+  ~date_from: 2026-01-01
+  ~date_to: 2026-12-31
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Lock Bank Reconciliation
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/v1/finance/bank-reconciliations/:id/lock
+  body: none
+  auth: bearer
+}
+
+params:path {
+  id: {{reconciliationId}}
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
