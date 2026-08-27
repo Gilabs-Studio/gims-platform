@@ -1,6 +1,7 @@
 package handler
 
 import (
+	stdErrors "errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -133,7 +134,7 @@ func (h *SalesReturnHandler) Create(c *gin.Context) {
 
 	item, err := h.uc.Create(c.Request.Context(), &req)
 	if err != nil {
-		if err == usecase.ErrSalesReturnInvalid {
+		if stdErrors.Is(err, usecase.ErrSalesReturnInvalid) || strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "exceeds") {
 			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}
@@ -167,11 +168,11 @@ func (h *SalesReturnHandler) Update(c *gin.Context) {
 
 	item, err := h.uc.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		if err == usecase.ErrSalesReturnNotFound {
+		if stdErrors.Is(err, usecase.ErrSalesReturnNotFound) {
 			errors.NotFoundResponse(c, "sales_return", id)
 			return
 		}
-		if err == usecase.ErrSalesReturnInvalid {
+		if stdErrors.Is(err, usecase.ErrSalesReturnInvalid) || strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "exceeds") {
 			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}

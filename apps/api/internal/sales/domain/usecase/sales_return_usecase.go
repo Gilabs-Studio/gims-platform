@@ -20,6 +20,7 @@ import (
 	"github.com/gilabs/gims/api/internal/sales/data/repositories"
 	"github.com/gilabs/gims/api/internal/sales/domain/dto"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -200,13 +201,17 @@ func (u *salesReturnUsecase) Create(ctx context.Context, req *dto.CreateSalesRet
 	items := make([]models.SalesReturnItem, 0, len(req.Items))
 	totalAmount := 0.0
 	for _, item := range req.Items {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" || !isValidUUID(productID) {
+			return nil, fmt.Errorf("%w: invalid product_id '%s'", ErrSalesReturnInvalid, item.ProductID)
+		}
 		subtotal := item.Qty * item.UnitPrice
 		totalAmount += subtotal
 
 		items = append(items, models.SalesReturnItem{
-			InvoiceItemID: normalizeOptionalString(item.InvoiceItemID),
-			ProductID:     strings.TrimSpace(item.ProductID),
-			UOMID:         normalizeOptionalString(item.UOMID),
+			InvoiceItemID: normalizeOptionalUUID(item.InvoiceItemID),
+			ProductID:     productID,
+			UOMID:         normalizeOptionalUUID(item.UOMID),
 			Condition:     strings.ToUpper(strings.TrimSpace(item.Condition)),
 			Notes:         normalizeOptionalString(item.Notes),
 			Quantity:      item.Qty,
@@ -294,13 +299,17 @@ func (u *salesReturnUsecase) Update(ctx context.Context, id string, req *dto.Upd
 	items := make([]models.SalesReturnItem, 0, len(req.Items))
 	totalAmount := 0.0
 	for _, item := range req.Items {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" || !isValidUUID(productID) {
+			return nil, fmt.Errorf("%w: invalid product_id '%s'", ErrSalesReturnInvalid, item.ProductID)
+		}
 		subtotal := item.Qty * item.UnitPrice
 		totalAmount += subtotal
 
 		items = append(items, models.SalesReturnItem{
-			InvoiceItemID: normalizeOptionalString(item.InvoiceItemID),
-			ProductID:     strings.TrimSpace(item.ProductID),
-			UOMID:         normalizeOptionalString(item.UOMID),
+			InvoiceItemID: normalizeOptionalUUID(item.InvoiceItemID),
+			ProductID:     productID,
+			UOMID:         normalizeOptionalUUID(item.UOMID),
 			Condition:     strings.ToUpper(strings.TrimSpace(item.Condition)),
 			Notes:         normalizeOptionalString(item.Notes),
 			Quantity:      item.Qty,
@@ -621,12 +630,35 @@ func canTransitionSalesReturnStatus(current, next models.SalesReturnStatus) bool
 	}
 }
 
+func isValidUUID(s string) bool {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return false
+	}
+	_, err := uuid.Parse(trimmed)
+	return err == nil
+}
+
 func normalizeOptionalString(value *string) *string {
 	if value == nil {
 		return nil
 	}
 	trimmed := strings.TrimSpace(*value)
 	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func normalizeOptionalUUID(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	if _, err := uuid.Parse(trimmed); err != nil {
 		return nil
 	}
 	return &trimmed
@@ -775,12 +807,9 @@ func (u *salesReturnUsecase) getDeliveryOrder(ctx context.Context, deliveryID st
 }
 
 func (u *salesReturnUsecase) resolveInvoiceIDForDelivery(ctx context.Context, deliveryID string, invoiceID *string) (*string, error) {
-	trimmed := ""
-	if invoiceID != nil {
-		trimmed = strings.TrimSpace(*invoiceID)
-	}
-	if trimmed != "" {
-		return &trimmed, nil
+	norm := normalizeOptionalUUID(invoiceID)
+	if norm != nil {
+		return norm, nil
 	}
 
 	if u.db == nil {

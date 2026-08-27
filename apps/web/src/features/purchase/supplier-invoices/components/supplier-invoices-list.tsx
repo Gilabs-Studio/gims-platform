@@ -223,6 +223,8 @@ export function SupplierInvoicesList() {
   const canView = useUserPermission("supplier_invoice.read");
   const canPrint = useUserPermission("supplier_invoice.print");
   const canViewSupplier = useUserPermission("supplier.read");
+  const canViewPO = useUserPermission("purchase_order.read");
+  const canViewGR = useUserPermission("goods_receipt.read");
   const exportProgress = useExportProgress();
 
   async function handleExport() {
@@ -383,32 +385,40 @@ export function SupplierInvoicesList() {
                     </TableCell>
                     <TableCell>
                       {row.purchase_order ? (
-                        <span
-                          className="font-medium text-primary hover:underline cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedPOId(row.purchase_order!.id);
-                            setIsPOOpen(true);
-                          }}
-                        >
-                          {row.purchase_order.code}
-                        </span>
+                        canViewPO ? (
+                          <span
+                            className="font-medium text-primary hover:underline cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPOId(row.purchase_order!.id);
+                              setIsPOOpen(true);
+                            }}
+                          >
+                            {row.purchase_order.code}
+                          </span>
+                        ) : (
+                          <span>{row.purchase_order.code}</span>
+                        )
                       ) : (
                         "-"
                       )}
                     </TableCell>
                     <TableCell>
                       {row.goods_receipt ? (
-                        <span
-                          className="font-medium text-primary hover:underline cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedGRId(row.goods_receipt!.id);
-                            setIsGROpen(true);
-                          }}
-                        >
-                          {row.goods_receipt.code}
-                        </span>
+                        canViewGR ? (
+                          <span
+                            className="font-medium text-primary hover:underline cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedGRId(row.goods_receipt!.id);
+                              setIsGROpen(true);
+                            }}
+                          >
+                            {row.goods_receipt.code}
+                          </span>
+                        ) : (
+                          <span>{row.goods_receipt.code}</span>
+                        )
                       ) : (
                         "-"
                       )}

@@ -15,23 +15,28 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { useGoodsReceipts } from "@/features/purchase/goods-receipt/hooks/use-goods-receipts";
 import { useDeletePurchaseReturn, usePurchaseReturns, useUpdatePurchaseReturnStatus } from "../hooks/use-purchase-returns";
 import { PurchaseReturnDetail } from "./purchase-return-detail";
 import { CreatePurchaseReturnDialog } from "./create-purchase-return-dialog";
+import { GoodsReceiptDetail } from "@/features/purchase/goods-receipt/components/goods-receipt-detail";
 import type { PurchaseReturn, PurchaseReturnStatus } from "../types";
 
 export function PurchaseReturnsList() {
   const t = useTranslations("purchaseReturns");
-  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingReturn, setEditingReturn] = useState<PurchaseReturn | null>(null);
   const [selected, setSelected] = useState<PurchaseReturn | null>(null);
+  const [selectedGoodsReceiptId, setSelectedGoodsReceiptId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const canCreate = useUserPermission("purchase_return.create");
   const canUpdate = useUserPermission("purchase_return.update");
   const canDelete = useUserPermission("purchase_return.delete");
+  const canViewGR = useUserPermission("goods_receipt.read");
   const updateStatus = useUpdatePurchaseReturnStatus();
   const deleteReturn = useDeletePurchaseReturn();
 
@@ -42,13 +47,15 @@ export function PurchaseReturnsList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
   });
+  const { data: grData } = useGoodsReceipts({ per_page: 100 });
 
   const rows = data?.data ?? [];
   const pagination = data?.meta?.pagination;
+  const grCodeMap = new Map((grData?.data ?? []).map((gr) => [gr.id, gr.code]));
 
   const getGoodsReceiptLabel = (row: PurchaseReturn) => {
     const goodsReceipt = (row as PurchaseReturn & { goods_receipt?: { code?: string | null } }).goods_receipt;
-    return goodsReceipt?.code ?? row.goods_receipt_id;
+    return goodsReceipt?.code ?? (grCodeMap.get(row.goods_receipt_id) ?? "-");
   };
 
   if (isError) {
@@ -217,7 +224,18 @@ export function PurchaseReturnsList() {
                   >
                     {row.return_number}
                   </TableCell>
-                  <TableCell>{getGoodsReceiptLabel(row)}</TableCell>
+                  <TableCell>
+                    {canViewGR && row.goods_receipt_id ? (
+                      <button
+                        onClick={() => setSelectedGoodsReceiptId(row.goods_receipt_id)}
+                        className="font-medium text-primary hover:underline cursor-pointer text-left"
+                      >
+                        {getGoodsReceiptLabel(row)}
+                      </button>
+                    ) : (
+                      <span>{getGoodsReceiptLabel(row)}</span>
+                    )}
+                  </TableCell>
                   <TableCell>{getActionBadge(row.action)}</TableCell>
                   <TableCell>{getStatusBadge(row.status)}</TableCell>
                   <TableCell>{formatDate(row.created_at)}</TableCell>
@@ -292,6 +310,11 @@ export function PurchaseReturnsList() {
       ) : null}
 
       <PurchaseReturnDetail open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} />
+      <GoodsReceiptDetail
+        open={!!selectedGoodsReceiptId}
+        goodsReceiptId={selectedGoodsReceiptId}
+        onClose={() => setSelectedGoodsReceiptId(null)}
+      />
       <CreatePurchaseReturnDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
       <CreatePurchaseReturnDialog
         open={!!editingReturn}

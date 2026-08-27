@@ -19,7 +19,9 @@ import { useDeleteSalesReturn, useSalesReturns, useUpdateSalesReturnStatus } fro
 import { useDeliveryOrders } from "@/features/sales/delivery/hooks/use-deliveries";
 import { SalesReturnDetail } from "./sales-return-detail";
 import { CreateSalesReturnDialog } from "./create-sales-return-dialog";
+import { DeliveryDetailModal } from "@/features/sales/delivery/components/delivery-detail-modal";
 import type { SalesReturn, SalesReturnStatus } from "../types";
+import type { DeliveryOrder } from "@/features/sales/delivery/types";
 
 export function SalesReturnsList() {
   const t = useTranslations("salesReturns");
@@ -30,10 +32,12 @@ export function SalesReturnsList() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<SalesReturn | null>(null);
   const [selected, setSelected] = useState<SalesReturn | null>(null);
+  const [selectedDeliveryOrder, setSelectedDeliveryOrder] = useState<DeliveryOrder | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const canCreate = useUserPermission("sales_return.create");
   const canUpdate = useUserPermission("sales_return.update");
   const canDelete = useUserPermission("sales_return.delete");
+  const canViewDO = useUserPermission("delivery_order.read");
   const updateStatus = useUpdateSalesReturnStatus();
   const deleteReturn = useDeleteSalesReturn();
 
@@ -44,7 +48,7 @@ export function SalesReturnsList() {
     per_page: pageSize,
     search: debouncedSearch || undefined,
   });
-  const { data: deliveryData } = useDeliveryOrders({ per_page: 20 });
+  const { data: deliveryData } = useDeliveryOrders({ per_page: 100 });
 
   const rows = data?.data ?? [];
   const pagination = data?.meta?.pagination;
@@ -210,8 +214,28 @@ export function SalesReturnsList() {
             ) : (
               rows.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium">{row.return_number}</TableCell>
-                  <TableCell>{row.delivery_id ? (deliveryCodeMap.get(row.delivery_id) ?? "-") : "-"}</TableCell>
+                  <TableCell
+                    className="font-medium text-primary hover:underline cursor-pointer"
+                    onClick={() => setSelected(row)}
+                  >
+                    {row.return_number}
+                  </TableCell>
+                  <TableCell>
+                    {row.delivery_id ? (
+                      canViewDO ? (
+                        <button
+                          onClick={() => setSelectedDeliveryOrder({ id: row.delivery_id! } as DeliveryOrder)}
+                          className="font-medium text-primary hover:underline cursor-pointer text-left"
+                        >
+                          {deliveryCodeMap.get(row.delivery_id) ?? "-"}
+                        </button>
+                      ) : (
+                        <span>{deliveryCodeMap.get(row.delivery_id) ?? "-"}</span>
+                      )
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell>{getActionBadge(row.action)}</TableCell>
                   <TableCell>{getStatusBadge(row.status)}</TableCell>
                   <TableCell>{formatDate(row.created_at)}</TableCell>
@@ -292,6 +316,13 @@ export function SalesReturnsList() {
       ) : null}
 
       <SalesReturnDetail open={!!selected} onOpenChange={(open) => !open && setSelected(null)} item={selected} />
+      {selectedDeliveryOrder && (
+        <DeliveryDetailModal
+          open={!!selectedDeliveryOrder}
+          onClose={() => setSelectedDeliveryOrder(null)}
+          delivery={selectedDeliveryOrder}
+        />
+      )}
       <CreateSalesReturnDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
       <CreateSalesReturnDialog
         open={isEditOpen}

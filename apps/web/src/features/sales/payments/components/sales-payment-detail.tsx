@@ -22,6 +22,8 @@ import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { AuditTrailTable, buildFallbackAuditTrailEntries } from "@/components/ui/audit-trail-table";
 import { useSalesPayment, useSalesPaymentAuditTrail, useReverseSalesPayment } from "../hooks/use-sales-payments";
+import { InvoiceDetailModal } from "@/features/sales/invoice/components/invoice-detail-modal";
+import type { CustomerInvoice } from "@/features/sales/invoice/types";
 
 interface SalesPaymentDetailProps {
   readonly open: boolean;
@@ -35,8 +37,10 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
   const [auditPageSize, setAuditPageSize] = useState(10);
   const [activeTab, setActiveTab] = useState<"general" | "audit-trail">("general");
   const [reverseConfirmOpen, setReverseConfirmOpen] = useState(false);
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
 
   const canReverse = useUserPermission("sales_payment.reverse");
+  const canViewInvoice = useUserPermission("customer_invoice.read");
   const reverseMutation = useReverseSalesPayment();
 
   const { data, isFetching, isError } = useSalesPayment(paymentId ?? "", {
@@ -88,23 +92,37 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
   const auditPagination = useServerAudit ? auditData?.meta?.pagination : undefined;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) {
-          setActiveTab("general");
-          onClose();
-        }
-      }}
-    >
-      <DialogContent size="lg" className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader className="mb-2">
-          <div className="flex items-center gap-3">
-            <DialogTitle className="text-xl font-semibold tracking-tight">
-              {detail?.invoice?.invoice_number ?? t("actions.view")}
-            </DialogTitle>
-          </div>
-        </DialogHeader>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!v) {
+            setActiveTab("general");
+            onClose();
+          }
+        }}
+      >
+        <DialogContent size="lg" className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="mb-2">
+            <div className="flex items-center gap-3">
+              <DialogTitle className="text-xl font-semibold tracking-tight">
+                {detail?.invoice ? (
+                  canViewInvoice ? (
+                    <button
+                      onClick={() => setIsInvoiceOpen(true)}
+                      className="text-primary hover:underline cursor-pointer text-left"
+                    >
+                      {detail.invoice.invoice_number || detail.invoice.code}
+                    </button>
+                  ) : (
+                    <span>{detail.invoice.invoice_number || detail.invoice.code}</span>
+                  )
+                ) : (
+                  t("actions.view")
+                )}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
 
         {isFetching ? (
           <div className="space-y-4 pt-2">
@@ -261,6 +279,7 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
           </>
         )}
       </DialogContent>
+    </Dialog>
 
       {/* Reverse Confirmation Dialog */}
       <Dialog open={reverseConfirmOpen} onOpenChange={setReverseConfirmOpen}>
@@ -299,6 +318,14 @@ export function SalesPaymentDetail({ open, onClose, paymentId }: SalesPaymentDet
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Dialog>
+
+      {isInvoiceOpen && detail?.invoice && (
+        <InvoiceDetailModal
+          open={isInvoiceOpen}
+          onClose={() => setIsInvoiceOpen(false)}
+          invoice={detail.invoice as unknown as CustomerInvoice}
+        />
+      )}
+    </>
   );
 }

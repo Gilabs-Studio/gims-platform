@@ -290,7 +290,9 @@ export function GoodsReceiptsList() {
             <TableRow>
               <TableHead className="w-[180px]">{t("columns.code")}</TableHead>
               <TableHead>{t("columns.purchaseOrder")}</TableHead>
-              <TableHead>{t("columns.supplier")}</TableHead>                <TableHead>{t("columns.warehouse")}</TableHead>              <TableHead>{t("columns.receiptDate")}</TableHead>
+              <TableHead>{t("columns.supplier")}</TableHead>
+              <TableHead>{t("columns.warehouse")}</TableHead>
+              <TableHead>{t("columns.receiptDate")}</TableHead>
               <TableHead>{t("columns.status")}</TableHead>
               <TableHead className="w-[70px]" />
             </TableRow>

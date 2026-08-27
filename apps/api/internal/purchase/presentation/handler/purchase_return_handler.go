@@ -130,7 +130,7 @@ func (h *PurchaseReturnHandler) Create(c *gin.Context) {
 
 	item, err := h.uc.Create(c.Request.Context(), &req)
 	if err != nil {
-		if err == usecase.ErrPurchaseReturnInvalid {
+		if stderrors.Is(err, usecase.ErrPurchaseReturnInvalid) || strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "required") {
 			errors.ErrorResponse(c, "VALIDATION_ERROR", map[string]interface{}{"message": err.Error()}, nil)
 			return
 		}

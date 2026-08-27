@@ -24,6 +24,7 @@ import (
 	"github.com/gilabs/gims/api/internal/purchase/domain/dto"
 	purchaseService "github.com/gilabs/gims/api/internal/purchase/domain/service"
 	warehouseModels "github.com/gilabs/gims/api/internal/warehouse/data/models"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -190,7 +191,7 @@ func (u *purchaseReturnUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	row := &models.PurchaseReturn{
 		Code:            code,
 		GoodsReceiptID:  createCtx.GoodsReceiptID,
-		PurchaseOrderID: normalizeOptionalString(req.PurchaseOrderID),
+		PurchaseOrderID: normalizeOptionalUUID(req.PurchaseOrderID),
 		SupplierID:      createCtx.SupplierID,
 		WarehouseID:     createCtx.WarehouseID,
 		Reason:          strings.TrimSpace(req.Reason),
@@ -205,12 +206,16 @@ func (u *purchaseReturnUsecase) Create(ctx context.Context, req *dto.CreatePurch
 	items := make([]models.PurchaseReturnItem, 0, len(req.Items))
 	totalAmount := 0.0
 	for _, item := range req.Items {
+		productID := strings.TrimSpace(item.ProductID)
+		if productID == "" || !isValidUUID(productID) {
+			return nil, fmt.Errorf("%w: invalid product_id '%s'", ErrPurchaseReturnInvalid, item.ProductID)
+		}
 		subtotal := item.Qty * item.UnitCost
 		totalAmount += subtotal
 		items = append(items, models.PurchaseReturnItem{
-			GoodsReceiptItemID: normalizeOptionalString(item.GoodsReceiptItemID),
-			ProductID:          strings.TrimSpace(item.ProductID),
-			UOMID:              normalizeOptionalString(item.UOMID),
+			GoodsReceiptItemID: normalizeOptionalUUID(item.GoodsReceiptItemID),
+			ProductID:          productID,
+			UOMID:              normalizeOptionalUUID(item.UOMID),
 			Condition:          strings.ToUpper(strings.TrimSpace(item.Condition)),
 			Notes:              normalizeOptionalString(item.Notes),
 			Quantity:           item.Qty,
@@ -754,12 +759,35 @@ func canTransitionPurchaseReturnStatus(current, next models.PurchaseReturnStatus
 	}
 }
 
+func isValidUUID(s string) bool {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return false
+	}
+	_, err := uuid.Parse(trimmed)
+	return err == nil
+}
+
 func normalizeOptionalString(value *string) *string {
 	if value == nil {
 		return nil
 	}
 	trimmed := strings.TrimSpace(*value)
 	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func normalizeOptionalUUID(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	if _, err := uuid.Parse(trimmed); err != nil {
 		return nil
 	}
 	return &trimmed

@@ -17,6 +17,7 @@ import { AuditTrailTable } from "@/components/ui/audit-trail-table";
 import { useUserPermission } from "@/hooks/use-user-permission";
 
 import { usePurchasePayment, usePurchasePaymentAuditTrail } from "../hooks/use-purchase-payments";
+import { SupplierInvoiceDetail } from "@/features/purchase/supplier-invoices/components/supplier-invoice-detail";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface PurchasePaymentDetailProps {
@@ -29,9 +30,11 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
   const t = useTranslations("purchasePayment");
   const tCommon = useTranslations("common");
   const canAuditTrail = useUserPermission("purchase_payment.read");
+  const canViewInvoice = useUserPermission("supplier_invoice.read");
   const [activeTab, setActiveTab] = useState<"general" | "audit-trail">("general");
   const [auditPage, setAuditPage] = useState(1);
   const [auditPageSize, setAuditPageSize] = useState(10);
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
 
   const { data, isFetching, isError } = usePurchasePayment(paymentId ?? "", {
     enabled: open && !!paymentId,
@@ -48,24 +51,38 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
   const auditPagination = auditData?.meta?.pagination;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) {
-          setActiveTab("general");
-          setAuditPage(1);
-          onClose();
-        }
-      }}
-    >
-      <DialogContent size="lg" className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader className="mb-2">
-          <div className="flex items-center gap-3">
-            <DialogTitle className="text-xl font-semibold tracking-tight">
-              {detail?.invoice?.invoice_number ?? t("actions.view")}
-            </DialogTitle>
-          </div>
-        </DialogHeader>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(v) => {
+          if (!v) {
+            setActiveTab("general");
+            setAuditPage(1);
+            onClose();
+          }
+        }}
+      >
+        <DialogContent size="lg" className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader className="mb-2">
+            <div className="flex items-center gap-3">
+              <DialogTitle className="text-xl font-semibold tracking-tight">
+                {detail?.invoice ? (
+                  canViewInvoice ? (
+                    <button
+                      onClick={() => setIsInvoiceOpen(true)}
+                      className="text-primary hover:underline cursor-pointer text-left"
+                    >
+                      {detail.invoice.invoice_number || detail.invoice.code}
+                    </button>
+                  ) : (
+                    <span>{detail.invoice.invoice_number || detail.invoice.code}</span>
+                  )
+                ) : (
+                  t("actions.view")
+                )}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
 
         {isFetching ? (
           <div className="space-y-4 pt-2">
@@ -192,5 +209,12 @@ export function PurchasePaymentDetail({ open, onClose, paymentId }: PurchasePaym
         )}
       </DialogContent>
     </Dialog>
+
+    <SupplierInvoiceDetail
+      open={isInvoiceOpen}
+      onClose={() => setIsInvoiceOpen(false)}
+      invoiceId={detail?.invoice?.id}
+    />
+  </>
   );
 }

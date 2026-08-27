@@ -9,8 +9,7 @@ const getMsg = (t: TranslationFn | undefined, key: string, defaultMsg?: string) 
 export const getSalesReturnItemSchema = (t?: TranslationFn) => z.object({
   invoice_item_id: z.string().optional(),
   product_id: z.string()
-    .min(1, getMsg(t, "validation.required", "Product is required"))
-    .uuid(getMsg(t, "validation.invalidId", "Invalid product ID")),
+    .min(1, getMsg(t, "validation.required", "Product is required")),
   uom_id: z.string().optional(),
   condition: z.string().min(1, getMsg(t, "validation.required", "Condition is required")),
   notes: z.string().optional(),
@@ -21,11 +20,9 @@ export const getSalesReturnItemSchema = (t?: TranslationFn) => z.object({
 export const getSalesReturnSchema = (t?: TranslationFn) => z.object({
   invoice_id: z.string().optional(),
   delivery_id: z.string()
-    .min(1, getMsg(t, "validation.required", "Delivery order is required"))
-    .uuid(getMsg(t, "validation.invalidId", "Invalid delivery order ID")),
+    .min(1, getMsg(t, "validation.required", "Delivery order is required")),
   warehouse_id: z.string()
-    .min(1, getMsg(t, "validation.required", "Warehouse is required"))
-    .uuid(getMsg(t, "validation.invalidId", "Invalid warehouse ID")),
+    .min(1, getMsg(t, "validation.required", "Warehouse is required")),
   customer_id: z.string().optional(),
   reason: z.string().min(1, getMsg(t, "validation.required", "Reason is required")),
   action: z.string().min(1, getMsg(t, "validation.required", "Action is required")),

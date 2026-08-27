@@ -345,6 +345,9 @@ export function SalesReturnForm({ defaultInvoiceId, defaultDeliveryId, salesRetu
     try {
       const itemsPayload = values.items.map((item) => ({
         ...item,
+        invoice_item_id: item.invoice_item_id || undefined,
+        uom_id: item.uom_id || undefined,
+        notes: item.notes || undefined,
         unit_price: eligibleItemMap.get(item.product_id)?.dealPrice ?? item.unit_price,
       }));
 
