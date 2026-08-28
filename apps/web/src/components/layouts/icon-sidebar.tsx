@@ -34,7 +34,7 @@ export const IconSidebar = memo(function IconSidebar({
   items,
   activeParentId,
   onSelectParent,
-  logoSrc = "/MECCAYA.webp",
+  logoSrc = "/LOGO APPS MECCAYA.webp",
   logoAlt = "MECCAYA",
 }: IconSidebarProps) {
   const pathname = usePathname();
@@ -60,9 +60,9 @@ export const IconSidebar = memo(function IconSidebar({
           <Image
             src={logoSrc}
             alt={logoAlt}
-            width={36}
-            height={36}
-            className="object-contain rounded-lg"
+            width={40}
+            height={40}
+            className="h-10 w-10 object-contain"
           />
         </Link>
       </div>
