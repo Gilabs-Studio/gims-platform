@@ -1,0 +1,38 @@
+export const manufacturingOeeEn = {
+  title: "Manufacturing OEE & Plant Overview",
+  subtitle: "Real-time production execution monitoring, machine efficiency analytics, and plant performance.",
+  tabs: {
+    overview: "Plant Overview",
+    machines: "Line & Machine Telemetry",
+    workOrders: "Shop Floor Work Orders",
+    downtime: "Downtime Pareto Analysis",
+  },
+  filters: {
+    line: "Production Line",
+    allLines: "All Production Lines",
+    shift: "Current Shift",
+    day: "Daily Run",
+    week: "Weekly Overview",
+    outOfTolerance: "Out of tolerance first",
+    searchPlaceholder: "Search machines, work orders, or lines...",
+  },
+  kpi: {
+    plantOee: "PLANT OVERALL OEE",
+    targetOee: "Target: 85%",
+    availability: "Availability",
+    performance: "Performance",
+    quality: "Quality",
+    totalOutput: "Total Output",
+    scrapRate: "Scrap & Defect Rate",
+    activeMachines: "Active Machines",
+    downMachines: "Down / Maintenance",
+    units: "units",
+  },
+  stickyBar: {
+    target: "Target OEE",
+    plantOee: "Overall OEE",
+    avail: "Availability",
+    perf: "Performance",
+    qual: "Quality",
+  },
+};

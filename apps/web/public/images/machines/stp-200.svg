@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" fill="none">
+  <!-- Heavy Base Bed -->
+  <rect x="35" y="78" width="90" height="14" rx="2" fill="#2d3748"/>
+  <rect x="45" y="92" width="18" height="4" fill="#1a202c"/>
+  <rect x="97" y="92" width="18" height="4" fill="#1a202c"/>
+  
+  <!-- Dual Column Solid Frame (AIDA Industrial Sage Green) -->
+  <rect x="35" y="16" width="90" height="64" rx="3" fill="#2f855a" stroke="#276749" stroke-width="1.5"/>
+  
+  <!-- Crown / Flywheel Top -->
+  <rect x="30" y="12" width="100" height="12" rx="2" fill="#22543d"/>
+  <circle cx="80" cy="18" r="4" fill="#a0aec0"/>
+  
+  <!-- Center Press Die Window -->
+  <rect x="52" y="34" width="56" height="40" rx="2" fill="#1a202c"/>
+  
+  <!-- Upper Ram / Slide (Moving down) -->
+  <rect x="56" y="38" width="48" height="16" rx="1" fill="#718096" stroke="#cbd5e0" stroke-width="1"/>
+  <!-- Upper Punch Tooling -->
+  <rect x="62" y="54" width="36" height="4" fill="#e2e8f0"/>
+  
+  <!-- Lower Bolster / Die Bed -->
+  <rect x="56" y="66" width="48" height="8" rx="1" fill="#4a5568"/>
+  
+  <!-- Guide Pillars -->
+  <line x1="58" y1="36" x2="58" y2="72" stroke="#e2e8f0" stroke-width="2"/>
+  <line x1="102" y1="36" x2="102" y2="72" stroke="#e2e8f0" stroke-width="2"/>
+  
+  <!-- Operator Safety Light Curtain Sensor -->
+  <rect x="48" y="40" width="3" height="28" fill="#e53e3e"/>
+  <rect x="109" y="40" width="3" height="28" fill="#e53e3e"/>
+</svg>

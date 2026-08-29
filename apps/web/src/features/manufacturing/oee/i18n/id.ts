@@ -1,0 +1,38 @@
+export const manufacturingOeeId = {
+  title: "Manufaktur OEE & Control Lantai Pabrik",
+  subtitle: "Pemantauan eksekusi produksi realtime, analitik efisiensi mesin, dan pencatatan downtime.",
+  tabs: {
+    overview: "Ikhtisar Pabrik",
+    machines: "Telemetri Line & Mesin",
+    workOrders: "Perintah Kerja (Work Order)",
+    downtime: "Analisis Pareto Downtime",
+  },
+  filters: {
+    line: "Line Produksi",
+    allLines: "Semua Line Produksi",
+    shift: "Shift Saat Ini",
+    day: "Harian",
+    week: "Mingguan",
+    outOfTolerance: "Utamakan di luar toleransi",
+    searchPlaceholder: "Cari mesin, work order, atau line...",
+  },
+  kpi: {
+    plantOee: "TOTAL OEE PABRIK",
+    targetOee: "Target: 85%",
+    availability: "Ketersediaan (Avail)",
+    performance: "Performa (Perf)",
+    quality: "Kualitas (Qual)",
+    totalOutput: "Total Output Produksi",
+    scrapRate: "Tingkat Defect & Scrap",
+    activeMachines: "Mesin Beroperasi",
+    downMachines: "Mesin Down / Servis",
+    units: "unit",
+  },
+  stickyBar: {
+    target: "Target OEE",
+    plantOee: "OEE Total",
+    avail: "Ketersediaan",
+    perf: "Performa",
+    qual: "Kualitas",
+  },
+};

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" fill="none">
+  <!-- Floor Mounting Pedestal -->
+  <rect x="40" y="80" width="40" height="12" rx="2" fill="#1a202c"/>
+  <circle cx="60" cy="80" r="14" fill="#2d3748"/>
+  <rect x="35" y="92" width="50" height="4" fill="#0f172a"/>
+  
+  <!-- Joint 1 Base (KUKA Signature Orange) -->
+  <path d="M 54 80 L 56 58 L 68 58 L 66 80 Z" fill="#dd6b20"/>
+  <circle cx="62" cy="58" r="8" fill="#1a202c" stroke="#dd6b20" stroke-width="2"/>
+  
+  <!-- Link 1 (Lower Arm) -->
+  <path d="M 62 58 L 92 34" stroke="#dd6b20" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 62 58 L 92 34" stroke="#1a202c" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Joint 2 (Elbow) -->
+  <circle cx="92" cy="34" r="8" fill="#1a202c" stroke="#dd6b20" stroke-width="2"/>
+  
+  <!-- Link 2 (Forearm) -->
+  <path d="M 92 34 L 126 44" stroke="#dd6b20" stroke-width="9" stroke-linecap="round"/>
+  
+  <!-- Joint 3 (Wrist) -->
+  <circle cx="126" cy="44" r="6" fill="#1a202c" stroke="#dd6b20" stroke-width="1.5"/>
+  
+  <!-- End Effector Tool / Pneumatic Gripper -->
+  <rect x="128" y="41" width="6" height="6" rx="1" fill="#718096"/>
+  <path d="M 134 38 L 144 41 L 144 43 L 134 43" fill="#cbd5e0"/>
+  <path d="M 134 50 L 144 47 L 144 45 L 134 45" fill="#cbd5e0"/>
+  
+  <!-- Safety Standby Beacon (Amber/Orange) -->
+  <circle cx="62" cy="45" r="2.5" fill="#dd6b20"/>
+</svg>

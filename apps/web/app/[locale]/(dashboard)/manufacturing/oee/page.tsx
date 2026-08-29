@@ -1,5 +1,5 @@
 import React from "react";
-import { OeeDashboard } from "@/features/manufacturing/components/oee-dashboard";
+import { OeeDashboard } from "@/features/manufacturing/oee/components/oee-dashboard";
 
 export const metadata = {
   title: "OEE & Shop Floor Control | GIMS Manufacturing",
