@@ -97,6 +97,10 @@ import {
   Ticket,
   LifeBuoy,
   Factory,
+  Gauge,
+  Tv,
+  BellRing,
+  Cpu,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -218,6 +222,11 @@ const iconMap: Record<string, React.ReactNode> = {
   factory: <Factory className="h-4 w-4" />,
   manufacturing: <Factory className="h-4 w-4" />,
   manufacture: <Factory className="h-4 w-4" />,
+  gauge: <Gauge className="h-4 w-4" />,
+  tv: <Tv className="h-4 w-4" />,
+  "bell-ring": <BellRing className="h-4 w-4" />,
+  bellring: <BellRing className="h-4 w-4" />,
+  cpu: <Cpu className="h-4 w-4" />,
   "scroll-text": <ScrollText className="h-4 w-4" />,
   scrolltext: <ScrollText className="h-4 w-4" />,
   truck: <Truck className="h-4 w-4" />,

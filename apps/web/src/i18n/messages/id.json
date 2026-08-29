@@ -489,7 +489,13 @@
     "loyalty": "Loyalitas",
     "loyaltyConfig": "Program Loyalitas",
     "loyaltyMembers": "Anggota Loyalitas",
-    "manufacturing": "Manufaktur"
+    "manufacturing": "Manufaktur",
+    "oeeDashboard": "Dashboard OEE",
+    "liveMonitoring": "Live Monitoring Wall",
+    "workOrders": "Perintah Kerja (WO)",
+    "qualityAndon": "Quality Andon",
+    "machineDetail": "Telemetri Mesin",
+    "downtimePareto": "Pareto Downtime"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",

@@ -213,8 +213,18 @@ import { systemAdminEn } from "@/features/system-admin/i18n/en";
 import { systemAdminId } from "@/features/system-admin/i18n/id";
 import { userFeedbackEn } from "@/features/feedback/i18n/en";
 import { userFeedbackId } from "@/features/feedback/i18n/id";
-import { manufacturingEn } from "@/features/manufacturing/i18n/en";
-import { manufacturingId } from "@/features/manufacturing/i18n/id";
+import { manufacturingOeeEn } from "@/features/manufacturing/oee/i18n/en";
+import { manufacturingOeeId } from "@/features/manufacturing/oee/i18n/id";
+import { manufacturingLiveMonitoringEn } from "@/features/manufacturing/live-monitoring/i18n/en";
+import { manufacturingLiveMonitoringId } from "@/features/manufacturing/live-monitoring/i18n/id";
+import { manufacturingWorkOrdersEn } from "@/features/manufacturing/work-orders/i18n/en";
+import { manufacturingWorkOrdersId } from "@/features/manufacturing/work-orders/i18n/id";
+import { manufacturingQualityAndonEn } from "@/features/manufacturing/quality-andon/i18n/en";
+import { manufacturingQualityAndonId } from "@/features/manufacturing/quality-andon/i18n/id";
+import { manufacturingMachinesEn } from "@/features/manufacturing/machines/i18n/en";
+import { manufacturingMachinesId } from "@/features/manufacturing/machines/i18n/id";
+import { manufacturingDowntimeEn } from "@/features/manufacturing/downtime/i18n/en";
+import { manufacturingDowntimeId } from "@/features/manufacturing/downtime/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -323,7 +333,12 @@ const messages = {
     ...landingEn,
     ...systemAdminEn,
     ...userFeedbackEn,
-    manufacturing: manufacturingEn,
+    manufacturingOee: manufacturingOeeEn,
+    manufacturingLiveMonitoring: manufacturingLiveMonitoringEn,
+    manufacturingWorkOrders: manufacturingWorkOrdersEn,
+    manufacturingQualityAndon: manufacturingQualityAndonEn,
+    manufacturingMachines: manufacturingMachinesEn,
+    manufacturingDowntime: manufacturingDowntimeEn,
   },
   id: {
     ...globalIdMessages,
@@ -430,7 +445,12 @@ const messages = {
     ...landingId,
     ...systemAdminId,
     ...userFeedbackId,
-    manufacturing: manufacturingId,
+    manufacturingOee: manufacturingOeeId,
+    manufacturingLiveMonitoring: manufacturingLiveMonitoringId,
+    manufacturingWorkOrders: manufacturingWorkOrdersId,
+    manufacturingQualityAndon: manufacturingQualityAndonId,
+    manufacturingMachines: manufacturingMachinesId,
+    manufacturingDowntime: manufacturingDowntimeId,
   },
 } as const;
 

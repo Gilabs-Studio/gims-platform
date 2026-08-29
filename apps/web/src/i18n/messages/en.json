@@ -489,7 +489,13 @@
     "loyalty": "Loyalty",
     "loyaltyConfig": "Loyalty Program",
     "loyaltyMembers": "Loyalty Members",
-    "manufacturing": "Manufacturing"
+    "manufacturing": "Manufacturing",
+    "oeeDashboard": "OEE Dashboard",
+    "liveMonitoring": "Live Monitoring Wall",
+    "workOrders": "Work Orders",
+    "qualityAndon": "Quality Andon",
+    "machineDetail": "Machine Telemetry",
+    "downtimePareto": "Downtime Pareto"
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",
