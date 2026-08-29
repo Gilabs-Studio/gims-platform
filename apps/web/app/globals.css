@@ -22,10 +22,14 @@
   --color-popover-foreground: hsl(var(--popover-foreground));
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
-  --color-warning: hsl(var(--chart-3));
+  --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(0 0% 100%);
-  --color-success: hsl(var(--chart-2));
+  --color-success: hsl(var(--success));
   --color-success-foreground: hsl(0 0% 100%);
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(0 0% 100%);
+  --color-blue: hsl(var(--blue));
+  --color-blue-foreground: hsl(0 0% 100%);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -105,6 +109,18 @@
     --cyan: 187 100% 44%;          /* Semantic cyan */
     --cyan-foreground: 0 0% 100%;
 
+    --blue: 217 91% 60%;          /* Semantic blue */
+    --blue-foreground: 0 0% 100%;
+
+    --info: 217 91% 60%;          /* Semantic info */
+    --info-foreground: 0 0% 100%;
+
+    --success: 142 76% 36%;       /* Semantic green / success */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 36 80% 55%;        /* Semantic yellow/gold warning */
+    --warning-foreground: 0 0% 100%;
+
     --rose: 353 72% 44%;           /* Semantic red/rose */
     --rose-foreground: 0 0% 100%;
     
@@ -169,6 +185,18 @@
 
     --cyan: 187 100% 44%;
     --cyan-foreground: 0 0% 100%;
+
+    --blue: 217 91% 65%;
+    --blue-foreground: 0 0% 100%;
+
+    --info: 217 91% 65%;
+    --info-foreground: 0 0% 100%;
+
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 36 80% 55%;
+    --warning-foreground: 0 0% 100%;
 
     --rose: 353 75% 52%;
     --rose-foreground: 0 0% 100%;

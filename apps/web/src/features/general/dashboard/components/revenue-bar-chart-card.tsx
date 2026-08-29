@@ -6,6 +6,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -44,6 +45,9 @@ export function RevenueBarChartCard({
     period: p,
     value: seriesLine?.data?.[i] ?? 0,
   }));
+
+  const maxValue =
+    chartData.length > 0 ? Math.max(...chartData.map((d) => d.value)) : 0;
 
   const revenueTotal =
     revenueData?.series?.[0]?.data?.reduce((a, b) => a + b, 0) ?? 0;
@@ -131,14 +135,23 @@ export function RevenueBarChartCard({
               />
               <Bar
                 dataKey="value"
-                fill={
-                  activeKey === "revenue"
-                    ? "hsl(var(--chart-2))"
-                    : "hsl(var(--chart-1))"
-                }
                 radius={[5, 5, 0, 0]}
                 maxBarSize={20}
-              />
+              >
+                {chartData.map((entry, index) => {
+                  const isHighest = maxValue > 0 && entry.value === maxValue;
+                  return (
+                    <Cell
+                      key={`bar-cell-${entry.period}-${index}`}
+                      fill={
+                        isHighest
+                          ? "hsl(var(--success))"
+                          : "hsl(var(--blue))"
+                      }
+                    />
+                  );
+                })}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

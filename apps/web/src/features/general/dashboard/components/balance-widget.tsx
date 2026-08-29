@@ -78,8 +78,8 @@ export function BalanceWidget({ data }: BalanceWidgetProps) {
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="hsl(var(--chart-1))"
-                fill="hsl(var(--chart-1))"
+                stroke="hsl(var(--blue))"
+                fill="hsl(var(--blue))"
                 fillOpacity={0.15}
                 strokeWidth={2}
               />

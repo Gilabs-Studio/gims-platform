@@ -18,11 +18,11 @@ import {
 import type { PeriodChartData } from "../types";
 
 const CHART_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
+  "hsl(var(--blue))",
+  "hsl(var(--success))",
+  "hsl(var(--warning))",
+  "hsl(var(--purple))",
+  "hsl(var(--cyan))",
 ];
 
 interface ChartWidgetProps {
