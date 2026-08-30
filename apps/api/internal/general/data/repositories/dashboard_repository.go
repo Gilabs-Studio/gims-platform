@@ -1584,7 +1584,7 @@ func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryD
 
 	// Total active employees for rate calculation
 	var totalEmployees int64
-	if err := db.Table("employees").Where("deleted_at IS NULL AND status = ?", "active").Count(&totalEmployees).Error; err != nil {
+	if err := db.Table("employees").Where("deleted_at IS NULL").Count(&totalEmployees).Error; err != nil {
 		return nil, err
 	}
 
@@ -1592,7 +1592,7 @@ func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryD
 	var presentToday int64
 	if err := r.scoped(ctx, "attendance_records").
 		Table("attendance_records").
-		Where("date = CURRENT_DATE AND deleted_at IS NULL AND status = ?", "present").
+		Where("date = CURRENT_DATE AND deleted_at IS NULL AND UPPER(status) IN ('PRESENT', 'LATE', 'HALF_DAY', 'WFH')").
 		Count(&presentToday).Error; err != nil {
 		return nil, err
 	}
@@ -1601,7 +1601,7 @@ func (r *dashboardRepository) GetHRSummary(ctx context.Context) (*dto.HRSummaryD
 	var lateToday int64
 	if err := r.scoped(ctx, "attendance_records").
 		Table("attendance_records").
-		Where("date = CURRENT_DATE AND deleted_at IS NULL AND is_late = true").
+		Where("date = CURRENT_DATE AND deleted_at IS NULL AND (UPPER(status) = 'LATE' OR late_minutes > 0)").
 		Count(&lateToday).Error; err != nil {
 		return nil, err
 	}
@@ -1633,56 +1633,56 @@ func (r *dashboardRepository) GetCRMSummary(ctx context.Context) (*dto.CRMSummar
 	dealScopeCtx := withPermissionScope(ctx, "crm_deal.read")
 	taskScopeCtx := withPermissionScope(ctx, "crm_task.read")
 
-	contactsDB := security.ApplyScopeFilter(
+	baseContactsDB := security.ApplyScopeFilter(
 		r.scoped(leadScopeCtx, "crm_contacts").Model(&crmModels.Contact{}),
 		leadScopeCtx,
 		security.DefaultScopeQueryOptions(),
 	)
-	leadsDB := security.ApplyScopeFilter(
+	baseLeadsDB := security.ApplyScopeFilter(
 		r.scoped(leadScopeCtx, "crm_leads").Model(&crmModels.Lead{}),
 		leadScopeCtx,
 		security.MixedOwnershipScopeQueryOptions("assigned_to"),
 	)
-	dealsDB := security.ApplyScopeFilter(
+	baseDealsDB := security.ApplyScopeFilter(
 		r.scoped(dealScopeCtx, "crm_deals").Model(&crmModels.Deal{}),
 		dealScopeCtx,
 		security.MixedOwnershipScopeQueryOptions("assigned_to"),
 	)
-	schedulesDB := security.ApplyScopeFilter(
+	baseSchedulesDB := security.ApplyScopeFilter(
 		r.scoped(taskScopeCtx, "crm_schedules").Model(&crmModels.Schedule{}),
 		taskScopeCtx,
 		security.MixedOwnershipScopeQueryOptions("employee_id"),
 	)
 
 	var totalContacts int64
-	if err := contactsDB.Where("deleted_at IS NULL").Count(&totalContacts).Error; err != nil {
+	if err := baseContactsDB.Session(&gorm.Session{}).Where("crm_contacts.deleted_at IS NULL").Count(&totalContacts).Error; err != nil {
 		return nil, err
 	}
 	result.TotalContacts = int(totalContacts)
 
 	var activeLeads int64
-	if err := leadsDB.
-		Where("deleted_at IS NULL AND converted_at IS NULL").
+	if err := baseLeadsDB.Session(&gorm.Session{}).
+		Where("crm_leads.deleted_at IS NULL AND crm_leads.converted_at IS NULL").
 		Count(&activeLeads).Error; err != nil {
 		return nil, err
 	}
 	result.ActiveLeads = int(activeLeads)
 
 	var leadsThisMonth int64
-	if err := leadsDB.
-		Where("deleted_at IS NULL AND created_at >= date_trunc('month', CURRENT_DATE)").
+	if err := baseLeadsDB.Session(&gorm.Session{}).
+		Where("crm_leads.deleted_at IS NULL AND crm_leads.created_at >= date_trunc('month', CURRENT_DATE)").
 		Count(&leadsThisMonth).Error; err != nil {
 		return nil, err
 	}
 	result.LeadsThisMonth = int(leadsThisMonth)
 
 	var recentLeadRows []crmModels.Lead
-	if err := leadsDB.
+	if err := baseLeadsDB.Session(&gorm.Session{}).
 		Preload("LeadStatus").
 		Preload("AssignedEmployee").
 		Preload("Deal.PipelineStage").
-		Where("deleted_at IS NULL").
-		Order("created_at DESC").
+		Where("crm_leads.deleted_at IS NULL").
+		Order("crm_leads.created_at DESC").
 		Limit(5).
 		Find(&recentLeadRows).Error; err != nil {
 		return nil, err
@@ -1717,25 +1717,25 @@ func (r *dashboardRepository) GetCRMSummary(ctx context.Context) (*dto.CRMSummar
 	}
 
 	var dealsInProgress int64
-	if err := dealsDB.
-		Where("deleted_at IS NULL AND status = ?", "open").
+	if err := baseDealsDB.Session(&gorm.Session{}).
+		Where("crm_deals.deleted_at IS NULL AND crm_deals.status = ?", "open").
 		Count(&dealsInProgress).Error; err != nil {
 		return nil, err
 	}
 	result.DealsInProgress = int(dealsInProgress)
 
 	var dealsWonThisMonth int64
-	if err := dealsDB.
-		Where("deleted_at IS NULL AND status = ?", "won").
-		Where("COALESCE(actual_close_date::timestamp, updated_at) >= date_trunc('month', CURRENT_DATE)").
+	if err := baseDealsDB.Session(&gorm.Session{}).
+		Where("crm_deals.deleted_at IS NULL AND crm_deals.status = ?", "won").
+		Where("COALESCE(crm_deals.actual_close_date::timestamp, crm_deals.updated_at) >= date_trunc('month', CURRENT_DATE)").
 		Count(&dealsWonThisMonth).Error; err != nil {
 		return nil, err
 	}
 	result.DealsWonThisMonth = int(dealsWonThisMonth)
 
 	var activitiesToday int64
-	if err := schedulesDB.
-		Where("deleted_at IS NULL AND status <> ? AND scheduled_at::date = CURRENT_DATE", "cancelled").
+	if err := baseSchedulesDB.Session(&gorm.Session{}).
+		Where("crm_schedules.deleted_at IS NULL AND crm_schedules.status <> ? AND crm_schedules.scheduled_at::date = CURRENT_DATE", "cancelled").
 		Count(&activitiesToday).Error; err != nil {
 		return nil, err
 	}
@@ -1749,7 +1749,7 @@ func (r *dashboardRepository) GetCRMSummary(ctx context.Context) (*dto.CRMSummar
 	}
 
 	var stageRows []pipelineStageAggregate
-	if err := dealsDB.
+	if err := baseDealsDB.Session(&gorm.Session{}).
 		Table("crm_deals").
 		Select(`
 			crm_pipeline_stages.id AS stage_id,

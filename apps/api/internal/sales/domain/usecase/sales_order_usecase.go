@@ -101,12 +101,24 @@ func (u *salesOrderUsecase) List(ctx context.Context, req *dto.ListSalesOrdersRe
 		return nil, nil, err
 	}
 
+	// Batch fetch pending delivery quantities for approved orders to avoid N+1 query loop
+	var approvedOrderIDs []string
+	for i := range orders {
+		if orders[i].Status == models.SalesOrderStatusApproved {
+			approvedOrderIDs = append(approvedOrderIDs, orders[i].ID)
+		}
+	}
+
+	var batchPendingQtyMap map[string]map[string]float64
+	if len(approvedOrderIDs) > 0 {
+		batchPendingQtyMap, _ = u.deliveryOrderRepo.GetPendingDeliveryQtyBySalesOrderIDs(ctx, approvedOrderIDs)
+	}
+
 	responses := make([]dto.SalesOrderResponse, len(orders))
 	for i := range orders {
-		// For approved orders, fetch pending delivery quantities
 		var pendingQtyMap map[string]float64
-		if orders[i].Status == models.SalesOrderStatusApproved {
-			pendingQtyMap, _ = u.deliveryOrderRepo.GetPendingDeliveryQtyBySalesOrder(ctx, orders[i].ID)
+		if batchPendingQtyMap != nil {
+			pendingQtyMap = batchPendingQtyMap[orders[i].ID]
 		}
 		responses[i] = mapper.ToSalesOrderResponse(&orders[i], pendingQtyMap)
 		u.attachCustomerContactResponse(ctx, &responses[i])

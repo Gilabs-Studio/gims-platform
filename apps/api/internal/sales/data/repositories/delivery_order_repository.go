@@ -27,6 +27,7 @@ type DeliveryOrderRepository interface {
 	Ship(ctx context.Context, id string, userID *string, trackingNumber string) error
 	Deliver(ctx context.Context, id string, userID *string, receiverSignature string, receiverName string) error
 	GetPendingDeliveryQtyBySalesOrder(ctx context.Context, salesOrderID string) (map[string]float64, error)
+	GetPendingDeliveryQtyBySalesOrderIDs(ctx context.Context, salesOrderIDs []string) (map[string]map[string]float64, error)
 }
 
 type deliveryOrderRepository struct {
@@ -414,4 +415,53 @@ func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrder(ctx context.
 		pendingMap[r.SalesOrderItemID] = r.TotalQty
 	}
 	return pendingMap, nil
+}
+
+func (r *deliveryOrderRepository) GetPendingDeliveryQtyBySalesOrderIDs(ctx context.Context, salesOrderIDs []string) (map[string]map[string]float64, error) {
+	if len(salesOrderIDs) == 0 {
+		return make(map[string]map[string]float64), nil
+	}
+
+	type result struct {
+		SalesOrderID     string  `json:"sales_order_id"`
+		SalesOrderItemID string  `json:"sales_order_item_id"`
+		TotalQty         float64 `json:"total_qty"`
+	}
+
+	var results []result
+	query := r.db.WithContext(ctx).Table("delivery_order_items doi")
+
+	// Apply tenant filter with prefix
+	var err error
+	query, err = applyTenantFilter(ctx, query, "doi.tenant_id")
+	if err != nil {
+		return nil, err
+	}
+
+	err = query.
+		Select("dord.sales_order_id, doi.sales_order_item_id, SUM(doi.quantity) as total_qty").
+		Joins("JOIN delivery_orders dord ON dord.id = doi.delivery_order_id").
+		Where("dord.sales_order_id IN (?)", salesOrderIDs).
+		Where("UPPER(dord.status) NOT IN ?", []string{
+			strings.ToUpper(string(models.DeliveryOrderStatusCancelled)),
+			strings.ToUpper(string(models.DeliveryOrderStatusDelivered)),
+			strings.ToUpper(string(models.DeliveryOrderStatusRejected)),
+		}).
+		Where("dord.deleted_at IS NULL").
+		Where("doi.deleted_at IS NULL").
+		Where("doi.sales_order_item_id IS NOT NULL").
+		Group("dord.sales_order_id, doi.sales_order_item_id").
+		Scan(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	nestedMap := make(map[string]map[string]float64, len(salesOrderIDs))
+	for _, r := range results {
+		if _, exists := nestedMap[r.SalesOrderID]; !exists {
+			nestedMap[r.SalesOrderID] = make(map[string]float64)
+		}
+		nestedMap[r.SalesOrderID][r.SalesOrderItemID] = r.TotalQty
+	}
+	return nestedMap, nil
 }

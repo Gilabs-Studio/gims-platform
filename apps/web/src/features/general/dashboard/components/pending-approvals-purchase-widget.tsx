@@ -101,6 +101,7 @@ export function PendingApprovalsPurchaseWidget() {
 
   const [activeTab, setActiveTab] = useState<PurchaseTab>(defaultTab);
 
+  // Queries — lazy-load tab data only when tab is active
   const {
     data: prData,
     isLoading: prLoading,
@@ -111,7 +112,7 @@ export function PendingApprovalsPurchaseWidget() {
       status: "SUBMITTED",
       per_page: PER_PAGE,
     },
-    { enabled: canViewRequisition },
+    { enabled: canViewRequisition && activeTab === "requisition" },
   );
   const {
     data: poData,
@@ -123,7 +124,7 @@ export function PendingApprovalsPurchaseWidget() {
       status: "SUBMITTED",
       per_page: PER_PAGE,
     },
-    { enabled: canViewOrder },
+    { enabled: canViewOrder && activeTab === "order" },
   );
   const {
     data: grData,
@@ -135,7 +136,7 @@ export function PendingApprovalsPurchaseWidget() {
       status: "SUBMITTED",
       per_page: PER_PAGE,
     },
-    { enabled: canViewGoodsReceipt },
+    { enabled: canViewGoodsReceipt && activeTab === "goods-receipt" },
   );
   const {
     data: siData,
@@ -147,7 +148,7 @@ export function PendingApprovalsPurchaseWidget() {
       status: "SUBMITTED",
       per_page: PER_PAGE,
     },
-    { enabled: canViewSupplierInvoice },
+    { enabled: canViewSupplierInvoice && activeTab === "supplier-invoice" },
   );
 
   const requisitions = prData?.data ?? [];

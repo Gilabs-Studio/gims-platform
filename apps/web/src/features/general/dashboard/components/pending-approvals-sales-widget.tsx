@@ -125,7 +125,7 @@ export function PendingApprovalsSalesWidget() {
   const [selectedInvoice, setSelectedInvoice] =
     useState<CustomerInvoice | null>(null);
 
-  // Queries — hooks must be called unconditionally; use `enabled` where supported
+  // Queries — lazy-load tab data only when tab is active
   const {
     data: qData,
     isLoading: qLoading,
@@ -133,7 +133,7 @@ export function PendingApprovalsSalesWidget() {
     refetch: qRefetch,
   } = useQuotations(
     { status: "sent", per_page: PER_PAGE },
-    { enabled: canViewQuotation },
+    { enabled: canViewQuotation && activeTab === "quotation" },
   );
   const {
     data: oData,
@@ -142,7 +142,7 @@ export function PendingApprovalsSalesWidget() {
     refetch: oRefetch,
   } = useOrders(
     { status: "submitted", per_page: PER_PAGE },
-    { enabled: canViewOrder },
+    { enabled: canViewOrder && activeTab === "order" },
   );
   const {
     data: dData,
@@ -154,7 +154,7 @@ export function PendingApprovalsSalesWidget() {
       status: "sent",
       per_page: PER_PAGE,
     },
-    { enabled: canViewDelivery },
+    { enabled: canViewDelivery && activeTab === "delivery" },
   );
   const {
     data: iData,
@@ -166,7 +166,7 @@ export function PendingApprovalsSalesWidget() {
       status: "submitted",
       per_page: PER_PAGE,
     },
-    { enabled: canViewInvoice },
+    { enabled: canViewInvoice && activeTab === "invoice" },
   );
 
   const quotations = qData?.data ?? [];

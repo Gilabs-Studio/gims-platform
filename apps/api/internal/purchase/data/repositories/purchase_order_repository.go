@@ -119,9 +119,6 @@ func (r *purchaseOrderRepository) List(ctx context.Context, params PurchaseOrder
 
 	query = query.
 		Preload("Supplier").
-		Preload("PaymentTerms").
-		Preload("BusinessUnit").
-		Preload("Creator").
 		Preload("GoodsReceipts", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC")
 		}).

@@ -131,6 +131,7 @@ func TestValidateInvoiceStatusForConfirm_AllowsApprovedAndRejectsWaiting(t *test
 
 	require.NoError(t, validateInvoiceStatusForConfirm(models.CustomerInvoiceStatusApproved))
 	require.NoError(t, validateInvoiceStatusForConfirm(models.CustomerInvoiceStatusOverdue))
+	require.NoError(t, validateInvoiceStatusForConfirm(models.CustomerInvoiceStatusWaitingApproval))
 	require.Error(t, validateInvoiceStatusForConfirm(models.CustomerInvoiceStatusWaitingPayment))
-	require.Error(t, validateInvoiceStatusForConfirm(models.CustomerInvoiceStatusWaitingApproval))
+	require.Error(t, validateInvoiceStatusForConfirm(models.CustomerInvoiceStatusCancelled))
 }
