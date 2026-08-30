@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env DROP_ALL_TABLES=true go run ./cmd/api/main.go",
+    "dev:log": "air 2>&1 | tee api-runtime.log",
     "dev:keep": "cross-env go run ./cmd/api/main.go",
     "build": "go build -o bin/server ./cmd/api/main.go",
     "start": "./bin/server",
