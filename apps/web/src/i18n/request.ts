@@ -225,6 +225,10 @@ import { manufacturingMachinesEn } from "@/features/manufacturing/machines/i18n/
 import { manufacturingMachinesId } from "@/features/manufacturing/machines/i18n/id";
 import { manufacturingDowntimeEn } from "@/features/manufacturing/downtime/i18n/en";
 import { manufacturingDowntimeId } from "@/features/manufacturing/downtime/i18n/id";
+import { manufacturingCsvValidationEn } from "@/features/manufacturing/csv-validation/i18n/en";
+import { manufacturingCsvValidationId } from "@/features/manufacturing/csv-validation/i18n/id";
+import { manufacturingCsvAuditTrailEn } from "@/features/manufacturing/csv-audit-trail/i18n/en";
+import { manufacturingCsvAuditTrailId } from "@/features/manufacturing/csv-audit-trail/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -339,6 +343,8 @@ const messages = {
     manufacturingQualityAndon: manufacturingQualityAndonEn,
     manufacturingMachines: manufacturingMachinesEn,
     manufacturingDowntime: manufacturingDowntimeEn,
+    manufacturingCsvValidation: manufacturingCsvValidationEn,
+    manufacturingCsvAuditTrail: manufacturingCsvAuditTrailEn,
   },
   id: {
     ...globalIdMessages,
@@ -451,6 +457,8 @@ const messages = {
     manufacturingQualityAndon: manufacturingQualityAndonId,
     manufacturingMachines: manufacturingMachinesId,
     manufacturingDowntime: manufacturingDowntimeId,
+    manufacturingCsvValidation: manufacturingCsvValidationId,
+    manufacturingCsvAuditTrail: manufacturingCsvAuditTrailId,
   },
 } as const;
 

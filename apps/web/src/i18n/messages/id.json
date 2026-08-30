@@ -495,7 +495,16 @@
     "workOrders": "Perintah Kerja (WO)",
     "qualityAndon": "Quality Andon",
     "machineDetail": "Telemetri Mesin",
-    "downtimePareto": "Pareto Downtime"
+    "downtimePareto": "Pareto Downtime",
+    "manufacturingOee": "Dashboard OEE",
+    "manufacturingLiveMonitoring": "Live Monitoring",
+    "manufacturingWorkOrder": "Kontrol Perintah Kerja",
+    "manufacturingDowntime": "Analisis Downtime",
+    "manufacturingQualityAndon": "Quality Andon",
+    "manufacturingMachineDetail": "Detail Mesin",
+    "manufacturingCsv": "Kepatuhan CSV",
+    "manufacturingCsvValidation": "Validasi Sistem",
+    "manufacturingCsvAuditTrail": "Audit Trail"
   },
   "financeSettings": {
     "title": "Pengaturan Mapping Akuntansi",

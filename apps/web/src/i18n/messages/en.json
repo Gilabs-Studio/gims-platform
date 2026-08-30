@@ -495,7 +495,16 @@
     "workOrders": "Work Orders",
     "qualityAndon": "Quality Andon",
     "machineDetail": "Machine Telemetry",
-    "downtimePareto": "Downtime Pareto"
+    "downtimePareto": "Downtime Pareto",
+    "manufacturingOee": "OEE Dashboard",
+    "manufacturingLiveMonitoring": "Live Monitoring",
+    "manufacturingWorkOrder": "Work Order Control",
+    "manufacturingDowntime": "Downtime Analysis",
+    "manufacturingQualityAndon": "Quality Andon",
+    "manufacturingMachineDetail": "Machine Detail",
+    "manufacturingCsv": "CSV Compliance",
+    "manufacturingCsvValidation": "System Validation",
+    "manufacturingCsvAuditTrail": "Audit Trail"
   },
   "financeSettings": {
     "title": "Accounting Mapping Settings",

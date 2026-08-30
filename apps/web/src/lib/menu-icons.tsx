@@ -101,6 +101,9 @@ import {
   Tv,
   BellRing,
   Cpu,
+  History,
+  AlertTriangle,
+  Settings2,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -224,12 +227,23 @@ const iconMap: Record<string, React.ReactNode> = {
   manufacture: <Factory className="h-4 w-4" />,
   gauge: <Gauge className="h-4 w-4" />,
   tv: <Tv className="h-4 w-4" />,
+  "device-tv": <Tv className="h-4 w-4" />,
+  devicetv: <Tv className="h-4 w-4" />,
   "bell-ring": <BellRing className="h-4 w-4" />,
   bellring: <BellRing className="h-4 w-4" />,
   cpu: <Cpu className="h-4 w-4" />,
   "scroll-text": <ScrollText className="h-4 w-4" />,
   scrolltext: <ScrollText className="h-4 w-4" />,
   truck: <Truck className="h-4 w-4" />,
+  "chart-bar": <BarChart3 className="h-4 w-4" />,
+  chartbar: <BarChart3 className="h-4 w-4" />,
+  "alert-triangle": <AlertTriangle className="h-4 w-4" />,
+  alerttriangle: <AlertTriangle className="h-4 w-4" />,
+  "settings-cog": <Settings2 className="h-4 w-4" />,
+  settingscog: <Settings2 className="h-4 w-4" />,
+  certificate: <Award className="h-4 w-4" />,
+  history: <History className="h-4 w-4" />,
+  audit: <History className="h-4 w-4" />,
 
   // Navigation & Location icons
   foldertree: <FolderTree className="h-4 w-4" />,
