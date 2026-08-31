@@ -49,6 +49,7 @@ import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import L from "leaflet";
 import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
+import { getCartoTileUrl, CARTO_ATTRIBUTION } from "@/components/ui/map/map-config";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — leaflet CSS has no type declarations
 import "leaflet/dist/leaflet.css";
@@ -66,14 +67,12 @@ const TILE_LAYERS: Record<
   { url: string; attribution: string }
 > = {
   light: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CARTO',
+    url: getCartoTileUrl("light_all", true),
+    attribution: CARTO_ATTRIBUTION,
   },
   dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CARTO',
+    url: getCartoTileUrl("dark_all", true),
+    attribution: CARTO_ATTRIBUTION,
   },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",

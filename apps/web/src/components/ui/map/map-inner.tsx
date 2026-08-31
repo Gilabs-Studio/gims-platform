@@ -229,6 +229,8 @@ export default function MapInner<T>({
           key={`${mapStyle}-${resolvedTheme}-${mapProfile}`}
           attribution={tileLayer.attribution}
           url={tileLayer.url}
+          maxZoom={tileLayer.maxZoom}
+          subdomains={tileLayer.subdomains ?? "abc"}
         />
         <MapController 
           markers={validMarkers}

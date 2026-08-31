@@ -16,6 +16,7 @@ import type { GeoJsonObject } from "geojson";
 
 // We'll fetch GeoJSON from the project's geographic feature; fall back to static hubs on error
 import { useMapData } from "@/features/master-data/geographic/hooks/use-map-data";
+import { getCartoTileUrl, CARTO_ATTRIBUTION } from "@/components/ui/map/map-config";
 
 /** Representative distribution hubs used as a fallback when map-data is unavailable */
 const HUBS: { name: string; lat: number; lng: number; type: "primary" | "secondary" }[] = [
@@ -29,10 +30,8 @@ const HUBS: { name: string; lat: number; lng: number; type: "primary" | "seconda
   { name: "Palembang", lat: -2.9761, lng: 104.7754, type: "secondary" },
 ];
 
-const TILE_URL =
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
-const TILE_ATTR =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+const TILE_URL = getCartoTileUrl("light_all", false);
+const TILE_ATTR = CARTO_ATTRIBUTION;
 
 export function MarketingMapDemo({ useRemote = false }: { useRemote?: boolean }) {
   const mapRef = useRef<L.Map | null>(null);
