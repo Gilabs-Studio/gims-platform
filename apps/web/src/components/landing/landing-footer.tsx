@@ -105,8 +105,8 @@ export function LandingFooter() {
               </li>
               <li className="text-xs">
                 <span className="font-semibold block text-foreground text-xs uppercase tracking-wider mb-1">{isId ? "Telepon / WhatsApp" : "Phone / WhatsApp"}</span>
-                <a href="https://wa.me/6289607700028" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors cursor-pointer font-medium text-primary">
-                  +62 896-0770-0028
+                <a href="https://wa.me/6289526770703" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors cursor-pointer font-medium text-primary">
+                  +62 895-2677-0703
                 </a>
               </li>
               <li className="text-xs">
