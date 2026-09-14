@@ -2,11 +2,11 @@ package main
 
 import (
 	"log"
-
-	"github.com/gilabs/gims/api/internal/core/apptime"
+	
 	"github.com/gilabs/gims/api/internal/core/infrastructure/config"
 	"github.com/gilabs/gims/api/internal/core/infrastructure/database"
 	"github.com/gilabs/gims/api/seeders"
+	"github.com/gilabs/gims/api/internal/core/apptime"
 )
 
 func main() {
@@ -20,10 +20,6 @@ func main() {
 		log.Fatal(err)
 	}
 	defer database.Close()
-
-	if err := database.AutoMigrate(); err != nil {
-		log.Fatal("Failed to run database auto-migrate:", err)
-	}
 
 	if err := seeders.SeedAll(); err != nil {
 		log.Fatal(err)

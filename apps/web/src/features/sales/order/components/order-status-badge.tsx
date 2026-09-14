@@ -34,7 +34,7 @@ export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
       );
     case "closed":
       return (
-        <Badge variant="closed" className={className}>
+        <Badge variant="secondary" className="bg-mutedslate hover:bg-mutedslate text-white border-transparent">
           <CheckCircle2 className="h-3 w-3 mr-1.5" />
           {t("closed")}
         </Badge>

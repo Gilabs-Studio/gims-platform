@@ -34,23 +34,9 @@ Silakan datang untuk mengambil atau menunggu pengantaran.
 
 Terima kasih atas kepercayaan Anda 🙏`
 
-func isMissingReceiptTemplateColumnError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := strings.ToLower(err.Error())
-	return strings.Contains(errStr, "receipt_whatsapp_template") &&
-		(strings.Contains(errStr, "does not exist") || strings.Contains(errStr, "undefined column") || strings.Contains(errStr, "sqlstate 42703"))
-}
-
 // SeedPOSConfigs ensures every outlet has a POS config and a seeded WhatsApp template.
 func SeedPOSConfigs() error {
 	log.Println("Seeding POS config defaults...")
-
-	// Ensure pos_configs table has up-to-date columns
-	if err := database.DB.AutoMigrate(&posModels.POSConfig{}); err != nil {
-		log.Printf("Warning: Could not AutoMigrate pos_configs table: %v", err)
-	}
 
 	var outlets []orgModels.Outlet
 	if err := database.DB.Where("deleted_at IS NULL AND is_active = ?", true).Find(&outlets).Error; err != nil {
@@ -76,16 +62,7 @@ func seedPOSConfigForOutlet(outlet orgModels.Outlet) error {
 	err := database.DB.Where("outlet_id = ?", outlet.ID).First(&cfg).Error
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			if isMissingReceiptTemplateColumnError(err) {
-				legacyErr := database.DB.
-					Select("id, tenant_id, outlet_id, tax_rate, service_charge_rate, allow_discount, max_discount_percent, print_receipt_auto, receipt_footer, currency, updated_by, created_at, updated_at, deleted_at").
-					Where("outlet_id = ?", outlet.ID).First(&cfg).Error
-				if legacyErr != nil && !errors.Is(legacyErr, gorm.ErrRecordNotFound) {
-					return legacyErr
-				}
-			} else {
-				return err
-			}
+			return err
 		}
 
 		cfg = posModels.POSConfig{
@@ -99,14 +76,7 @@ func seedPOSConfigForOutlet(outlet orgModels.Outlet) error {
 			ReceiptWhatsAppTemplate: stringPtr(posReceiptWhatsAppTemplateSeed),
 			Currency:                "IDR",
 		}
-		if createErr := database.DB.Create(&cfg).Error; createErr != nil {
-			if isMissingReceiptTemplateColumnError(createErr) {
-				cfg.ReceiptWhatsAppTemplate = nil
-				return database.DB.Omit("receipt_whatsapp_template").Create(&cfg).Error
-			}
-			return createErr
-		}
-		return nil
+		return database.DB.Create(&cfg).Error
 	}
 
 	return ensureReceiptWhatsAppTemplateSeed(&cfg, outlet.TenantID)
@@ -129,12 +99,5 @@ func ensureReceiptWhatsAppTemplateSeed(cfg *posModels.POSConfig, tenantID string
 		"tenant_id":                 cfg.TenantID,
 		"receipt_whatsapp_template": cfg.ReceiptWhatsAppTemplate,
 	}
-	if err := database.DB.Model(cfg).Updates(updates).Error; err != nil {
-		if isMissingReceiptTemplateColumnError(err) {
-			log.Printf("Warning: Skipping receipt_whatsapp_template update because column is missing: %v", err)
-			return nil
-		}
-		return err
-	}
-	return nil
+	return database.DB.Model(cfg).Updates(updates).Error
 }

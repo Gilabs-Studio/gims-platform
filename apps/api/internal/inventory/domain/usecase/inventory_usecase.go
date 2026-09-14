@@ -219,6 +219,10 @@ func (u *inventoryUsecase) GetInventoryMetrics(ctx context.Context) (*dto.Invent
 }
 
 func (u *inventoryUsecase) GetProductLedgers(ctx context.Context, productID string, req *dto.GetProductStockLedgersRequest) (*dto.GetProductStockLedgersResponse, error) {
+	if strings.TrimSpace(productID) == "" {
+		return nil, fmt.Errorf("%w: product_id is required", ErrInvalidInventoryInput)
+	}
+
 	if req == nil {
 		req = &dto.GetProductStockLedgersRequest{}
 	}
@@ -304,10 +308,6 @@ func stockLedgerTypeLabel(transactionType string) string {
 		return "Stock Opname"
 	case "TRANSFER":
 		return "Transfer"
-	case "SO":
-		return "Sales Order"
-	case "POS":
-		return "POS Sale"
 	default:
 		if strings.TrimSpace(transactionType) == "" {
 			return "Unknown"

@@ -36,6 +36,7 @@ import type {
 } from "../types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+// Extracted outside component to avoid re-creation during render
 function InfoRow({
   label,
   children,
@@ -177,6 +178,21 @@ export function RecruitmentDetailModal({
     );
   };
 
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case "LOW":
+        return <Badge variant="secondary">{t("priority.low")}</Badge>;
+      case "MEDIUM":
+        return <Badge variant="outline">{t("priority.medium")}</Badge>;
+      case "HIGH":
+        return <Badge variant="warning">{t("priority.high")}</Badge>;
+      case "URGENT":
+        return <Badge variant="destructive">{t("priority.urgent")}</Badge>;
+      default:
+        return <Badge variant="secondary">{priority}</Badge>;
+    }
+  };
+
   const getEmploymentTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       FULL_TIME: t("employmentType.fullTime"),
@@ -235,6 +251,10 @@ export function RecruitmentDetailModal({
               <Separator />
               <InfoRow label={t("employmentType.label")}>
                 {getEmploymentTypeLabel(detail.employment_type)}
+              </InfoRow>
+              <Separator />
+              <InfoRow label={t("priority.label")}>
+                {getPriorityBadge(detail.priority)}
               </InfoRow>
               <Separator />
               <InfoRow label={t("expectedStartDate")}>

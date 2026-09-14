@@ -10,7 +10,7 @@ import (
 // RecruitmentRequestUsecase defines the interface for recruitment request business logic
 type RecruitmentRequestUsecase interface {
 	// GetAll retrieves all recruitment requests with pagination and filters
-	GetAll(ctx context.Context, page, perPage int, search string, status *string, divisionID, positionID *string) ([]*dto.RecruitmentRequestResponse, *response.PaginationMeta, error)
+	GetAll(ctx context.Context, page, perPage int, search string, status *string, divisionID, positionID *string, priority *string) ([]*dto.RecruitmentRequestResponse, *response.PaginationMeta, error)
 
 	// GetByID retrieves a recruitment request by ID with enriched data
 	GetByID(ctx context.Context, id string) (*dto.RecruitmentRequestResponse, error)

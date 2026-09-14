@@ -172,7 +172,6 @@ func SeedIntegrationFlow() error {
 				Code:            fmt.Sprintf("GR-INT-%s", tag),
 				PurchaseOrderID: po.ID,
 				SupplierID:      supplier.ID,
-				WarehouseID:     &warehouse.ID,
 				ReceiptDate:     &receiptDate,
 				Status:          purchaseModels.GoodsReceiptStatusClosed,
 				CreatedBy:       adminID,
@@ -218,20 +217,6 @@ func SeedIntegrationFlow() error {
 			if err := tx.Create(&move).Error; err != nil {
 				return err
 			}
-
-			// 2b. Stock Ledger
-			ledger := inventoryModels.StockLedger{
-				ProductID:       prod.ID,
-				TransactionID:   gr.Code,
-				TransactionType: "GR",
-				Qty:             poQty,
-				UnitCost:        poPrice,
-				AverageCost:     poPrice,
-				StockValue:      poQty * poPrice,
-				RunningQty:      poQty,
-				CreatedAt:       receiptDate,
-			}
-			_ = tx.Create(&ledger).Error
 
 			// 3. Journal: Dr Inventory / Cr GR-IR
 			invCoa := getCOA(tx, "11310")

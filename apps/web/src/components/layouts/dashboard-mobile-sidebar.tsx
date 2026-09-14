@@ -115,7 +115,7 @@ export const DashboardMobileSidebar = memo(function DashboardMobileSidebar({
             )}
           >
             <div className="flex h-16 items-center justify-center">
-              <Image src="/MECCAYA.webp" alt="MECCAYA" width={36} height={36} className="rounded-lg object-contain" />
+              <Image src="/logo.png" alt="Logo" width={36} height={36} className="rounded-lg object-contain" />
             </div>
             <nav
               className={cn(

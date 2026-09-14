@@ -28,20 +28,18 @@ func isLoopbackOrigin(origin string) bool {
 func CORSMiddleware() gin.HandlerFunc {
 	config := cors.DefaultConfig()
 
-	// Default allowed origins list
+	// Get allowed origins from environment variable or use defaults
 	allowedOrigins := []string{
 		"http://localhost:3000",
 		"http://127.0.0.1:3000",
 		"http://localhost:3001",
 		"http://127.0.0.1:3001",
-		// Production origins
+		// Production origins (add more if needed)
 		"https://api.gilabs.id",
 		"https://gims.gilabs.id",
 		"https://salesview.id",
 		"https://www.salesview.id",
 		"https://gims-api-688849728115.asia-southeast2.run.app",
-		"https://meccayasuperapp.gilabs.id",
-		"http://meccayasuperapp.gilabs.id",
 	}
 
 	// Add production origins from environment variable
@@ -66,19 +64,13 @@ func CORSMiddleware() gin.HandlerFunc {
 		}
 	}
 
+	config.AllowOrigins = allowedOrigins
 	allowedOriginSet := make(map[string]struct{}, len(allowedOrigins))
 	for _, origin := range allowedOrigins {
 		allowedOriginSet[origin] = struct{}{}
 	}
-
-	// Set AllowOrigins to nil so gin-contrib/cors relies on AllowOriginFunc
-	config.AllowOrigins = nil
 	config.AllowOriginFunc = func(origin string) bool {
 		if _, ok := allowedOriginSet[origin]; ok {
-			return true
-		}
-
-		if isAllowedDomain(origin) {
 			return true
 		}
 
@@ -110,25 +102,4 @@ func CORSMiddleware() gin.HandlerFunc {
 	config.MaxAge = 86400
 
 	return cors.New(config)
-}
-
-func isAllowedDomain(origin string) bool {
-	originURL, err := url.Parse(strings.TrimSpace(origin))
-	if err != nil {
-		return false
-	}
-
-	host := strings.ToLower(strings.TrimSpace(originURL.Hostname()))
-	scheme := strings.ToLower(strings.TrimSpace(originURL.Scheme))
-	if scheme != "http" && scheme != "https" {
-		return false
-	}
-
-	// Allow all subdomains of gilabs.id and salesview.id
-	if host == "gilabs.id" || strings.HasSuffix(host, ".gilabs.id") ||
-		host == "salesview.id" || strings.HasSuffix(host, ".salesview.id") {
-		return true
-	}
-
-	return false
 }

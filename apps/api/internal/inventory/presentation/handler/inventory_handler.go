@@ -155,14 +155,9 @@ func (h *InventoryHandler) GetProductLedgers(c *gin.Context) {
 	if productID == "" {
 		productID = strings.TrimSpace(c.Param("id"))
 	}
-	if productID == "" {
-		productID = strings.TrimSpace(c.Query("product_id"))
-	}
-	if productID != "" {
-		if _, err := uuid.Parse(productID); err != nil {
-			response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "product_id must be a valid UUID", map[string]interface{}{"product_id": "invalid UUID"})
-			return
-		}
+	if _, err := uuid.Parse(productID); err != nil {
+		response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "product_id must be a valid UUID", map[string]interface{}{"product_id": "invalid UUID"})
+		return
 	}
 
 	page := 1
@@ -176,11 +171,7 @@ func (h *InventoryHandler) GetProductLedgers(c *gin.Context) {
 	}
 
 	limit := 20
-	rawLimit := strings.TrimSpace(c.Query("limit"))
-	if rawLimit == "" {
-		rawLimit = strings.TrimSpace(c.Query("per_page"))
-	}
-	if rawLimit != "" {
+	if rawLimit := strings.TrimSpace(c.Query("limit")); rawLimit != "" {
 		parsedLimit, err := strconv.Atoi(rawLimit)
 		if err != nil || parsedLimit <= 0 {
 			response.StandardErrorResponse(c, http.StatusBadRequest, response.ErrCodeValidationError, "limit must be a positive integer", map[string]interface{}{"limit": rawLimit})

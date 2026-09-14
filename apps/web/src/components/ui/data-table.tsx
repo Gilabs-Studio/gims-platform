@@ -56,7 +56,6 @@ interface DataTableProps<T> {
   readonly data: readonly T[];
   readonly isLoading?: boolean;
   readonly emptyMessage?: string;
-  readonly onRowClick?: (row: T) => void;
   readonly pagination?: {
     readonly page: number;
     readonly per_page: number;
@@ -158,7 +157,6 @@ export function DataTable<T extends { id: string }>({
   data,
   isLoading = false,
   emptyMessage = "No data found",
-  onRowClick,
   pagination,
   onPageChange,
   onPerPageChange,
@@ -445,18 +443,7 @@ export function DataTable<T extends { id: string }>({
                   </TableRow>
                 ) : (
                   data.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className={cn(
-                        "hover:bg-muted/50 transition-colors",
-                        onRowClick && "cursor-pointer"
-                      )}
-                      onClick={(e) => {
-                        const target = e.target as HTMLElement;
-                        if (target.closest("button, a, input, [role='menuitem'], [aria-haspopup]")) return;
-                        onRowClick?.(row);
-                      }}
-                    >
+                    <TableRow key={row.id} className="hover:bg-muted/50">
                       {columns.map((column) => (
                         <TableCell
                           key={column.id}

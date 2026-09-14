@@ -222,6 +222,21 @@ export function RecruitmentList() {
     }
   };
 
+  const getPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case "LOW":
+        return <Badge variant="secondary">{t("priority.low")}</Badge>;
+      case "MEDIUM":
+        return <Badge variant="outline">{t("priority.medium")}</Badge>;
+      case "HIGH":
+        return <Badge variant="warning">{t("priority.high")}</Badge>;
+      case "URGENT":
+        return <Badge variant="destructive">{t("priority.urgent")}</Badge>;
+      default:
+        return <Badge variant="secondary">{priority}</Badge>;
+    }
+  };
+
   if (isError) {
     return (
       <div className="text-center py-8 text-destructive">
@@ -331,6 +346,7 @@ export function RecruitmentList() {
                   <TableHead>{t("division")}</TableHead>
                   <TableHead>{t("position")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
+                  <TableHead>{t("priority.label")}</TableHead>
                   <TableHead>{t("openPositions")}</TableHead>
                   <TableHead className="w-[70px]" />
                 </TableRow>
@@ -339,7 +355,7 @@ export function RecruitmentList() {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 7 }).map((_, j) => (
+                      {Array.from({ length: 8 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -349,7 +365,7 @@ export function RecruitmentList() {
                 ) : requests.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center py-8 text-muted-foreground"
                     >
                       {t("notFound")}
@@ -372,6 +388,7 @@ export function RecruitmentList() {
                       <TableCell>{request.division_name ?? "-"}</TableCell>
                       <TableCell>{request.position_name ?? "-"}</TableCell>
                       <TableCell>{getStatusBadge(request.status)}</TableCell>
+                      <TableCell>{getPriorityBadge(request.priority)}</TableCell>
                       <TableCell>
                         <span className="font-medium">
                           {request.filled_count}/{request.required_count}

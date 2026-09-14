@@ -5,43 +5,24 @@ meta {
 }
 
 get {
-  url: {{base_url}}/api/v1/stock/ledger?page=1&per_page=20&product_id=&transaction_type=&date_from=&date_to=
+  url: {{base_url}}/api/v1/stock/ledger?page=1&per_page=10
   body: none
-  auth: inherit
+  auth: none
 }
 
 params:query {
   page: 1
-  per_page: 20
-  ~product_id: 
-  ~transaction_type: 
-  ~date_from: 
-  ~date_to: 
+  per_page: 10
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
 }
 
 docs {
-  Fetch moving-average stock ledger entries and running balances per product.
-  
+  View stock ledger movements and transaction audit trail.
   Permission required: `ledger.read`
-  
-  Query Parameters:
-  - `page` (optional, default: 1): Page number for pagination
-  - `per_page` / `limit` (optional, default: 20, max: 100): Number of records per page
-  - `product_id` (optional, UUID): Filter by product ID
-  - `transaction_type` (optional, enum: GR, GI, OPNAME, TRANSFER, SO, POS): Filter by movement transaction type
-  - `date_from` (optional, string: YYYY-MM-DD): Filter entries created on or after date
-  - `date_to` (optional, string: YYYY-MM-DD): Filter entries created on or before date
-  
-  Response Data Schema:
-  - `id`: Stock ledger UUID
-  - `product_id`: Product UUID
-  - `transaction_id`: Source reference number or transaction code (e.g. GR-2026-0001, SO-2026-0001, OPNAME-2026-0001)
-  - `transaction_type`: Transaction classification code (GR, GI, OPNAME, TRANSFER, SO, POS)
-  - `transaction_type_label`: Human-readable label (e.g. Goods Receipt, Sales Order)
-  - `qty`: Signed movement quantity (positive for in, negative for out)
-  - `unit_cost`: Unit cost price of movement
-  - `average_cost`: Moving average cost after movement
-  - `stock_value`: Total stock value after movement (running_qty * average_cost)
-  - `running_qty`: Product stock running balance after movement
-  - `created_at`: Movement timestamp
 }

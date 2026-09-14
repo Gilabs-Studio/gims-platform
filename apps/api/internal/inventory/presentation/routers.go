@@ -44,9 +44,6 @@ func RegisterRoutes(
 		// Metrics endpoint for owner/admin dashboards — placed before /:id routes for specificity
 		stock.GET("/inventory/metrics", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetInventoryMetrics)
 
-		// Ledger Route
-		stock.GET("/ledger", middleware.PermissionMiddleware("ledger.read"), inventoryHandler.GetProductLedgers)
-
 		// Tree View Routes
 		stock.GET("/tree/warehouses", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeWarehouses)
 		stock.GET("/tree/products", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetTreeProducts)
@@ -67,7 +64,6 @@ func RegisterRoutes(
 		inventory.GET("/stock/:product_id", middleware.PermissionMiddleware("inventory.read"), inventoryHandler.GetStockByProduct)
 		inventory.GET("/movements", middleware.PermissionMiddleware("stock_movement.read"), stockMovementHandler.GetMovements)
 
-		inventory.GET("/ledger", middleware.PermissionMiddleware("ledger.read"), inventoryHandler.GetProductLedgers)
 		inventory.GET("/products/:id/ledgers", middleware.PermissionMiddleware("ledger.read"), inventoryHandler.GetProductLedgers)
 	}
 }
