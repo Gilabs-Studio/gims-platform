@@ -34,8 +34,8 @@ export const IconSidebar = memo(function IconSidebar({
   items,
   activeParentId,
   onSelectParent,
-  logoSrc = "/LOGO APPS MECCAYA.webp",
-  logoAlt = "MECCAYA",
+  logoSrc = "/Logo.jpg",
+  logoAlt = "gilabs",
 }: IconSidebarProps) {
   const pathname = usePathname();
   const locale = useLocale();

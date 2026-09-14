@@ -72,12 +72,8 @@ import { recruitmentEn } from "@/features/hrd/recruitment/i18n/en";
 import { recruitmentId } from "@/features/hrd/recruitment/i18n/id";
 import { payrollEn } from "@/features/hrd/payroll/i18n/en";
 import { payrollId } from "@/features/hrd/payroll/i18n/id";
-import { roomBookingEn } from "@/features/room-booking/i18n/en";
-import { roomBookingId } from "@/features/room-booking/i18n/id";
 import { assetBorrowingEn } from "@/features/asset-borrowing/i18n/en";
 import { assetBorrowingId } from "@/features/asset-borrowing/i18n/id";
-import { itSupportEn } from "@/features/it-support/i18n/en";
-import { itSupportId } from "@/features/it-support/i18n/id";
 import { hrSupportEn } from "@/features/hr-support/i18n/en";
 import { hrSupportId } from "@/features/hr-support/i18n/id";
 
@@ -213,22 +209,6 @@ import { systemAdminEn } from "@/features/system-admin/i18n/en";
 import { systemAdminId } from "@/features/system-admin/i18n/id";
 import { userFeedbackEn } from "@/features/feedback/i18n/en";
 import { userFeedbackId } from "@/features/feedback/i18n/id";
-import { manufacturingOeeEn } from "@/features/manufacturing/oee/i18n/en";
-import { manufacturingOeeId } from "@/features/manufacturing/oee/i18n/id";
-import { manufacturingLiveMonitoringEn } from "@/features/manufacturing/live-monitoring/i18n/en";
-import { manufacturingLiveMonitoringId } from "@/features/manufacturing/live-monitoring/i18n/id";
-import { manufacturingWorkOrdersEn } from "@/features/manufacturing/work-orders/i18n/en";
-import { manufacturingWorkOrdersId } from "@/features/manufacturing/work-orders/i18n/id";
-import { manufacturingQualityAndonEn } from "@/features/manufacturing/quality-andon/i18n/en";
-import { manufacturingQualityAndonId } from "@/features/manufacturing/quality-andon/i18n/id";
-import { manufacturingMachinesEn } from "@/features/manufacturing/machines/i18n/en";
-import { manufacturingMachinesId } from "@/features/manufacturing/machines/i18n/id";
-import { manufacturingDowntimeEn } from "@/features/manufacturing/downtime/i18n/en";
-import { manufacturingDowntimeId } from "@/features/manufacturing/downtime/i18n/id";
-import { manufacturingCsvValidationEn } from "@/features/manufacturing/csv-validation/i18n/en";
-import { manufacturingCsvValidationId } from "@/features/manufacturing/csv-validation/i18n/id";
-import { manufacturingCsvAuditTrailEn } from "@/features/manufacturing/csv-audit-trail/i18n/en";
-import { manufacturingCsvAuditTrailId } from "@/features/manufacturing/csv-audit-trail/i18n/id";
 
 // Merge all messages
 const messages = {
@@ -268,11 +248,8 @@ const messages = {
     ...evaluationEn,
     ...recruitmentEn,
     ...payrollEn,
-    ...roomBookingEn,
     ...assetBorrowingEn,
-    itSupport: itSupportEn,
     hrSupport: hrSupportEn,
-    ticketing: itSupportEn,
     ...passwordResetEn,
     auth: {
       ...globalEnMessages.auth,
@@ -337,14 +314,6 @@ const messages = {
     ...landingEn,
     ...systemAdminEn,
     ...userFeedbackEn,
-    manufacturingOee: manufacturingOeeEn,
-    manufacturingLiveMonitoring: manufacturingLiveMonitoringEn,
-    manufacturingWorkOrders: manufacturingWorkOrdersEn,
-    manufacturingQualityAndon: manufacturingQualityAndonEn,
-    manufacturingMachines: manufacturingMachinesEn,
-    manufacturingDowntime: manufacturingDowntimeEn,
-    manufacturingCsvValidation: manufacturingCsvValidationEn,
-    manufacturingCsvAuditTrail: manufacturingCsvAuditTrailEn,
   },
   id: {
     ...globalIdMessages,
@@ -382,11 +351,8 @@ const messages = {
     ...evaluationId,
     ...recruitmentId,
     ...payrollId,
-    ...roomBookingId,
     ...assetBorrowingId,
-    itSupport: itSupportId,
     hrSupport: hrSupportId,
-    ticketing: itSupportId,
     ...passwordResetId,
     auth: {
       ...globalIdMessages.auth,
@@ -451,14 +417,6 @@ const messages = {
     ...landingId,
     ...systemAdminId,
     ...userFeedbackId,
-    manufacturingOee: manufacturingOeeId,
-    manufacturingLiveMonitoring: manufacturingLiveMonitoringId,
-    manufacturingWorkOrders: manufacturingWorkOrdersId,
-    manufacturingQualityAndon: manufacturingQualityAndonId,
-    manufacturingMachines: manufacturingMachinesId,
-    manufacturingDowntime: manufacturingDowntimeId,
-    manufacturingCsvValidation: manufacturingCsvValidationId,
-    manufacturingCsvAuditTrail: manufacturingCsvAuditTrailId,
   },
 } as const;
 
