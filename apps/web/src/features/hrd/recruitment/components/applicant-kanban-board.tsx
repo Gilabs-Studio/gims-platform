@@ -29,7 +29,6 @@ interface ApplicantKanbanBoardProps {
   recruitmentRequestId: string;
   onApplicantClick: (applicant: RecruitmentApplicant) => void;
   onCreateApplicant: (stageId?: string) => void;
-  isCreateDisabled?: boolean;
 }
 
 function KanbanColumnSkeleton() {
@@ -96,7 +95,6 @@ export function ApplicantKanbanBoard({
   recruitmentRequestId,
   onApplicantClick,
   onCreateApplicant,
-  isCreateDisabled = false,
 }: ApplicantKanbanBoardProps) {
   const t = useTranslations("recruitment");
   const {
@@ -202,17 +200,16 @@ export function ApplicantKanbanBoard({
                     <span className="text-sm font-medium truncate max-w-[140px]">
                       {stage.name}
                     </span>
-                    <Badge variant="secondary" className="text-xs font-semibold">
+                    <Badge variant="secondary" className="text-xs">
                       {total}
                     </Badge>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isCreateDisabled}
+                    className="h-7 w-7 cursor-pointer"
                     onClick={() => onCreateApplicant(stage.id)}
-                    title={isCreateDisabled ? t("timeline.onlyAddInOpenStatus") : t("applicants.add")}
+                    title={t("applicants.add")}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>

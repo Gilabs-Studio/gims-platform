@@ -528,11 +528,6 @@ func AutoMigrate() error {
 		log.Printf("Warning: Could not add linkedin_url column: %v", err)
 	}
 
-	// Remove priority column from recruitment_requests table
-	if err := migrations.RemoveRecruitmentPriorityColumn(DB); err != nil {
-		log.Printf("Warning: Could not remove recruitment priority column: %v", err)
-	}
-
 	// Add menu metadata fields required by canonical module navigation refactor.
 	if err := migrations.AddMenuMetadataMigration(DB); err != nil {
 		return fmt.Errorf("failed to add menu metadata migration: %w", err)

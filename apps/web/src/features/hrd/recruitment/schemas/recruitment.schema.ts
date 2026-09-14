@@ -52,6 +52,7 @@ export const getRecruitmentRequestSchema = (t?: TranslationFn) =>
       .string()
       .min(1, getMsg(t, "validation.required", "Qualifications are required"))
       .max(5000, getMsg(t, "validation.maxLength", "Maximum length exceeded")),
+    priority: z.string().optional(),
     notes: z
       .string()
       .max(2000, getMsg(t, "validation.maxLength", "Maximum length exceeded"))

@@ -1,4 +1,4 @@
-package seeders
+﻿package seeders
 
 import (
 	"context"
@@ -717,7 +717,6 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		Code:            fmt.Sprintf("GR-E2E-%s", prefix),
 		PurchaseOrderID: po.ID,
 		SupplierID:      in.supplier.ID,
-		WarehouseID:     &in.warehouse.ID,
 		ReceiptDate:     &receiptDate,
 		Status:          purchaseModels.GoodsReceiptStatusClosed, // CLOSED  required for SI creation
 		CreatedBy:       in.adminID,
@@ -734,7 +733,7 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		return fmt.Errorf("create GR %s: %w", gr.Code, err)
 	}
 
-	// 2a. Stock: Inventory batch + movement + stock ledger
+	// 2a. Stock: Inventory batch + movement
 	batch := inventoryModels.InventoryBatch{
 		ProductID:       in.product.ID,
 		WarehouseID:     in.warehouse.ID,
@@ -758,19 +757,6 @@ func seedPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		CreatedAt:   receiptDate,
 	}
 	tx.Create(&move)
-
-	ledger := inventoryModels.StockLedger{
-		ProductID:       in.product.ID,
-		TransactionID:   gr.Code,
-		TransactionType: "GR",
-		Qty:             in.qty,
-		UnitCost:        in.price,
-		AverageCost:     in.price,
-		StockValue:      in.qty * in.price,
-		RunningQty:      in.qty,
-		CreatedAt:       receiptDate,
-	}
-	tx.Create(&ledger)
 
 	// 2b. Journal: Dr Inventory / Cr GR-IR
 	if in.invCOA != "" && in.grirCOA != "" {
@@ -1012,7 +998,6 @@ func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		Code:            fmt.Sprintf("GR-%s", prefix),
 		PurchaseOrderID: po.ID,
 		SupplierID:      in.supplier.ID,
-		WarehouseID:     &in.warehouse.ID,
 		ReceiptDate:     &receiptDate,
 		Status:          purchaseModels.GoodsReceiptStatusClosed,
 		CreatedBy:       in.adminID,
@@ -1027,7 +1012,7 @@ func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		return fmt.Errorf("create GR %s: %w", gr.Code, err)
 	}
 
-	// Stock movement & stock ledger (minimal)
+	// Stock movement (minimal)
 	_ = tx.Create(&inventoryModels.StockMovement{
 		ProductID:   in.product.ID,
 		WarehouseID: in.warehouse.ID,
@@ -1038,18 +1023,6 @@ func seedMinimalPurchaseFlow(tx *gorm.DB, in purchaseFlowInput) error {
 		Cost:        in.price,
 		Date:        receiptDate,
 		CreatedAt:   receiptDate,
-	})
-
-	_ = tx.Create(&inventoryModels.StockLedger{
-		ProductID:       in.product.ID,
-		TransactionID:   gr.Code,
-		TransactionType: "GR",
-		Qty:             in.qty,
-		UnitCost:        in.price,
-		AverageCost:     in.price,
-		StockValue:      in.qty * in.price,
-		RunningQty:      in.qty,
-		CreatedAt:       receiptDate,
 	})
 
 	// 3. Supplier Invoice Down Payment (if applicable)

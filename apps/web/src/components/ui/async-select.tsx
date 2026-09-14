@@ -82,9 +82,9 @@ export function AsyncSelect<T>({
   React.useEffect(() => {
     const fetchOptions = async () => {
       if (!open) return;
-
-      // If debounced query is empty and we have default options (and not preloading), use defaults
-      if (!debouncedQuery && !preload && defaultOptions.length > 0) {
+      
+      // If query is empty and we have default options, use them, unless preload is true
+      if (!query && !preload && defaultOptions.length > 0) {
         setFetchedOptions(defaultOptions);
         return;
       }
@@ -102,7 +102,10 @@ export function AsyncSelect<T>({
     };
 
     fetchOptions();
-  }, [debouncedQuery, open, fetcher, preload, defaultOptions]);
+  }, [debouncedQuery, open, fetcher, preload, query, defaultOptions]); 
+  // Added query and defaultOptions to deps to handle the "empty query" check correctly
+  // Note: We might want to avoid re-fetching if query is empty and we didn't require preload, 
+  // but if the user cleared the input, we probably want to reset to defaultOptions or fetch all.
 
   const handleSelect = (currentValue: string) => {
     const item = options.find((i) => getValue(i) === currentValue);

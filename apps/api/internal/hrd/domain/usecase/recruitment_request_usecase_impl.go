@@ -44,7 +44,7 @@ func NewRecruitmentRequestUsecase(
 	}
 }
 
-func (u *recruitmentRequestUsecase) GetAll(ctx context.Context, page, perPage int, search string, status *string, divisionID, positionID *string) ([]*dto.RecruitmentRequestResponse, *response.PaginationMeta, error) {
+func (u *recruitmentRequestUsecase) GetAll(ctx context.Context, page, perPage int, search string, status *string, divisionID, positionID *string, priority *string) ([]*dto.RecruitmentRequestResponse, *response.PaginationMeta, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -62,36 +62,30 @@ func (u *recruitmentRequestUsecase) GetAll(ctx context.Context, page, perPage in
 		statusFilter = &s
 	}
 
-	requests, total, err := u.recruitmentRepo.FindAll(ctx, page, perPage, search, statusFilter, divisionID, positionID)
+	var priorityFilter *models.RecruitmentPriority
+	if priority != nil && *priority != "" {
+		p := models.RecruitmentPriority(*priority)
+		priorityFilter = &p
+	}
+
+	requests, total, err := u.recruitmentRepo.FindAll(ctx, page, perPage, search, statusFilter, divisionID, positionID, priorityFilter)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch recruitment requests: %w", err)
 	}
 
 	responses := mapper.ToRecruitmentRequestResponseList(requests)
 
-	// Batch-fetch related entities for enrichment and calculate applicant counts
+	// Batch-fetch related entities for enrichment
 	employeeIDs := make([]string, 0)
 	divisionIDs := make([]string, 0)
 	positionIDs := make([]string, 0)
-	for i, req := range requests {
+	for _, req := range requests {
 		employeeIDs = append(employeeIDs, req.RequestedByID)
 		if req.ApprovedByID != nil {
 			employeeIDs = append(employeeIDs, *req.ApprovedByID)
 		}
 		divisionIDs = append(divisionIDs, req.DivisionID)
 		positionIDs = append(positionIDs, req.PositionID)
-
-		var appCount int64
-		_ = database.GetDB(ctx, database.DB).
-			Model(&models.RecruitmentApplicant{}).
-			Joins("JOIN applicant_stages ON applicant_stages.id = recruitment_applicants.stage_id").
-			Where("recruitment_applicants.recruitment_request_id = ?", req.ID).
-			Where("applicant_stages.is_won = ? AND applicant_stages.is_lost = ?", false, false).
-			Where("recruitment_applicants.deleted_at IS NULL").
-			Count(&appCount).Error
-		if i < len(responses) {
-			responses[i].ApplicantsCount = int(appCount)
-		}
 	}
 
 	employeeMap := u.buildEmployeeMap(ctx, employeeIDs)
@@ -128,16 +122,6 @@ func (u *recruitmentRequestUsecase) GetByID(ctx context.Context, id string) (*dt
 	}
 
 	resp := mapper.ToRecruitmentRequestResponse(req)
-
-	var appCount int64
-	_ = database.GetDB(ctx, database.DB).
-		Model(&models.RecruitmentApplicant{}).
-		Joins("JOIN applicant_stages ON applicant_stages.id = recruitment_applicants.stage_id").
-		Where("recruitment_applicants.recruitment_request_id = ?", id).
-		Where("applicant_stages.is_won = ? AND applicant_stages.is_lost = ?", false, false).
-		Where("recruitment_applicants.deleted_at IS NULL").
-		Count(&appCount).Error
-	resp.ApplicantsCount = int(appCount)
 
 	// Enrich with related data
 	employeeIDs := []string{req.RequestedByID}
@@ -402,6 +386,14 @@ func (u *recruitmentRequestUsecase) GetFormData(ctx context.Context) (*dto.Recru
 		{Value: "INTERN", Label: "Intern"},
 	}
 
+	// Priorities
+	priorities := []dto.RecruitmentPriorityOption{
+		{Value: "LOW", Label: "Low"},
+		{Value: "MEDIUM", Label: "Medium"},
+		{Value: "HIGH", Label: "High"},
+		{Value: "URGENT", Label: "Urgent"},
+	}
+
 	// Statuses
 	statuses := []dto.RecruitmentStatusOption{
 		{Value: "DRAFT", Label: "Draft"},
@@ -418,6 +410,7 @@ func (u *recruitmentRequestUsecase) GetFormData(ctx context.Context) (*dto.Recru
 		Divisions:       divisionOptions,
 		JobPositions:    positionOptions,
 		EmploymentTypes: employmentTypes,
+		Priorities:      priorities,
 		Statuses:        statuses,
 	}, nil
 }

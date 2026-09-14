@@ -220,7 +220,7 @@ export const organizationEn = {
       outlets: "outlets",
       contactSales: {
         button: "Contact Sales",
-        buttonWithNumber: "Contact Sales (+00 000-0000-0000)",
+        buttonWithNumber: "Contact Sales (+62 896-0770-0028)",
         description: "Adding a new company is handled by GiLabs Sales. Contact sales to request additional company provisioning.",
         ariaLabel: "Contact GiLabs Sales on WhatsApp to request new company provisioning",
       },

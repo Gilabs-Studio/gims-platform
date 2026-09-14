@@ -3,19 +3,13 @@ import type { StockLedgerFilter, StockLedgerListResponse } from "../types";
 
 export const stockLedgerService = {
   async getByProductId(
-    productId?: string | null,
+    productId: string,
     params?: StockLedgerFilter,
   ): Promise<StockLedgerListResponse> {
     const response = await apiClient.get<StockLedgerListResponse>(
-      `/stock/ledger`,
-      {
-        params: {
-          ...params,
-          product_id: productId || undefined,
-        },
-      },
+      `/inventory/products/${productId}/ledgers`,
+      { params },
     );
     return response.data;
   },
 };
-

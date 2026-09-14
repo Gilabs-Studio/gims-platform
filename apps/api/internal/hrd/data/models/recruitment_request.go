@@ -21,6 +21,16 @@ const (
 	RecruitmentStatusCancelled RecruitmentStatus = "CANCELLED"
 )
 
+// RecruitmentPriority represents the urgency of a recruitment request
+type RecruitmentPriority string
+
+const (
+	RecruitmentPriorityLow    RecruitmentPriority = "LOW"
+	RecruitmentPriorityMedium RecruitmentPriority = "MEDIUM"
+	RecruitmentPriorityHigh   RecruitmentPriority = "HIGH"
+	RecruitmentPriorityUrgent RecruitmentPriority = "URGENT"
+)
+
 // RecruitmentEmploymentType represents the employment type for the position
 type RecruitmentEmploymentType string
 
@@ -58,8 +68,9 @@ type RecruitmentRequest struct {
 	Qualifications string  `gorm:"type:text;not null" json:"qualifications"`
 	Notes          *string `gorm:"type:text" json:"notes"`
 
-	// Status
-	Status RecruitmentStatus `gorm:"type:varchar(20);not null;default:'DRAFT';index:idx_recruitment_status" json:"status"`
+	// Priority & Status
+	Priority RecruitmentPriority `gorm:"type:varchar(20);not null;default:'MEDIUM';index:idx_recruitment_priority" json:"priority"`
+	Status   RecruitmentStatus   `gorm:"type:varchar(20);not null;default:'DRAFT';index:idx_recruitment_status" json:"status"`
 
 	// Approval
 	ApprovedByID   *string    `gorm:"type:uuid" json:"approved_by_id"`

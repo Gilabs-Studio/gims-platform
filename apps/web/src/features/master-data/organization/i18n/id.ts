@@ -222,7 +222,7 @@ export const organizationId: OrganizationTranslations = {
       outlets: "outlet",
       contactSales: {
         button: "Hubungi Sales",
-        buttonWithNumber: "Hubungi Sales (+00 000-0000-0000)",
+        buttonWithNumber: "Hubungi Sales (+62 896-0770-0028)",
         description: "Penambahan perusahaan baru diproses oleh tim Sales GiLabs. Hubungi sales untuk mengajukan provisioning perusahaan tambahan.",
         ariaLabel: "Hubungi Sales GiLabs via WhatsApp untuk pengajuan penambahan perusahaan",
       },
