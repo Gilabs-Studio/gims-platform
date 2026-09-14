@@ -1,0 +1,36 @@
+meta {
+  name: 01 - List Recruitment Requests
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/v1/hrd/recruitment-requests?page=1&per_page=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  per_page: 20
+  ~search: 
+  ~status: OPEN
+  ~division_id: 
+  ~position_id: 
+}
+
+vars:pre-request {
+  base_url: http://localhost:8087
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+docs {
+  List recruitment requests with search, pagination, and status filters.
+  Permission required: `recruitment.read`
+}

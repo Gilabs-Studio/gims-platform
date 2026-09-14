@@ -72,15 +72,16 @@ func SeedSupplier() error {
 		{Name: "Service Provider", Description: "Service-based suppliers", IsActive: true},
 	}
 	for i := range supplierTypes {
-		// Alignment logic for Name conflict
 		var existing models.SupplierType
 		err := db.Unscoped().Where("name = ?", supplierTypes[i].Name).First(&existing).Error
-		if err == nil && existing.ID != supplierTypes[i].ID {
-			log.Printf("SupplierType name conflict for %s: Moving existing...", supplierTypes[i].Name)
-			db.Unscoped().Model(&existing).Update("name", supplierTypes[i].Name+"_old_"+existing.ID[:8])
+		if err == nil {
+			supplierTypes[i].ID = existing.ID
 		}
 
-		if err := db.Clauses(clause.OnConflict{UpdateAll: true}).Create(&supplierTypes[i]).Error; err != nil {
+		if err := db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"name", "description", "is_active", "deleted_at"}),
+		}).Create(&supplierTypes[i]).Error; err != nil {
 			return err
 		}
 	}
@@ -97,15 +98,16 @@ func SeedSupplier() error {
 		{Name: "Bank Permata", Code: "PERMATA", SwiftCode: "BBBAIDJA", IsActive: true},
 	}
 	for i := range banks {
-		// Alignment logic for Code conflict
 		var existing models.Bank
 		err := db.Unscoped().Where("code = ?", banks[i].Code).First(&existing).Error
-		if err == nil && existing.ID != banks[i].ID {
-			log.Printf("Bank code conflict for %s: Moving existing...", banks[i].Code)
-			db.Unscoped().Model(&existing).Update("code", banks[i].Code+"_old_"+existing.ID[:8])
+		if err == nil {
+			banks[i].ID = existing.ID
 		}
 
-		if err := db.Clauses(clause.OnConflict{UpdateAll: true}).Create(&banks[i]).Error; err != nil {
+		if err := db.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"name", "code", "swift_code", "is_active", "deleted_at"}),
+		}).Create(&banks[i]).Error; err != nil {
 			return err
 		}
 	}
@@ -214,15 +216,20 @@ func SeedSupplier() error {
 	}
 
 	for i := range suppliers {
-		// Alignment logic for Code conflict
 		var existing models.Supplier
 		err := db.Unscoped().Where("code = ?", suppliers[i].Code).First(&existing).Error
-		if err == nil && existing.ID != suppliers[i].ID {
-			log.Printf("Supplier code conflict for %s: Moving existing...", suppliers[i].Code)
-			db.Unscoped().Model(&existing).Update("code", suppliers[i].Code+"_old_"+existing.ID[:8])
+		if err == nil {
+			suppliers[i].ID = existing.ID
 		}
 
-		if err := db.Clauses(clause.OnConflict{UpdateAll: true}).Create(&suppliers[i]).Error; err != nil {
+		if err := db.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"name", "supplier_type_id", "payment_terms_id", "business_unit_id",
+				"address", "email", "website", "npwp", "contact_person", "notes",
+				"village_id", "latitude", "longitude", "status", "is_approved", "is_active", "deleted_at",
+			}),
+		}).Create(&suppliers[i]).Error; err != nil {
 			return err
 		}
 

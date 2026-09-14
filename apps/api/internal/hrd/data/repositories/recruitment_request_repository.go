@@ -15,7 +15,7 @@ type RecruitmentRequestRepository interface {
 	Delete(ctx context.Context, id string) error
 
 	// List with filters and pagination
-	FindAll(ctx context.Context, page, perPage int, search string, status *models.RecruitmentStatus, divisionID, positionID *string, priority *models.RecruitmentPriority) ([]models.RecruitmentRequest, int64, error)
+	FindAll(ctx context.Context, page, perPage int, search string, status *models.RecruitmentStatus, divisionID, positionID *string) ([]models.RecruitmentRequest, int64, error)
 
 	// Generate unique request code
 	GenerateRequestCode(ctx context.Context) (string, error)

@@ -93,6 +93,10 @@ import {
   MessageCircle,
   ClipboardPen,
   ScrollText,
+  DoorOpen,
+  Ticket,
+  LifeBuoy,
+  Factory,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -156,6 +160,12 @@ const iconMap: Record<string, React.ReactNode> = {
   shoppingbag: <ShoppingBag className="h-4 w-4" />,
   star: <Star className="h-4 w-4" />,
 
+  // Room Booking & Door icons
+  "door-open": <DoorOpen className="h-4 w-4" />,
+  dooropen: <DoorOpen className="h-4 w-4" />,
+  "room-booking": <DoorOpen className="h-4 w-4" />,
+  roombooking: <DoorOpen className="h-4 w-4" />,
+
   // Sales icons
   "trending-up": <TrendingUp className="h-4 w-4" />,
   trendingup: <TrendingUp className="h-4 w-4" />,
@@ -203,8 +213,11 @@ const iconMap: Record<string, React.ReactNode> = {
   "clipboard-check": <ClipboardCheck className="h-4 w-4" />,
   clipboardcheck: <ClipboardCheck className="h-4 w-4" />,
 
-  // Warehouse & Logistics icons
+  // Warehouse, Manufacturing & Logistics icons
   warehouse: <Warehouse className="h-4 w-4" />,
+  factory: <Factory className="h-4 w-4" />,
+  manufacturing: <Factory className="h-4 w-4" />,
+  manufacture: <Factory className="h-4 w-4" />,
   "scroll-text": <ScrollText className="h-4 w-4" />,
   scrolltext: <ScrollText className="h-4 w-4" />,
   truck: <Truck className="h-4 w-4" />,
@@ -270,6 +283,16 @@ const iconMap: Record<string, React.ReactNode> = {
   messagecircle: <MessageCircle className="h-4 w-4" />,
   "clipboard-pen": <ClipboardPen className="h-4 w-4" />,
   clipboardpen: <ClipboardPen className="h-4 w-4" />,
+
+  // Ticketing & Support icons
+  ticket: <Ticket className="h-4 w-4" />,
+  ticketing: <Ticket className="h-4 w-4" />,
+  itsupport: <Ticket className="h-4 w-4" />,
+  "it-support": <Ticket className="h-4 w-4" />,
+  "life-buoy": <LifeBuoy className="h-4 w-4" />,
+  lifebuoy: <LifeBuoy className="h-4 w-4" />,
+  hrdassettickets: <LifeBuoy className="h-4 w-4" />,
+  "hrd-asset-tickets": <LifeBuoy className="h-4 w-4" />,
 };
 
 export function getMenuIcon(iconName: string): React.ReactNode {

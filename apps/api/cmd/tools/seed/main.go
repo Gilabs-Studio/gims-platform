@@ -21,6 +21,10 @@ func main() {
 	}
 	defer database.Close()
 
+	if err := database.AutoMigrate(); err != nil {
+		log.Fatal("Failed to run database auto-migrate:", err)
+	}
+
 	if err := seeders.SeedAll(); err != nil {
 		log.Fatal("Failed to seed data:", err)
 	}

@@ -5,15 +5,15 @@ import type { StockLedgerFilter } from "../types";
 export const stockLedgerKeys = {
   all: ["stock-ledger"] as const,
   lists: () => [...stockLedgerKeys.all, "list"] as const,
-  list: (productId: string, filters?: StockLedgerFilter) =>
-    [...stockLedgerKeys.lists(), productId, filters] as const,
+  list: (productId?: string | null, filters?: StockLedgerFilter) =>
+    [...stockLedgerKeys.lists(), productId ?? "all", filters] as const,
 };
 
-export function useStockLedger(productId: string | null, filters?: StockLedgerFilter) {
+export function useStockLedger(productId?: string | null, filters?: StockLedgerFilter) {
   return useQuery({
-    queryKey: productId ? stockLedgerKeys.list(productId, filters) : ["stock-ledger-disabled"],
-    queryFn: () => (productId ? stockLedgerService.getByProductId(productId, filters) : Promise.reject("No product selected")),
-    enabled: !!productId,
+    queryKey: stockLedgerKeys.list(productId, filters),
+    queryFn: () => stockLedgerService.getByProductId(productId, filters),
     placeholderData: (previousData) => previousData,
   });
 }
+

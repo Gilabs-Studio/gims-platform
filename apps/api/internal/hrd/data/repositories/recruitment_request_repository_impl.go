@@ -69,7 +69,7 @@ func (r *recruitmentRequestRepositoryImpl) Delete(ctx context.Context, id string
 	return nil
 }
 
-func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, perPage int, search string, status *models.RecruitmentStatus, divisionID, positionID *string, priority *models.RecruitmentPriority) ([]models.RecruitmentRequest, int64, error) {
+func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, perPage int, search string, status *models.RecruitmentStatus, divisionID, positionID *string) ([]models.RecruitmentRequest, int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -101,10 +101,6 @@ func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, pe
 		query = query.Where("recruitment_requests.position_id = ?", *positionID)
 	}
 
-	if priority != nil {
-		query = query.Where("recruitment_requests.priority = ?", *priority)
-	}
-
 	// Count
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count recruitment requests: %w", err)
@@ -118,10 +114,23 @@ func (r *recruitmentRequestRepositoryImpl) FindAll(ctx context.Context, page, pe
 		page = 1
 	}
 
+	statusPriorityOrder := `
+		CASE recruitment_requests.status
+			WHEN 'OPEN' THEN 1
+			WHEN 'APPROVED' THEN 2
+			WHEN 'PENDING' THEN 3
+			WHEN 'DRAFT' THEN 4
+			WHEN 'CLOSED' THEN 5
+			WHEN 'REJECTED' THEN 6
+			WHEN 'CANCELLED' THEN 7
+			ELSE 8
+		END ASC, recruitment_requests.created_at DESC
+	`
+
 	offset := (page - 1) * perPage
 	query = query.Select("recruitment_requests.*").
 		Offset(offset).Limit(perPage).
-		Order("recruitment_requests.created_at DESC")
+		Order(statusPriorityOrder)
 
 	if err := query.Find(&requests).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to find recruitment requests: %w", err)

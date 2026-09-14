@@ -1,0 +1,24 @@
+meta {
+  name: 06 - Submit Recruitment Request
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/recruitment-requests/:id/submit
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: ae000001-0000-0000-0000-000000000001
+}
+
+headers {
+  X-CSRF-Token: {{csrf_token}}
+}
+
+docs {
+  Submit a DRAFT or REJECTED recruitment request for approval (transitions status to PENDING).
+  Permission required: `recruitment.update`
+}

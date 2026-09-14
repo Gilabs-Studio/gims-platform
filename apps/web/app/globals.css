@@ -77,130 +77,130 @@
 
 @layer base {
   :root {
-    /* Calm Light Theme - Much Softer on the Eyes */
-    --background: 220 14% 96%;     /* Soft cool gray background */
-    --foreground: 220 10% 20%;     /* Softer charcoal text (reduced glare) */
+    /* Enterprise Red & Warm Neutral Theme - Sophisticated & Psychological Ergonomics */
+    --background: 30 10% 97%;       /* Soft warm neutral background (reduces glare & eye fatigue) */
+    --foreground: 20 10% 15%;       /* Charcoal for authority and information clarity */
     
-    --card: 0 0% 100%;             /* Pure white for cards */
-    --card-foreground: 220 10% 20%;
+    --card: 0 0% 100%;             /* Clean white workspace cards */
+    --card-foreground: 20 10% 15%;
     
     --popover: 0 0% 100%;
-    --popover-foreground: 220 10% 20%;
+    --popover-foreground: 20 10% 15%;
     
-    --primary: 221 83% 53%;        /* Electric Blue var(--color-primary) */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 353 72% 44%;        /* MECCAYA Enterprise Red (#C32033) - Identity & Action */
+    --primary-foreground: 0 0% 100%; /* Pure white text */
     
-    --secondary: 220 14% 92%;      /* Calmer gray for secondary elements */
-    --secondary-foreground: 220 10% 20%;
+    --secondary: 30 12% 93%;        /* Warm calm neutral for secondary controls */
+    --secondary-foreground: 20 10% 15%;
     
-    --muted: 220 14% 92%;
-    --muted-foreground: 220 10% 45%; /* Softer muted text */
+    --muted: 30 12% 92%;
+    --muted-foreground: 20 8% 45%;  /* Soft warm charcoal muted text */
     
-    --accent: 220 14% 92%;        /* Purple accent (light theme) */
-    --accent-foreground: 220 10% 20%;
+    --accent: 36 80% 95%;          /* MECCAYA Amber/Gold Tint Accent */
+    --accent-foreground: 353 72% 35%;
 
-    --purple: 262 83% 58%;         /* Semantic purple (high-contrast) */
+    --purple: 262 83% 58%;         /* Semantic purple */
     --purple-foreground: 0 0% 100%;
 
     --cyan: 187 100% 44%;          /* Semantic cyan */
     --cyan-foreground: 0 0% 100%;
 
-    --rose: 340 82% 57%;           /* Semantic rose */
+    --rose: 353 72% 44%;           /* Semantic red/rose */
     --rose-foreground: 0 0% 100%;
     
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 56%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 14% 86%;         /* Slightly darker border for visibility */
-    --input: 220 14% 86%;          
-    --ring: 221 83% 53%;           /* Electric Blue var(--color-primary) */
+    --border: 30 10% 88%;          /* Warm crisp border for workspace cards */
+    --input: 30 10% 88%;          
+    --ring: 353 72% 44%;           /* MECCAYA Enterprise Red focus ring */
     
-    --brand: 221 83% 53%;          /* Electric Blue var(--color-primary) */
+    --brand: 353 72% 44%;          /* MECCAYA Enterprise Red */
     --brand-foreground: 0 0% 100%;
     
     /* Chart colors */
-    --chart-1: 221 83% 53%;        /* Electric Blue var(--color-primary) */
-    --chart-2: 142 76% 36%;        /* Green var(--color-success) */
-    --chart-3: 38 92% 50%;         /* Amber */
-    --chart-4: 0 84% 60%;          /* Red */
+    --chart-1: 353 72% 44%;        /* Enterprise Red (Primary) */
+    --chart-2: 142 76% 36%;        /* Green (Success) */
+    --chart-3: 36 80% 55%;         /* MECCAYA Yellow/Gold Accent */
+    --chart-4: 20 10% 25%;         /* Charcoal (Authority) */
     --chart-5: 262 83% 58%;        /* Purple */
     
     --radius: 0.5rem;
 
-    /* Sidebar (Detail sidebar + gap) - Dark */
-    --sidebar: 0 0% 15%;           /* Dark gray for detail sidebar and gap */
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 221 83% 53%;
+    /* Sidebar (Detail sidebar + gap) - Dark Charcoal */
+    --sidebar: 20 10% 14%;         /* Dark warm charcoal for detail sidebar */
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 353 72% 44%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 20%;
+    --sidebar-accent: 20 10% 20%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 22%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-border: 20 10% 22%;
+    --sidebar-ring: 353 72% 44%;
     
-    /* Sidebar Dark (Icon sidebar) */
-    --sidebar-dark: 0 0% 10%;
+    /* Sidebar Dark (Icon sidebar) - Deep Charcoal/Black */
+    --sidebar-dark: 20 12% 8%;
     --sidebar-dark-foreground: 0 0% 100%;
   }
 
   .dark {
-    /* Dark mode - keeping it monochrome but inverted */
-    --background: 0 0% 10%;
-    --foreground: 0 0% 100%;
+    /* Dark mode - Warm Charcoal & Crimson */
+    --background: 20 10% 8%;       /* Soft dark charcoal workspace */
+    --foreground: 30 15% 96%;
     
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 100%;
+    --card: 20 8% 12%;
+    --card-foreground: 30 15% 96%;
     
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 20 8% 12%;
+    --popover-foreground: 30 15% 96%;
     
-    --primary: 221 83% 53%;        /* Electric Blue var(--color-primary) */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 353 75% 52%;        /* High-contrast Red for Dark Mode */
+    --primary-foreground: 0 0% 100%;
     
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 20 8% 16%;
+    --secondary-foreground: 30 15% 96%;
     
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 20 8% 16%;
+    --muted-foreground: 20 6% 65%;
     
-    --accent: 0 0% 15%;          /* Purple accent (dark theme) */
-    --accent-foreground: 0 0% 100%;
+    --accent: 36 40% 18%;          /* Dark mode Amber Accent */
+    --accent-foreground: 36 80% 65%;
 
-    --purple: 262 83% 70%;         /* Semantic purple (high contrast in dark theme) */
+    --purple: 262 83% 70%;
     --purple-foreground: 0 0% 100%;
 
-    --cyan: 187 100% 44%;          /* Semantic cyan */
+    --cyan: 187 100% 44%;
     --cyan-foreground: 0 0% 100%;
 
-    --rose: 340 82% 57%;           /* Semantic rose */
+    --rose: 353 75% 52%;
     --rose-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 221 83% 53%;           /* Electric Blue var(--color-primary) */
-    --brand: 221 83% 53%;
+    --border: 20 8% 20%;
+    --input: 20 8% 20%;
+    --ring: 353 75% 52%;
+    --brand: 353 75% 52%;
     --brand-foreground: 0 0% 100%;
 
     /* Chart colors */
-    --chart-1: 221 83% 53%;        /* Electric Blue var(--color-primary) */
-    --chart-2: 142 76% 36%;        /* Green var(--color-success) */
-    --chart-3: 38 92% 50%;         /* Amber */
-    --chart-4: 0 84% 60%;          /* Red */
+    --chart-1: 353 75% 52%;        /* Red */
+    --chart-2: 142 76% 36%;        /* Green */
+    --chart-3: 36 80% 55%;         /* Gold */
+    --chart-4: 0 0% 70%;           /* Light Charcoal */
     --chart-5: 262 83% 58%;        /* Purple */
 
-    /* Sidebar (Detail sidebar + gap) - Darker */
-    --sidebar: 0 0% 8%;            /* Very dark for detail sidebar and gap */
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 221 83% 53%;
+    /* Sidebar (Detail sidebar + gap) - Darker Charcoal */
+    --sidebar: 20 10% 7%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 353 75% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent: 20 10% 13%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-border: 20 10% 16%;
+    --sidebar-ring: 353 75% 52%;
     
-    /* Sidebar Light (Icon sidebar) - Slightly lighter */
-    --sidebar-dark: 0 0% 14%;      /* Lighter than sidebar for icon sidebar */
+    /* Sidebar Dark (Icon sidebar) */
+    --sidebar-dark: 20 12% 5%;
     --sidebar-dark-foreground: 0 0% 100%;
   }
 }

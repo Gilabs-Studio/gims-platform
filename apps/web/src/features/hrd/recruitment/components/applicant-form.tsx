@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -161,6 +162,7 @@ export function ApplicantForm({
             linkedin_url: data.linkedin_url || undefined,
           },
         });
+        toast.success(t("applicants.updated"));
       } else {
         await createMutation.mutateAsync({
           recruitment_request_id: recruitmentRequestId,
@@ -173,10 +175,27 @@ export function ApplicantForm({
           resume_url: data.resume_url || undefined,
           linkedin_url: data.linkedin_url || undefined,
         });
+        toast.success(t("applicants.created"));
       }
       onClose();
-    } catch {
-      // Error is handled by the mutation
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.error?.details?.message ||
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Gagal menyimpan data pelamar";
+
+      if (errorMsg.includes("INVALID_LINKEDIN_URL") || errorMsg.includes("LinkedIn")) {
+        form.setError("linkedin_url", {
+          type: "manual",
+          message: "Masukkan URL LinkedIn yang valid (contoh: linkedin.com/in/username)",
+        });
+        toast.error("Format URL LinkedIn tidak valid");
+      } else if (errorMsg.includes("RECRUITMENT_NOT_OPEN") || errorMsg.includes("open recruitment requests")) {
+        toast.error("Pelamar hanya dapat ditambahkan ketika status lowongan 'OPEN'");
+      } else {
+        toast.error(errorMsg);
+      }
     }
   };
 
@@ -201,12 +220,13 @@ export function ApplicantForm({
             <FormField
               control={form.control}
               name="full_name"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>{t("applicants.fields.fullName")}</FormLabel>
                   <FormControl>
                     <Input
                       placeholder={t("applicants.placeholders.fullName")}
+                      className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
                       {...field}
                     />
                   </FormControl>
@@ -219,13 +239,14 @@ export function ApplicantForm({
               <FormField
                 control={form.control}
                 name="email"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel>{t("applicants.fields.email")}</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
                         placeholder={t("applicants.placeholders.email")}
+                        className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
                         {...field}
                       />
                     </FormControl>
@@ -237,15 +258,15 @@ export function ApplicantForm({
               <FormField
                 control={form.control}
                 name="phone"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel>{t("applicants.fields.phone")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder={t("applicants.placeholders.phone")}
+                        className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
                         {...field}
                         onChange={(e) => {
-                          // Only allow numbers
                           const value = e.target.value.replace(/\D/g, "");
                           field.onChange(value);
                         }}
@@ -337,13 +358,14 @@ export function ApplicantForm({
             <FormField
               control={form.control}
               name="linkedin_url"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>{t("applicants.fields.linkedin")}</FormLabel>
                   <FormControl>
                     <Input
                       type="url"
                       placeholder={t("applicants.placeholders.linkedin")}
+                      className={fieldState.error ? "border-destructive focus-visible:ring-destructive" : ""}
                       {...field}
                     />
                   </FormControl>

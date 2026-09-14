@@ -33,7 +33,6 @@ func ToRecruitmentRequestResponse(req *models.RecruitmentRequest) *dto.Recruitme
 		SalaryRangeMax:    req.SalaryRangeMax,
 		JobDescription:    req.JobDescription,
 		Qualifications:    req.Qualifications,
-		Priority:          string(req.Priority),
 		Status:            string(req.Status),
 		Notes:             req.Notes,
 		ApprovedByID:      req.ApprovedByID,
@@ -107,11 +106,6 @@ func ToRecruitmentRequestModel(req *dto.CreateRecruitmentRequestDTO, id, request
 		return nil, err
 	}
 
-	priority := models.RecruitmentPriorityMedium
-	if req.Priority != "" {
-		priority = models.RecruitmentPriority(req.Priority)
-	}
-
 	return &models.RecruitmentRequest{
 		ID:                id,
 		RequestCode:       requestCode,
@@ -127,7 +121,6 @@ func ToRecruitmentRequestModel(req *dto.CreateRecruitmentRequestDTO, id, request
 		SalaryRangeMax:    req.SalaryRangeMax,
 		JobDescription:    req.JobDescription,
 		Qualifications:    req.Qualifications,
-		Priority:          priority,
 		Status:            models.RecruitmentStatusDraft,
 		Notes:             req.Notes,
 		CreatedBy:         &requestedByID,
@@ -166,9 +159,6 @@ func ApplyRecruitmentUpdateDTO(model *models.RecruitmentRequest, req *dto.Update
 	}
 	if req.Qualifications != nil {
 		model.Qualifications = *req.Qualifications
-	}
-	if req.Priority != nil {
-		model.Priority = models.RecruitmentPriority(*req.Priority)
 	}
 	if req.Notes != nil {
 		model.Notes = req.Notes

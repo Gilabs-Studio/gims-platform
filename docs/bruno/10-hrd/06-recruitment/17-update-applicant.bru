@@ -1,0 +1,33 @@
+meta {
+  name: 17 - Update Applicant
+  type: http
+  seq: 17
+}
+
+put {
+  url: {{base_url}}/api/v1/hrd/applicants/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: b0000002-0000-0000-0000-000000000001
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "phone": "081299887766",
+    "rating": 5,
+    "notes": "Updated notes after technical screening interview."
+  }
+}
+
+docs {
+  Update applicant details (only allowed if not yet converted to employee).
+  Permission required: `recruitment.update`
+}

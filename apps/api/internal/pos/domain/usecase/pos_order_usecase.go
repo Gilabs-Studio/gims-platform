@@ -845,6 +845,37 @@ func (u *posOrderUsecase) deductProductStock(
 			return fmt.Errorf("create movement: %w", err)
 		}
 	}
+
+	currentHpp := product.CurrentHpp
+	currentStock := product.CurrentStock
+	runningQty := currentStock - qty
+	if runningQty < 0 {
+		runningQty = 0
+	}
+	stockValue := runningQty * currentHpp
+
+	if err := tx.Model(&productModels.Product{}).
+		Where("id = ?", product.ID).
+		Update("current_stock", gorm.Expr("current_stock - ?", qty)).Error; err != nil {
+		return fmt.Errorf("update product stock: %w", err)
+	}
+
+	ledger := &invModels.StockLedger{
+		ID:              uuid.New().String(),
+		ProductID:       product.ID,
+		TransactionID:   refNumber,
+		TransactionType: "POS",
+		Qty:             -qty,
+		UnitCost:        currentHpp,
+		AverageCost:     currentHpp,
+		StockValue:      stockValue,
+		RunningQty:      runningQty,
+		CreatedAt:       now,
+	}
+	if err := tx.Create(ledger).Error; err != nil {
+		return fmt.Errorf("create stock ledger: %w", err)
+	}
+
 	return nil
 }
 

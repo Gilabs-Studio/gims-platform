@@ -56,5 +56,6 @@ export const stockLedgerId = {
     OPNAME: "Stok Opname",
     TRANSFER: "Transfer",
     SO: "Sales Order",
+    POS: "Penjualan POS",
   },
 };

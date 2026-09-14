@@ -1,0 +1,39 @@
+meta {
+  name: 20 - Convert Applicant to Employee
+  type: http
+  seq: 20
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/applicants/:id/convert-to-employee
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: b0000002-0000-0000-0000-000000000001
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "name": "Budi Santoso",
+    "email": "budi.santoso@email.com",
+    "phone": "082345678901",
+    "nik": "3171012345670001",
+    "gender": "MALE",
+    "contract_type": "PKWT",
+    "contract_number": "CTR/2026/08/001",
+    "start_date": "2026-09-01",
+    "end_date": "2027-08-31"
+  }
+}
+
+docs {
+  Convert a hired applicant into an active employee record.
+  Permission required: `recruitment.update`
+}

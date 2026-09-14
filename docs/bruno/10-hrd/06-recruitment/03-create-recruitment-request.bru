@@ -1,0 +1,36 @@
+meta {
+  name: 03 - Create Recruitment Request
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/api/v1/hrd/recruitment-requests
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "division_id": "8488e0ec-ca4f-4d40-b6f7-b24aee50b86c",
+    "position_id": "4bc457dc-82fe-4d04-8b6f-6c1d07ed6ff3",
+    "required_count": 2,
+    "employment_type": "FULL_TIME",
+    "expected_start_date": "2026-09-01",
+    "salary_range_min": 15000000,
+    "salary_range_max": 25000000,
+    "job_description": "Senior Software Developer responsible for backend microservices architecture.",
+    "qualifications": "Minimum 5 years Go experience and strong microservices knowledge.",
+    "notes": "Urgent hire for tech team expansion."
+  }
+}
+
+docs {
+  Create a new recruitment request in DRAFT status.
+  Permission required: `recruitment.create`
+}
