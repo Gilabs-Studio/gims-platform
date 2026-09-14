@@ -18,7 +18,7 @@ type FloorPlan struct {
 	TenantID string `gorm:"column:tenant_id;type:uuid;index" json:"tenant_id,omitempty"`
 	OutletID    string         `gorm:"type:uuid;not null;index:idx_floor_plans_outlet;uniqueIndex:uidx_floor_plans_outlet_floor_active,priority:1,where:deleted_at IS NULL" json:"outlet_id"`
 	CompanyID   *string        `gorm:"type:uuid;index:idx_floor_plans_company" json:"company_id,omitempty"`
-	Name        string         `gorm:"type:varchar(200);not null" json:"name"`
+	OutletName  string         `gorm:"->;column:outlet_name" json:"outlet_name,omitempty"`
 	FloorNumber int            `gorm:"type:int;not null;default:1;uniqueIndex:uidx_floor_plans_outlet_floor_active,priority:2,where:deleted_at IS NULL" json:"floor_number"`
 	Status      string         `gorm:"type:varchar(20);not null;default:'draft'" json:"status"`
 	GridSize    int            `gorm:"type:int;not null;default:20" json:"grid_size"`

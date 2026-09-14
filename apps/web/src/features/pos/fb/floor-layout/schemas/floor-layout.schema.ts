@@ -5,10 +5,7 @@ type TranslationFn = (key: string) => string;
 export const getCreateFloorPlanSchema = (t?: TranslationFn) =>
   z.object({
     outlet_id: z.string().optional(),
-    name: z
-      .string()
-      .min(2, t?.("validation.nameMin") ?? "Name must be at least 2 characters")
-      .max(200),
+    name: z.string().max(200).optional(),
     floor_number: z
       .number()
       .int()

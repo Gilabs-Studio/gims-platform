@@ -1542,11 +1542,19 @@ func migratePOSFloorPlansToOutletScope() error {
 	}
 
 	var plans []floorPlanRow
-	if err := DB.Raw(`
-		SELECT id, company_id, outlet_id, name
-		FROM pos_floor_plans
-		WHERE deleted_at IS NULL
-	`).Scan(&plans).Error; err != nil {
+	selectQuery := `SELECT id, company_id, outlet_id, '' AS name FROM pos_floor_plans WHERE deleted_at IS NULL`
+	var hasNameCol bool
+	_ = DB.Raw(`
+		SELECT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_schema = 'public'
+			  AND table_name = 'pos_floor_plans'
+			  AND column_name = 'name'
+		)`).Scan(&hasNameCol).Error
+	if hasNameCol {
+		selectQuery = `SELECT id, company_id, outlet_id, name FROM pos_floor_plans WHERE deleted_at IS NULL`
+	}
+	if err := DB.Raw(selectQuery).Scan(&plans).Error; err != nil {
 		return err
 	}
 

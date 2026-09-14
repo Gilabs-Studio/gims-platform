@@ -49,7 +49,6 @@ func SeedPOSFloorLayouts() error {
 			ID:          PosFloorPlanSudirmanID,
 			OutletID:    MieGacoanOutlet1ID,
 			CompanyID:   &mieGacoanID,
-			Name:        "Live Table - Sudirman",
 			FloorNumber: 1,
 			Status:      posModels.FloorPlanStatusPublished,
 			GridSize:    20,
@@ -66,7 +65,6 @@ func SeedPOSFloorLayouts() error {
 			ID:          PosFloorPlanKelapaID,
 			OutletID:    MieGacoanOutlet2ID,
 			CompanyID:   &mieGacoanID,
-			Name:        "Live Table - Kelapa Gading",
 			FloorNumber: 1,
 			Status:      posModels.FloorPlanStatusPublished,
 			GridSize:    20,
@@ -87,11 +85,11 @@ func SeedPOSFloorLayouts() error {
 		if err := db.Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"tenant_id", "outlet_id", "company_id", "name", "floor_number", "status", "grid_size", "snap_to_grid",
+				"tenant_id", "outlet_id", "company_id", "floor_number", "status", "grid_size", "snap_to_grid",
 				"width", "height", "layout_data", "version", "published_at", "published_by", "updated_at",
 			}),
 		}).Create(&plans[i]).Error; err != nil {
-			log.Printf("Warning: Failed to seed POS floor plan %s: %v", plans[i].Name, err)
+			log.Printf("Warning: Failed to seed POS floor plan %s: %v", plans[i].OutletID, err)
 		}
 	}
 

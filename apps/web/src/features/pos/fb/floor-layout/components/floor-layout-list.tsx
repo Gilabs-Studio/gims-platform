@@ -14,8 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
 import {
@@ -127,9 +126,9 @@ export function FloorLayoutList({ onOpenEditor, companyId, outlets }: FloorLayou
 
       {/* Loading */}
       {isPending && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-40 rounded-xl" />
+            <Skeleton key={i} className="h-56 rounded-xl" />
           ))}
         </div>
       )}
@@ -157,7 +156,7 @@ export function FloorLayoutList({ onOpenEditor, companyId, outlets }: FloorLayou
 
       {/* Floor plan cards */}
       {!isPending && !isError && floorPlans.length > 0 && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {floorPlans.map((fp) => (
             <FloorPlanCard
               key={fp.id}
@@ -228,6 +227,10 @@ function FloorPlanCard({
   }, [floorPlan.layout_data]);
 
   const objectCount = objects.length;
+  const tableCount = useMemo(
+    () => objects.filter((o) => o.type === "table").length,
+    [objects]
+  );
   const previewBounds = useMemo(() => {
     if (objects.length === 0) {
       const width = Math.max(1, floorPlan.width || 1200);
@@ -257,19 +260,16 @@ function FloorPlanCard({
   }, [floorPlan.height, floorPlan.width, objects]);
 
   return (
-    <Card className="group h-full hover:border-primary/30 transition-all duration-200 hover:shadow-md">
-      <CardContent className="p-0">
+    <Card className="flex flex-col hover:border-primary/50 hover:shadow-md transition-all duration-200">
+      <CardHeader className="pb-3 space-y-3">
         {/* Preview area */}
         <button
           type="button"
           aria-label={t("openEditor")}
           onClick={onOpen}
-          className="w-full bg-muted/30 rounded-t-xl cursor-pointer overflow-hidden"
+          className="w-full bg-muted/20 rounded-lg border border-border/60 cursor-pointer overflow-hidden group/thumb"
         >
-          <div
-            className="relative w-full"
-            style={{ aspectRatio: `${previewBounds.width} / ${previewBounds.height}` }}
-          >
+          <div className="relative w-full aspect-[16/10] overflow-hidden flex items-center justify-center">
             {objectCount > 0 ? (
               <FloorPlanThumbnail
                 floorPlan={floorPlan}
@@ -285,56 +285,43 @@ function FloorPlanCard({
               </div>
             )}
             {objectCount > 0 && (
-              <div className="absolute bottom-2 right-2 rounded bg-background/90 px-2 py-0.5 text-[10px] text-muted-foreground shadow-sm">
+              <div className="absolute bottom-2 right-2 rounded bg-background/90 px-1.5 py-0.5 text-[10px] text-muted-foreground shadow-sm">
                 {t("previewObjects", { count: objectCount })}
               </div>
             )}
           </div>
         </button>
 
-        {/* Info */}
-        <div className="px-4 py-3 space-y-2">
-          <div className="flex items-start justify-between">
-            <div className="min-w-0">
-              <h3 className="text-sm font-semibold truncate">{floorPlan.name}</h3>
-              <p className="text-xs text-muted-foreground">
-                {floorPlan.outlet_name ?? floorPlan.company_name ?? "-"}
-              </p>
-            </div>
-            <Badge
-              variant={floorPlan.status === "published" ? "success" : "secondary"}
-              className="text-[10px] shrink-0"
-            >
-              {floorPlan.status === "published"
-                ? t("statusPublished")
-                : t("statusDraft")}
-            </Badge>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-1.5 pt-1">
-            <Button
-              variant="default"
-              size="sm"
-              className="flex-1 h-7 text-xs cursor-pointer"
-              onClick={onOpen}
-            >
-              <PencilIcon className="h-3 w-3 mr-1" />
-              {t("openEditor")}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-            >
-              <Trash2Icon className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+        <div>
+          <CardTitle className="text-sm font-semibold leading-snug line-clamp-2">
+            {floorPlan.outlet_name || floorPlan.name}
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            Floor {floorPlan.floor_number} • {tableCount} {tableCount === 1 ? "table" : "tables"}
+          </p>
         </div>
+      </CardHeader>
+
+      <CardContent className="pt-0 flex items-center gap-1.5 mt-auto">
+        <Button
+          className="flex-1 cursor-pointer text-xs h-8"
+          variant="default"
+          onClick={onOpen}
+        >
+          <PencilIcon className="h-3.5 w-3.5 mr-1.5" />
+          {t("openEditor")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive cursor-pointer shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash2Icon className="h-3.5 w-3.5" />
+        </Button>
       </CardContent>
     </Card>
   );

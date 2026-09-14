@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import {
   Store,
   LayoutPanelTop,
-  MonitorSmartphone,
   ArrowLeft,
   ShieldOff,
   MapPin,
@@ -214,37 +213,16 @@ export function POSTerminalPageClient() {
                 key={outlet.id}
                 className="flex flex-col hover:border-primary/50 hover:shadow-md transition-all duration-200"
               >
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-sm font-semibold leading-snug line-clamp-2">
-                        {outlet.name}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-                        {outlet.code}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={isLive ? "default" : "secondary"}
-                      className="shrink-0 text-[10px] px-1.5 py-0.5"
-                    >
-                      {isLive ? "Live Table" : "Direct POS"}
-                    </Badge>
-                  </div>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold leading-snug">
+                    {outlet.name}
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1 font-mono">
+                    {outlet.code}
+                  </p>
                 </CardHeader>
 
-                <CardContent className="pt-0 flex flex-col flex-1 gap-3">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-1">
-                    {isLive ? (
-                      <LayoutPanelTop className="h-3.5 w-3.5 shrink-0" />
-                    ) : (
-                      <MonitorSmartphone className="h-3.5 w-3.5 shrink-0" />
-                    )}
-                    <span className="truncate">
-                      {isLive ? "Floor layout available" : "No floor layout"}
-                    </span>
-                  </div>
-
+                <CardContent className="pt-0 flex flex-col flex-1 justify-end">
                   <Button
                     className="w-full cursor-pointer text-xs h-8"
                     variant={isLive ? "default" : "outline"}
@@ -273,35 +251,64 @@ export function POSTerminalPageClient() {
     return `/pos/fb/live-table?${q.toString()}`;
   })();
 
+  const isLiveTableMode = selectedOutlet.pos_mode === "LIVE_TABLE" || Boolean(tableIdFromQuery);
+  const showTopBar = isLiveTableMode || outletsWithMode.length > 1;
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {outletsWithMode.length > 1 && (
+      {showTopBar && (
         <div className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-muted/30 shrink-0">
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm flex-wrap">
             <Store className="h-4 w-4 text-primary" />
             <span className="font-medium">{selectedOutlet.name}</span>
             <Badge variant="outline" className="text-[10px] font-mono">
               {selectedOutlet.code}
             </Badge>
-            <Badge variant="secondary" className="text-[10px]">Direct POS</Badge>
+            <Badge
+              variant={isLiveTableMode ? "default" : "secondary"}
+              className="text-[10px]"
+            >
+              {isLiveTableMode ? "Live Table" : "Direct POS"}
+            </Badge>
+            {tableLabelFromQuery && (
+              <Badge variant="outline" className="text-[10px] font-medium bg-background">
+                {tableLabelFromQuery}
+              </Badge>
+            )}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              if (selectedOutlet.pos_mode === "LIVE_TABLE") {
-                const query = new URLSearchParams();
-                query.set("outlet_id", selectedOutlet.id);
-                router.push(`/pos/fb/live-table?${query.toString()}`);
-              } else {
-                setSelectedOutletId(null);
-              }
-            }}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Change Outlet
-          </Button>
+
+          <div className="flex items-center gap-1.5">
+            {isLiveTableMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  const query = new URLSearchParams();
+                  query.set("outlet_id", selectedOutlet.id);
+                  router.push(`/pos/fb/live-table?${query.toString()}`);
+                }}
+              >
+                <LayoutPanelTop className="h-4 w-4" />
+                Change Table
+              </Button>
+            )}
+
+            {outletsWithMode.length > 1 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setSelectedOutletId(null);
+                  router.push("/pos/fb/terminal");
+                }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Change Outlet
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

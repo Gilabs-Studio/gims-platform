@@ -1571,7 +1571,7 @@ export function LiveTablePageClient() {
   }, [draftOrdersResponse]);
 
   const deleteOrder = useDeleteOrder({ invalidateOnSuccess: false });
-  const assignTable = useAssignTable({ invalidateOnSuccess: false });
+  const assignTable = useAssignTable();
   const [applyingDraft, setApplyingDraft] = useState<POSOrder | null>(null);
 
   const handleDropDraftOnTable = useCallback(
@@ -1831,7 +1831,7 @@ export function LiveTablePageClient() {
         <p className="text-sm text-muted-foreground text-center max-w-xs">
           {t("messages.noFloorPlanDescription")}
         </p>
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <Button variant="ghost" size="sm" onClick={() => router.push("/pos/fb/terminal")}>
           <ArrowLeft className="h-4 w-4 mr-1.5" />
           {t("messages.goBack")}
         </Button>
@@ -1848,7 +1848,7 @@ export function LiveTablePageClient() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 rounded-full cursor-pointer"
-            onClick={() => router.back()}
+            onClick={() => router.push("/pos/fb/terminal")}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>

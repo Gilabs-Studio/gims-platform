@@ -8,7 +8,6 @@ import (
 	"github.com/gilabs/gims/api/internal/core/infrastructure/security"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/gilabs/gims/api/internal/pos/data/models"
 )
@@ -52,7 +51,12 @@ func (r *floorPlanRepository) Create(ctx context.Context, plan *models.FloorPlan
 
 func (r *floorPlanRepository) FindByID(ctx context.Context, id string) (*models.FloorPlan, error) {
 	var plan models.FloorPlan
-	err := database.GetDB(ctx, r.db).First(&plan, "id = ?", id).Error
+	err := database.GetDB(ctx, r.db).
+		Table("pos_floor_plans").
+		Select("pos_floor_plans.*, COALESCE(outlets.name, '') AS outlet_name").
+		Joins("LEFT JOIN outlets ON outlets.id = pos_floor_plans.outlet_id").
+		Where("pos_floor_plans.id = ?", id).
+		First(&plan).Error
 	if err != nil {
 		return nil, err
 	}
@@ -62,59 +66,60 @@ func (r *floorPlanRepository) FindByID(ctx context.Context, id string) (*models.
 func (r *floorPlanRepository) List(ctx context.Context, params FloorPlanListParams) ([]models.FloorPlan, int64, error) {
 	var plans []models.FloorPlan
 	var total int64
-	// Use WithContext (not GetDB) because CompanyID filter JOINs outlets which has tenant_id.
-	// GetDB's unqualified WHERE tenant_id=? causes PG ambiguity on JOIN queries.
-	query := r.db.WithContext(ctx).Model(&models.FloorPlan{})
+	query := r.db.WithContext(ctx).
+		Table("pos_floor_plans").
+		Select("pos_floor_plans.*, COALESCE(outlets.name, '') AS outlet_name").
+		Joins("LEFT JOIN outlets ON outlets.id = pos_floor_plans.outlet_id")
 
 	// Apply dynamic scope filter
 	query = security.ApplyScopeFilter(query, ctx, security.ScopeQueryOptions{
-		OutletIDColumn: "outlet_id",
+		OutletIDColumn: "pos_floor_plans.outlet_id",
 	})
 
 	// Company-level filtering (RBAC scoping)
 	if params.OutletID != "" {
-		query = query.Where("outlet_id = ?", params.OutletID)
+		query = query.Where("pos_floor_plans.outlet_id = ?", params.OutletID)
 	}
 
-	// Deprecated fallback: company-level filtering via outlets relation.
 	if params.CompanyID != "" {
-		query = query.Joins("JOIN outlets ON outlets.id = pos_floor_plans.outlet_id").
-			Where("outlets.company_id = ?", params.CompanyID)
+		query = query.Where("outlets.company_id = ?", params.CompanyID)
 	}
 
-	// Prefix search for index usage
+	// Prefix search on outlet name
 	if params.Search != "" {
 		search := params.Search + "%"
-		query = query.Where("name ILIKE ?", search)
+		query = query.Where("outlets.name ILIKE ?", search)
 	}
 
 	if params.Status != "" {
-		query = query.Where("status = ?", params.Status)
+		query = query.Where("pos_floor_plans.status = ?", params.Status)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// Sorting with whitelist and clause builder to prevent SQL injection.
+	// Sorting with whitelist
 	allowedSortColumns := map[string]string{
-		"name":         "name",
-		"floor_number": "floor_number",
-		"created_at":   "created_at",
-		"updated_at":   "updated_at",
-		"status":       "status",
-		"version":      "version",
+		"name":         "outlets.name",
+		"floor_number": "pos_floor_plans.floor_number",
+		"created_at":   "pos_floor_plans.created_at",
+		"updated_at":   "pos_floor_plans.updated_at",
+		"status":       "pos_floor_plans.status",
+		"version":      "pos_floor_plans.version",
 	}
 
 	sortColumn := allowedSortColumns[strings.ToLower(strings.TrimSpace(params.SortBy))]
 	if sortColumn == "" {
-		sortColumn = "floor_number"
+		sortColumn = "pos_floor_plans.floor_number"
 	}
 
 	sortDir := strings.ToLower(strings.TrimSpace(params.SortDir))
-	isDesc := sortDir == "desc"
-
-	query = query.Order(clause.OrderByColumn{Column: clause.Column{Name: sortColumn}, Desc: isDesc})
+	orderClause := sortColumn + " ASC"
+	if sortDir == "desc" {
+		orderClause = sortColumn + " DESC"
+	}
+	query = query.Order(orderClause)
 
 	if params.Limit > 0 {
 		query = query.Limit(params.Limit).Offset(params.Offset)

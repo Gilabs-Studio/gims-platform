@@ -15,8 +15,9 @@ func ToFloorPlanResponse(m *models.FloorPlan) *dto.FloorPlanResponse {
 	resp := &dto.FloorPlanResponse{
 		ID:          m.ID,
 		OutletID:    m.OutletID,
+		OutletName:  m.OutletName,
 		CompanyID:   m.CompanyID,
-		Name:        m.Name,
+		Name:        m.OutletName,
 		FloorNumber: m.FloorNumber,
 		Status:      m.Status,
 		GridSize:    m.GridSize,

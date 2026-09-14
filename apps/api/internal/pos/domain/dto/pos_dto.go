@@ -62,8 +62,8 @@ type VoidOrderRequest struct {
 
 // AssignTableRequest assigns or re-assigns a table to an order
 type AssignTableRequest struct {
-	TableID    string `json:"table_id" binding:"required"`
-	TableLabel string `json:"table_label"`
+	TableID    string `json:"table_id" binding:"required,max=50"`
+	TableLabel string `json:"table_label" binding:"max=50"`
 }
 
 // AddOrderItemRequest adds a product line to an order

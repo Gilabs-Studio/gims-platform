@@ -33,10 +33,9 @@ function deriveStatus(
   unpaidOrder: POSOrder | null,
   serviceOrder: POSOrder | null,
   servedOrders: POSOrder[],
-  durationSec: number,
-  draftOrder: POSOrder | null
+  durationSec: number
 ): LiveTableStatus {
-  if (unpaidOrder || draftOrder) {
+  if (unpaidOrder) {
     return "WAITING_PAYMENT";
   }
   const order = serviceOrder;
@@ -150,11 +149,11 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
   const activeOrders = useMemo(() => {
     return orders.filter((order) => {
       const isWaitingCustomerPayment =
-        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number]) ||
-        order.status === "DRAFT";
+        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number]);
       const isPostPaymentOccupied =
         SERVICE_FLOW_STATUSES.includes(order.status as (typeof SERVICE_FLOW_STATUSES)[number]);
-      return isWaitingCustomerPayment || isPostPaymentOccupied;
+      const isDraft = order.status === "DRAFT";
+      return isWaitingCustomerPayment || isPostPaymentOccupied || isDraft;
     });
   }, [orders]);
 
@@ -177,8 +176,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
       );
 
       const unpaidOrders = matchedOrders.filter((order) =>
-        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number]) ||
-        order.status === "DRAFT"
+        WAITING_PAYMENT_STATUSES.includes(order.status as (typeof WAITING_PAYMENT_STATUSES)[number])
       );
 
       const serviceFlowOrders = [...matchedOrders]
@@ -212,7 +210,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
       return {
         tableObj: obj,
         seatCount,
-        status: deriveStatus(unpaidOrder, serviceOrder, servedOrders, durationSec, draftOrder),
+        status: deriveStatus(unpaidOrder, serviceOrder, servedOrders, durationSec),
         orders: matchedOrders,
         unpaidOrder,
         unpaidOrders,

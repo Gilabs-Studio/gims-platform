@@ -171,8 +171,8 @@ func (u *floorPlanUsecase) Create(ctx context.Context, req *dto.CreateFloorPlanR
 		ID:          uuid.New().String(),
 		TenantID:    tenantID,
 		OutletID:    outlet.ID,
+		OutletName:  outlet.Name,
 		CompanyID:   outlet.CompanyID,
-		Name:        req.Name,
 		FloorNumber: req.FloorNumber,
 		Status:      models.FloorPlanStatusDraft,
 		LayoutData:  "[]",
@@ -242,9 +242,6 @@ func (u *floorPlanUsecase) Update(ctx context.Context, id string, req *dto.Updat
 		return nil, ErrFloorPlanForbidden
 	}
 
-	if req.Name != nil {
-		plan.Name = *req.Name
-	}
 	if req.FloorNumber != nil {
 		plan.FloorNumber = *req.FloorNumber
 	}

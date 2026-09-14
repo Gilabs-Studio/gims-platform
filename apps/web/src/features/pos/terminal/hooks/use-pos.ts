@@ -258,7 +258,7 @@ export function useAssignTable(options?: POSMutationOptions) {
       orderId: string;
       data: AssignTableRequest;
     }) => posOrderService.assignTable(orderId, data),
-    onMutate: async ({ orderId }) => {
+    onMutate: async ({ orderId, data }) => {
       await qc.cancelQueries({ queryKey: posKeys.orders() });
 
       qc.setQueriesData<POSOrderListCache>(
@@ -267,12 +267,32 @@ export function useAssignTable(options?: POSMutationOptions) {
           if (!current?.data?.length) return current;
           return {
             ...current,
-            data: current.data.filter((order) => order.id !== orderId),
+            data: current.data.map((order) =>
+              order.id === orderId
+                ? {
+                    ...order,
+                    table_id: data.table_id,
+                    table_label: data.table_label ?? order.table_label,
+                  }
+                : order,
+            ),
           };
         },
       );
     },
     onSuccess: (result) => {
+      qc.setQueriesData<POSOrderListCache>(
+        { queryKey: posKeys.orders() },
+        (current) => {
+          if (!current?.data?.length) return current;
+          return {
+            ...current,
+            data: current.data.map((order) =>
+              order.id === result.data.id ? { ...order, ...result.data } : order,
+            ),
+          };
+        },
+      );
       if (invalidateOnSuccess) {
         qc.invalidateQueries({ queryKey: posKeys.order(result.data.id) });
         qc.invalidateQueries({ queryKey: posKeys.orders() });

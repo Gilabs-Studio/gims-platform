@@ -14,7 +14,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -122,7 +121,7 @@ export function CreateFloorPlanDialog({
 
     try {
       const result = await createMutation.mutateAsync({
-        name: data.name,
+        name: targetOutlet?.name ?? "",
         floor_number: data.floor_number,
         outlet_id: resolvedOutletId,
         company_id: companyId,
@@ -202,19 +201,6 @@ export function CreateFloorPlanDialog({
             )}
           </div>
 
-          {/* Name */}
-          <div className="space-y-1.5">
-            <Label>{t("name")}</Label>
-            <Input
-              {...form.register("name")}
-              placeholder="e.g. Dining Area Layout"
-            />
-            {form.formState.errors.name && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.name.message}
-              </p>
-            )}
-          </div>
 
           <DialogFooter>
             <Button

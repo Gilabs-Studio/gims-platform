@@ -10,7 +10,7 @@ import (
 type CreateFloorPlanRequest struct {
 	OutletID    string `json:"outlet_id" binding:"omitempty,uuid"`
 	CompanyID   string `json:"company_id,omitempty" binding:"omitempty,uuid"` // deprecated: use outlet_id
-	Name        string `json:"name" binding:"required,max=200"`
+	Name        string `json:"name,omitempty" binding:"omitempty,max=200"`
 	FloorNumber int    `json:"floor_number" binding:"required,min=1"`
 	GridSize    *int   `json:"grid_size,omitempty"`
 	SnapToGrid  *bool  `json:"snap_to_grid,omitempty"`
@@ -37,6 +37,7 @@ type SaveLayoutDataRequest struct {
 type FloorPlanResponse struct {
 	ID          string          `json:"id"`
 	OutletID    string          `json:"outlet_id"`
+	OutletName  string          `json:"outlet_name,omitempty"`
 	CompanyID   *string         `json:"company_id,omitempty"` // deprecated: kept for backward compatibility
 	Name        string          `json:"name"`
 	FloorNumber int             `json:"floor_number"`
