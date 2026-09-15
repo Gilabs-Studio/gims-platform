@@ -2,7 +2,6 @@
 
 import {
   SquareIcon,
-  ArmchairIcon,
   MinusIcon,
   DoorOpenIcon,
   MonitorIcon,
@@ -53,17 +52,6 @@ const TOOL_CATEGORIES: { labelKey: string; tools: ToolItem[] }[] = [
         icon: <SquareIcon className="h-5 w-5" />,
         labelKey: "tables",
         color: "text-amber-600",
-      },
-    ],
-  },
-  {
-    labelKey: "chairs",
-    tools: [
-      {
-        type: "chair",
-        icon: <ArmchairIcon className="h-5 w-5" />,
-        labelKey: "chairs",
-        color: "text-blue-500",
       },
     ],
   },
@@ -136,12 +124,24 @@ export function LayoutPalette({ editor }: LayoutPaletteProps) {
             <div key={category.labelKey || "select"} className="w-full">
               {category.tools.map((tool) => {
                 const isActive = editor.activeTool === tool.type;
+                const isDraggable = tool.type !== "select";
                 return (
                   <button
                     key={tool.type}
+                    draggable={isDraggable}
+                    onDragStart={(e) => {
+                      if (isDraggable) {
+                        e.dataTransfer.setData("application/pos-tool", tool.type);
+                        e.dataTransfer.setData("text/plain", tool.type);
+                        e.dataTransfer.effectAllowed = "copy";
+                        // Also select this tool
+                        editor.setActiveTool(tool.type as "select" | LayoutObjectType);
+                      }
+                    }}
                     onClick={() => editor.setActiveTool(tool.type as "select" | LayoutObjectType)}
                     className={cn(
-                      "w-full flex flex-col items-center gap-0.5 rounded-lg p-2 transition-all cursor-pointer",
+                      "w-full flex flex-col items-center gap-0.5 rounded-lg p-2 transition-all select-none",
+                      isDraggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
                       "hover:bg-accent hover:text-accent-foreground",
                       isActive && "bg-primary/10 text-primary ring-1 ring-primary/30",
                       !isActive && tool.color,

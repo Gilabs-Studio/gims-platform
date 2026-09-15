@@ -2,7 +2,6 @@
 
 import {
   SaveIcon,
-  UploadIcon,
   Undo2Icon,
   Redo2Icon,
   ZoomInIcon,
@@ -14,13 +13,13 @@ import {
   UnlockIcon,
   GridIcon,
   HistoryIcon,
+  ArrowLeft,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -35,8 +34,8 @@ type CanvasEditorReturn = ReturnType<typeof useCanvasEditor>;
 interface LayoutToolbarProps {
   readonly editor: CanvasEditorReturn;
   readonly floorPlanName: string;
-  readonly status: string;
-  readonly onPublish: () => void;
+  readonly status?: string;
+  readonly onBack?: () => void;
   readonly onShowVersions: () => void;
 }
 
@@ -78,22 +77,29 @@ function ToolbarButton({
 export function LayoutToolbar({
   editor,
   floorPlanName,
-  status,
-  onPublish,
+  onBack,
   onShowVersions,
 }: LayoutToolbarProps) {
   const t = useTranslations("floorLayout");
 
   return (
     <div className="h-12 bg-background border-b flex items-center justify-between px-3 shrink-0">
-      {/* Left: Floor plan name + status */}
-      <div className="flex items-center gap-2">
+      {/* Left: Back button + Floor plan name */}
+      <div className="flex items-center gap-1.5">
+        {onBack && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full cursor-pointer mr-0.5"
+            onClick={onBack}
+            title={t("title")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
         <h2 className="text-sm font-semibold truncate max-w-48">{floorPlanName}</h2>
-        <Badge variant={status === "published" ? "success" : "secondary"} className="text-[10px]">
-          {status === "published" ? t("statusPublished") : t("statusDraft")}
-        </Badge>
         {editor.isDirty && (
-          <span className="text-[10px] text-amber-600 font-medium">Unsaved</span>
+          <span className="text-[10px] text-amber-600 font-medium ml-1">Unsaved</span>
         )}
       </div>
 
@@ -182,7 +188,7 @@ export function LayoutToolbar({
         </div>
       </div>
 
-      {/* Right: Save/Publish/Versions */}
+      {/* Right: Versions + Save */}
       <div className="flex items-center gap-1.5">
         <ToolbarButton
           icon={<HistoryIcon className="h-4 w-4" />}
@@ -190,23 +196,13 @@ export function LayoutToolbar({
           onClick={onShowVersions}
         />
         <Button
-          variant="outline"
           size="sm"
           className="h-8 text-xs cursor-pointer"
-          onClick={() => editor.saveLayout(t)}
-          disabled={editor.isSaving || !editor.isDirty}
+          onClick={() => editor.saveAndPublishLayout(t)}
+          disabled={editor.isSaving}
         >
           <SaveIcon className="h-3.5 w-3.5 mr-1" />
           {t("save")}
-        </Button>
-        <Button
-          size="sm"
-          className="h-8 text-xs cursor-pointer"
-          onClick={onPublish}
-          disabled={editor.isPublishing || status === "published"}
-        >
-          <UploadIcon className="h-3.5 w-3.5 mr-1" />
-          {t("publish")}
         </Button>
       </div>
     </div>

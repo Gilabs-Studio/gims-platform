@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { toast } from "sonner";
 
-import type { LayoutObject, LayoutObjectType, TableChairDistribution, TableChairLayout } from "../types";
+import type { LayoutObject, LayoutObjectType } from "../types";
 import { useSaveLayoutData, usePublishFloorLayout } from "./use-floor-layouts";
 import { useCanvasStore } from "../stores/use-canvas-store";
 
@@ -27,13 +27,7 @@ function generateId(): string {
   return `obj_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const CHAIR_SIZE = 24;
-const CHAIR_OFFSET = 8;
-const MIN_CHAIR_SPACING = CHAIR_SIZE + 8; // 32 px between chair centres
 const DEFAULT_DOOR_LENGTH = OBJECT_DEFAULTS.door.width ?? 60;
-type ChairSide = Exclude<TableChairLayout, "auto">;
-const CHAIR_LAYOUT_SIDES: ChairSide[] = ["top", "right", "bottom", "left"];
-const EMPTY_SIDE_DISTRIBUTION: TableChairDistribution = { top: 0, right: 0, bottom: 0, left: 0 };
 
 interface Point {
   x: number;
@@ -50,10 +44,13 @@ interface Rect {
 type WallEndpointName = "start" | "end";
 
 function wallSegmentFromObject(wall: LayoutObject): { start: Point; end: Point } {
+  const isVerticalAspect = wall.height > wall.width;
+  const length = isVerticalAspect ? wall.height : wall.width;
+  const baseAngle = isVerticalAspect ? (wall.rotation + 90) : wall.rotation;
   const centerX = wall.x + wall.width / 2;
   const centerY = wall.y + wall.height / 2;
-  const halfLength = wall.width / 2;
-  const angle = (wall.rotation * Math.PI) / 180;
+  const halfLength = length / 2;
+  const angle = (baseAngle * Math.PI) / 180;
   const ux = Math.cos(angle);
   const uy = Math.sin(angle);
   return {
@@ -87,6 +84,44 @@ function projectPointToSegment(point: Point, start: Point, end: Point): Point {
   if (len2 <= 0.0001) return start;
   const t = Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2));
   return { x: start.x + t * vx, y: start.y + t * vy };
+}
+
+export interface ClosestWallResult {
+  wall: LayoutObject;
+  snappedCenter: Point;
+  wallAngle: number;
+  wallThickness: number;
+  distance: number;
+}
+
+export function findClosestWall(
+  point: Point,
+  walls: LayoutObject[],
+  maxDistance = 35,
+): ClosestWallResult | null {
+  let closest: ClosestWallResult | null = null;
+  let minDistance = maxDistance;
+
+  for (const wall of walls) {
+    if (wall.type !== "wall") continue;
+    const seg = wallSegmentFromObject(wall);
+    const proj = projectPointToSegment(point, seg.start, seg.end);
+    const dist = Math.hypot(point.x - proj.x, point.y - proj.y);
+    if (dist < minDistance) {
+      minDistance = dist;
+      const angle = Math.atan2(seg.end.y - seg.start.y, seg.end.x - seg.start.x) * (180 / Math.PI);
+      const thickness = wall.thickness ?? wall.height ?? 12;
+      closest = {
+        wall,
+        snappedCenter: proj,
+        wallAngle: ((angle % 360) + 360) % 360,
+        wallThickness: thickness,
+        distance: dist,
+      };
+    }
+  }
+
+  return closest;
 }
 
 function rectFromObject(obj: LayoutObject): Rect {
@@ -177,203 +212,6 @@ function alignAttachedDoorsToWalls(objects: LayoutObject[], changedWallIds?: Set
   });
 }
 
-function getTableSideCapacity(table: LayoutObject): TableChairDistribution {
-  return {
-    top: Math.max(1, Math.floor((table.width - 10) / MIN_CHAIR_SPACING)),
-    right: Math.max(1, Math.floor((table.height - 10) / MIN_CHAIR_SPACING)),
-    bottom: Math.max(1, Math.floor((table.width - 10) / MIN_CHAIR_SPACING)),
-    left: Math.max(1, Math.floor((table.height - 10) / MIN_CHAIR_SPACING)),
-  };
-}
-
-function evenDistribution(targetCount: number, sideCapacity: TableChairDistribution): TableChairDistribution {
-  const dist: TableChairDistribution = { ...EMPTY_SIDE_DISTRIBUTION };
-  let placed = 0;
-  let idx = 0;
-  while (placed < targetCount) {
-    const side = CHAIR_LAYOUT_SIDES[idx % CHAIR_LAYOUT_SIDES.length];
-    if (dist[side] < sideCapacity[side]) {
-      dist[side] += 1;
-      placed += 1;
-    }
-    idx += 1;
-    if (idx > targetCount * 8) break;
-  }
-  return dist;
-}
-
-function normalizeDistribution(
-  base: Partial<TableChairDistribution> | undefined,
-  targetCount: number,
-  sideCapacity: TableChairDistribution,
-): TableChairDistribution {
-  const dist: TableChairDistribution = {
-    top: Math.max(0, Math.min(base?.top ?? 0, sideCapacity.top)),
-    right: Math.max(0, Math.min(base?.right ?? 0, sideCapacity.right)),
-    bottom: Math.max(0, Math.min(base?.bottom ?? 0, sideCapacity.bottom)),
-    left: Math.max(0, Math.min(base?.left ?? 0, sideCapacity.left)),
-  };
-
-  let sum = dist.top + dist.right + dist.bottom + dist.left;
-
-  while (sum > targetCount) {
-    const side = CHAIR_LAYOUT_SIDES.reduce((best, cur) => (dist[cur] > dist[best] ? cur : best), "top");
-    if (dist[side] === 0) break;
-    dist[side] -= 1;
-    sum -= 1;
-  }
-
-  let rr = 0;
-  while (sum < targetCount) {
-    const side = CHAIR_LAYOUT_SIDES[rr % CHAIR_LAYOUT_SIDES.length];
-    if (dist[side] < sideCapacity[side]) {
-      dist[side] += 1;
-      sum += 1;
-    }
-    rr += 1;
-    if (rr > targetCount * 8) break;
-  }
-
-  return dist;
-}
-
-function chairSideFromId(chairId: string): ChairSide | null {
-  const slot = chairId.split("_c_")[1] ?? "";
-  const key = slot.charAt(0);
-  if (key === "t") return "top";
-  if (key === "r") return "right";
-  if (key === "b") return "bottom";
-  if (key === "l") return "left";
-  return null;
-}
-
-function inferDistributionFromChildren(objects: LayoutObject[], tableId: string): TableChairDistribution {
-  const dist: TableChairDistribution = { ...EMPTY_SIDE_DISTRIBUTION };
-  for (const obj of objects) {
-    if (obj.type !== "chair" || obj.parentId !== tableId) continue;
-    const side = chairSideFromId(obj.id);
-    if (side) dist[side] += 1;
-  }
-  return dist;
-}
-
-function constrainTableState(table: LayoutObject, objects: LayoutObject[]): LayoutObject {
-  if (table.type !== "table") return table;
-
-  const maxCapacity = computeMaxCapacity(table);
-  const currentCapacity = table.capacity ?? 4;
-  const nextCapacity = Math.max(0, Math.min(currentCapacity, maxCapacity));
-
-  if (table.tableShape === "circle") {
-    return {
-      ...table,
-      capacity: nextCapacity,
-      chairDistribution: undefined,
-    };
-  }
-
-  const sideCapacity = getTableSideCapacity(table);
-  const sourceDistribution = table.chairDistribution ?? inferDistributionFromChildren(objects, table.id);
-  const nextDistribution = normalizeDistribution(sourceDistribution, nextCapacity, sideCapacity);
-
-  return {
-    ...table,
-    capacity: nextCapacity,
-    chairDistribution: nextDistribution,
-  };
-}
-
-// Maximum chairs that can physically fit around a table
-function computeMaxCapacity(table: LayoutObject): number {
-  if (table.tableShape === "circle") {
-    const r = Math.min(table.width, table.height) / 2 + CHAIR_OFFSET + CHAIR_SIZE / 2;
-    return Math.max(1, Math.floor((2 * Math.PI * r) / MIN_CHAIR_SPACING));
-  }
-  const perSideH = Math.max(1, Math.floor((table.width - 10) / MIN_CHAIR_SPACING));
-  const perSideV = Math.max(1, Math.floor((table.height - 10) / MIN_CHAIR_SPACING));
-  return 2 * perSideH + 2 * perSideV;
-}
-
-// Generate exactly `capacity` chairs evenly around the table.
-// Uses stable IDs (slot-based) so React doesn't remount on resize.
-function generateChairsForTable(table: LayoutObject, capacity: number): LayoutObject[] {
-  const max = computeMaxCapacity(table);
-  const count = Math.min(capacity, max);
-  const chairs: LayoutObject[] = [];
-
-  const makeChair = (
-    slot: string,
-    x: number,
-    y: number,
-    rotation: number,
-  ): LayoutObject => ({
-    id: `${table.id}_c_${slot}`,
-    type: "chair" as LayoutObjectType,
-    parentId: table.id,
-    x,
-    y,
-    width: CHAIR_SIZE,
-    height: CHAIR_SIZE,
-    rotation,
-    locked: false,
-  });
-
-  if (table.tableShape === "circle") {
-    const r = Math.min(table.width, table.height) / 2 + CHAIR_OFFSET + CHAIR_SIZE / 2;
-    const cx = table.x + table.width / 2;
-    const cy = table.y + table.height / 2;
-    for (let i = 0; i < count; i++) {
-      const ang = (2 * Math.PI * i) / count - Math.PI / 2;
-      chairs.push(
-        makeChair(
-          `${i}`,
-          cx + r * Math.cos(ang) - CHAIR_SIZE / 2,
-          cy + r * Math.sin(ang) - CHAIR_SIZE / 2,
-          ((ang * 180) / Math.PI + 270) % 360,
-        ),
-      );
-    }
-    return chairs;
-  }
-
-  // Rectangle / Square
-  const sideCapacity = getTableSideCapacity(table);
-  const base = table.chairDistribution ?? evenDistribution(count, sideCapacity);
-  const sideCount = normalizeDistribution(base, count, sideCapacity);
-
-  const topCount = sideCount.top;
-  const rightCount = sideCount.right;
-  const bottomCount = sideCount.bottom;
-  const leftCount = sideCount.left;
-
-  for (let i = 0; i < topCount; i++) {
-    const sp = table.width / (topCount + 1);
-    chairs.push(makeChair(`t${i}`, table.x + sp * (i + 1) - CHAIR_SIZE / 2, table.y - CHAIR_SIZE - CHAIR_OFFSET, 180));
-  }
-  for (let i = 0; i < rightCount; i++) {
-    const sp = table.height / (rightCount + 1);
-    chairs.push(makeChair(`r${i}`, table.x + table.width + CHAIR_OFFSET, table.y + sp * (i + 1) - CHAIR_SIZE / 2, 270));
-  }
-  for (let i = 0; i < bottomCount; i++) {
-    const sp = table.width / (bottomCount + 1);
-    chairs.push(makeChair(`b${i}`, table.x + sp * (i + 1) - CHAIR_SIZE / 2, table.y + table.height + CHAIR_OFFSET, 0));
-  }
-  for (let i = 0; i < leftCount; i++) {
-    const sp = table.height / (leftCount + 1);
-    chairs.push(makeChair(`l${i}`, table.x - CHAIR_SIZE - CHAIR_OFFSET, table.y + sp * (i + 1) - CHAIR_SIZE / 2, 90));
-  }
-  return chairs;
-}
-
-// Pure helper: replace a table's auto-generated chairs in an objects array.
-// Reads capacity and shape from the table object already in the array.
-function rebuildChairs(objects: LayoutObject[], tableId: string): LayoutObject[] {
-  const table = objects.find((o) => o.id === tableId);
-  if (!table || table.type !== "table") return objects;
-  const capacity = table.capacity ?? 4;
-  const withoutOld = objects.filter((o) => o.parentId !== tableId);
-  return [...withoutOld, ...generateChairsForTable(table, capacity)];
-}
 
 export function useCanvasEditor(floorPlanId: string) {
   const store = useCanvasStore();
@@ -425,16 +263,6 @@ export function useCanvasEditor(floorPlanId: string) {
           tableNumber: ++tableCounter,
           tableShape: defaults.tableShape ?? "rectangle",
           capacity: defaults.capacity ?? 4,
-          chairLayout: "auto",
-          chairDistribution: evenDistribution(defaults.capacity ?? 4, getTableSideCapacity({
-            id: "tmp",
-            type: "table",
-            x: 0,
-            y: 0,
-            width: defaults.width ?? 60,
-            height: defaults.height ?? 60,
-            rotation: 0,
-          })),
           label: `T${tableCounter}`,
         }),
         ...(type === "zone" && {
@@ -456,15 +284,16 @@ export function useCanvasEditor(floorPlanId: string) {
       };
 
       saveUndoState();
-      const chairs = type === "table" ? generateChairsForTable(finalObject, finalObject.capacity ?? 4) : [];
-      store.setObjects([...store.objects, finalObject, ...chairs]);
-      store.setSelectedObjectId(finalObject.id);
-      store.setIsDirty(true);
-      // Switch back to select tool after placing
-      store.setActiveTool("select");
+      useCanvasStore.setState((s) => ({
+        objects: [...s.objects, finalObject],
+        selectedObjectId: finalObject.id,
+        selectedObjectIds: [finalObject.id],
+        isDirty: true,
+        activeTool: "select",
+      }));
       return finalObject.id;
     },
-    [snapToGrid, saveUndoState, store],
+    [snapToGrid, saveUndoState],
   );
 
   // Update an existing object
@@ -504,26 +333,100 @@ export function useCanvasEditor(floorPlanId: string) {
     [saveUndoState, store],
   );
 
-  // Move an object with snap-to-grid (also moves child objects like chairs)
-  const moveObject = useCallback(
-    (id: string, x: number, y: number, skipUndo = false) => {
-      const snapped = snapToGrid(x, y);
-      const orig = store.objects.find((o) => o.id === id);
-      if (!orig || orig.locked) return;
-      const dx = snapped.x - orig.x;
-      const dy = snapped.y - orig.y;
-      const updated = store.objects.map((obj) => {
-        if (obj.id === id) return { ...obj, x: snapped.x, y: snapped.y };
-        if (obj.parentId === id) return { ...obj, x: obj.x + dx, y: obj.y + dy };
-        return obj;
-      });
+  // Move multiple objects atomically (for multi-selection drag)
+  const moveObjects = useCallback(
+    (
+      moves: Array<{ id: string; x: number; y: number }>,
+      skipUndo = false,
+      applySnap = false,
+    ) => {
+      if (moves.length === 0) return;
+      const moveMap = new Map<string, { x: number; y: number }>();
+      for (const m of moves) {
+        const pos = applySnap ? snapToGrid(m.x, m.y) : { x: m.x, y: m.y };
+        moveMap.set(m.id, pos);
+      }
+
       if (!skipUndo && !isDraggingRef.current) {
         saveUndoState();
       }
-      store.setObjects(updated);
-      store.setIsDirty(true);
+
+      useCanvasStore.setState((state) => {
+        const updated = state.objects.map((obj) => {
+          const move = moveMap.get(obj.id);
+          if (move) {
+            return { ...obj, x: move.x, y: move.y };
+          }
+          if (obj.parentId && moveMap.has(obj.parentId)) {
+            const parentMove = moveMap.get(obj.parentId)!;
+            const parentOrig = state.objects.find((o) => o.id === obj.parentId);
+            if (parentOrig) {
+              const dx = parentMove.x - parentOrig.x;
+              const dy = parentMove.y - parentOrig.y;
+              return { ...obj, x: obj.x + dx, y: obj.y + dy };
+            }
+          }
+          return obj;
+        });
+
+        const movedWallIds = new Set(
+          state.objects
+            .filter((o) => o.type === "wall" && moveMap.has(o.id))
+            .map((o) => o.id),
+        );
+        const final = movedWallIds.size > 0
+          ? alignAttachedDoorsToWalls(updated, movedWallIds)
+          : updated;
+
+        return { objects: final, isDirty: true };
+      });
     },
-    [snapToGrid, saveUndoState, store],
+    [snapToGrid, saveUndoState],
+  );
+
+  // Move a single object with snap-to-grid
+  const moveObject = useCallback(
+    (id: string, x: number, y: number, skipUndo = false) => {
+      moveObjects([{ id, x, y }], skipUndo, true);
+    },
+    [moveObjects],
+  );
+
+  // Move door with real-time snap and orientation adjustment
+  const moveDoorWithSnap = useCallback(
+    (
+      doorId: string,
+      snap: {
+        x: number;
+        y: number;
+        rotation: number;
+        isSnappedToWall: boolean;
+        snappedWallId: string | null;
+      },
+    ) => {
+      useCanvasStore.setState((state) => {
+        const updated = state.objects.map((obj) => {
+          if (obj.id !== doorId) return obj;
+          if (snap.isSnappedToWall && snap.snappedWallId) {
+            return {
+              ...obj,
+              x: snap.x,
+              y: snap.y,
+              rotation: snap.rotation,
+              parentId: snap.snappedWallId,
+            };
+          }
+          return {
+            ...obj,
+            x: snap.x,
+            y: snap.y,
+            parentId: undefined,
+          };
+        });
+        return { objects: updated, isDirty: true };
+      });
+    },
+    [],
   );
 
   // Start drag (save undo once)
@@ -539,7 +442,7 @@ export function useCanvasEditor(floorPlanId: string) {
     isDraggingRef.current = false;
   }, []);
 
-  // Resize an object (live; no undo per frame). For tables, chairs follow.
+  // Resize an object (live; no undo per frame).
   const resizeObject = useCallback(
     (id: string, updates: { x: number; y: number; width: number; height: number }) => {
       const obj = store.objects.find((o) => o.id === id);
@@ -556,23 +459,29 @@ export function useCanvasEditor(floorPlanId: string) {
           };
         }
         if (o.type === "door") {
-          // Door size is fixed; resize interaction should not mutate dimensions.
-          return o;
+          const doorThickness = o.thickness ?? o.height ?? 12;
+          const newWidth = Math.max(20, updates.width);
+          return {
+            ...o,
+            ...updates,
+            width: newWidth,
+            doorWidth: newWidth,
+            height: doorThickness,
+            thickness: doorThickness,
+          };
         }
-        if (o.type !== "table") return { ...o, ...updates };
-        return constrainTableState({ ...o, ...updates }, store.objects);
+        return { ...o, ...updates };
       });
-      const next = obj.type === "table" ? rebuildChairs(applied, id) : applied;
       const final = obj.type === "wall"
-        ? alignAttachedDoorsToWalls(next, new Set([id]))
-        : next;
+        ? alignAttachedDoorsToWalls(applied, new Set([id]))
+        : applied;
       store.setObjects(final);
       store.setIsDirty(true);
     },
     [store],
   );
 
-  // Update table properties AND rebuild chairs (capacity / shape / size / position via inspector)
+  // Update table properties (capacity / shape / size / position via inspector)
   const updateTableLayout = useCallback(
     (id: string, updates: Partial<LayoutObject>) => {
       const obj = store.objects.find((o) => o.id === id);
@@ -580,137 +489,18 @@ export function useCanvasEditor(floorPlanId: string) {
       saveUndoState();
       const applied = store.objects.map((o) => {
         if (o.id !== id) return o;
-        return constrainTableState({ ...o, ...updates }, store.objects);
+        return { ...o, ...updates };
       });
-      const final = rebuildChairs(applied, id);
-      store.setObjects(final);
+      store.setObjects(applied);
       store.setIsDirty(true);
     },
     [saveUndoState, store],
   );
 
-  // Assign a loose chair to a table (drag-drop). Increments table capacity.
-  const assignChairToTable = useCallback(
-    (chairId: string, tableId: string, preferredSide?: Exclude<TableChairLayout, "auto">) => {
-      const table = store.objects.find((o) => o.id === tableId);
-      if (!table || table.type !== "table") return;
-      saveUndoState();
-      const newCapacity = Math.min(computeMaxCapacity(table) + 1, (table.capacity ?? 4) + 1);
-      const withoutLooseChair = store.objects.filter((o) => o.id !== chairId);
-      const isRectTable = table.tableShape !== "circle";
-      let nextDistribution: TableChairDistribution | undefined = table.chairDistribution;
-
-      if (isRectTable) {
-        const sideCapacity = getTableSideCapacity(table);
-        const current = normalizeDistribution(
-          table.chairDistribution ?? inferDistributionFromChildren(withoutLooseChair, tableId),
-          table.capacity ?? 4,
-          sideCapacity,
-        );
-        const draft = { ...current };
-
-        if (preferredSide && draft[preferredSide] < sideCapacity[preferredSide]) {
-          draft[preferredSide] += 1;
-        } else {
-          const order = preferredSide
-            ? [preferredSide, ...CHAIR_LAYOUT_SIDES.filter((s) => s !== preferredSide)]
-            : CHAIR_LAYOUT_SIDES;
-          for (const side of order) {
-            if (draft[side] < sideCapacity[side]) {
-              draft[side] += 1;
-              break;
-            }
-          }
-        }
-
-        nextDistribution = normalizeDistribution(draft, newCapacity, sideCapacity);
-      }
-
-      const withNewCap = withoutLooseChair.map((o) =>
-        o.id === tableId
-          ? {
-              ...o,
-              capacity: newCapacity,
-              ...(preferredSide ? { chairLayout: preferredSide } : {}),
-              ...(isRectTable ? { chairDistribution: nextDistribution } : {}),
-            }
-          : o,
-      );
-      const final = rebuildChairs(withNewCap, tableId);
-      store.setObjects(final);
-      store.setIsDirty(true);
-    },
-    [saveUndoState, store],
-  );
-
-  // Force table chair layout to a side, then rebuild all chairs.
-  const setTableChairLayout = useCallback(
-    (tableId: string, layout: TableChairLayout) => {
-      const table = store.objects.find((o) => o.id === tableId);
-      if (!table || table.type !== "table") return;
-      saveUndoState();
-      const maxCount = Math.min(table.capacity ?? 4, computeMaxCapacity(table));
-      const sideCapacity = getTableSideCapacity(table);
-
-      let nextDistribution: TableChairDistribution | undefined;
-      if (table.tableShape !== "circle") {
-        if (layout === "auto") {
-          nextDistribution = evenDistribution(maxCount, sideCapacity);
-        } else {
-          const base: TableChairDistribution = { ...EMPTY_SIDE_DISTRIBUTION, [layout]: maxCount };
-          nextDistribution = normalizeDistribution(base, maxCount, sideCapacity);
-        }
-      }
-
-      const updated = store.objects.map((o) =>
-        o.id === tableId
-          ? {
-              ...o,
-              chairLayout: layout,
-              ...(table.tableShape !== "circle" ? { chairDistribution: nextDistribution } : {}),
-            }
-          : o,
-      );
-      store.setObjects(rebuildChairs(updated, tableId));
-      store.setIsDirty(true);
-    },
-    [saveUndoState, store],
-  );
-
-  // Move one existing chair from its current side to another side on the same table.
-  const moveChairWithinTable = useCallback(
-    (chairId: string, tableId: string, targetSide: ChairSide) => {
-      const table = store.objects.find((o) => o.id === tableId);
-      if (!table || table.type !== "table" || table.tableShape === "circle") return;
-
-      const sourceSide = chairSideFromId(chairId);
-      if (!sourceSide || sourceSide === targetSide) return;
-
-      const sideCapacity = getTableSideCapacity(table);
-      const current = normalizeDistribution(
-        table.chairDistribution ?? inferDistributionFromChildren(store.objects, tableId),
-        table.capacity ?? 4,
-        sideCapacity,
-      );
-
-      if (current[sourceSide] <= 0 || current[targetSide] >= sideCapacity[targetSide]) return;
-
-      saveUndoState();
-      const next = { ...current };
-      next[sourceSide] -= 1;
-      next[targetSide] += 1;
-
-      const updated = store.objects.map((o) =>
-        o.id === tableId
-          ? { ...o, chairLayout: "auto" as TableChairLayout, chairDistribution: next }
-          : o,
-      );
-
-      store.setObjects(rebuildChairs(updated, tableId));
-      store.setIsDirty(true);
-    },
-    [saveUndoState, store],
-  );
+  // Deprecated chair stubs kept for backwards compatibility
+  const assignChairToTable = useCallback(() => {}, []);
+  const setTableChairLayout = useCallback(() => {}, []);
+  const moveChairWithinTable = useCallback(() => {}, []);
 
   // Rotate an object
   const rotateObject = useCallback(
@@ -798,8 +588,9 @@ export function useCanvasEditor(floorPlanId: string) {
   // Snap an existing door onto a wall segment and align its orientation/thickness.
   const attachDoorToWall = useCallback(
     (doorId: string, wallId: string, options?: { anchorPoint?: Point; skipUndo?: boolean }) => {
-      const door = store.objects.find((o) => o.id === doorId);
-      const wall = store.objects.find((o) => o.id === wallId);
+      const currentState = useCanvasStore.getState();
+      const door = currentState.objects.find((o) => o.id === doorId);
+      const wall = currentState.objects.find((o) => o.id === wallId);
       if (!door || door.type !== "door" || !wall || wall.type !== "wall") return;
 
       const wallSeg = wallSegmentFromObject(wall);
@@ -807,36 +598,38 @@ export function useCanvasEditor(floorPlanId: string) {
       const snappedCenter = projectPointToSegment(doorCenter, wallSeg.start, wallSeg.end);
       const wallAngle = Math.atan2(wallSeg.end.y - wallSeg.start.y, wallSeg.end.x - wallSeg.start.x) * (180 / Math.PI);
 
-      const wallThickness = wall.thickness ?? wall.height;
+      const isVertical = wall.height > wall.width;
+      const wallThickness = isVertical ? wall.width : (wall.thickness ?? wall.height ?? 12);
       const doorLength = door.doorWidth ?? door.width ?? DEFAULT_DOOR_LENGTH;
-      const wallLength = Math.max(1, wall.width);
+      const wallLength = isVertical ? wall.height : Math.max(1, wall.width);
       const finalDoorLength = Math.min(doorLength, wallLength);
 
       if (!options?.skipUndo) {
         saveUndoState();
       }
-      const updated = store.objects.map((o) =>
-        o.id === doorId
-          ? {
-              ...o,
-              x: snappedCenter.x - finalDoorLength / 2,
-              y: snappedCenter.y - wallThickness / 2,
-              width: finalDoorLength,
-              height: wallThickness,
-              thickness: wallThickness,
-              doorWidth: finalDoorLength,
-              rotation: ((wallAngle % 360) + 360) % 360,
-              parentId: wallId,
-            }
-          : o,
-      );
 
-      store.setObjects(updated);
-      store.setSelectedObjectId(doorId);
-      store.setSelectedObjectIds([doorId]);
-      store.setIsDirty(true);
+      useCanvasStore.setState((s) => ({
+        objects: s.objects.map((o) =>
+          o.id === doorId
+            ? {
+                ...o,
+                x: snappedCenter.x - finalDoorLength / 2,
+                y: snappedCenter.y - wallThickness / 2,
+                width: finalDoorLength,
+                height: wallThickness,
+                thickness: wallThickness,
+                doorWidth: finalDoorLength,
+                rotation: ((wallAngle % 360) + 360) % 360,
+                parentId: wallId,
+              }
+            : o,
+        ),
+        selectedObjectId: doorId,
+        selectedObjectIds: [doorId],
+        isDirty: true,
+      }));
     },
-    [saveUndoState, store],
+    [saveUndoState],
   );
 
   // Delete selected object(s) and their children
@@ -851,75 +644,11 @@ export function useCanvasEditor(floorPlanId: string) {
     saveUndoState();
     const idSet = new Set(ids);
 
-    const toDelete = store.objects.filter(
-      (obj) => idSet.has(obj.id) || (obj.parentId && idSet.has(obj.parentId)),
-    );
-    const deletedTableIds = new Set(
-      toDelete.filter((o) => o.type === "table").map((o) => o.id),
-    );
-
-    const removedChairByTable = new Map<
-      string,
-      { removed: number; bySide: Partial<Record<ChairSide, number>> }
-    >();
-
-    for (const obj of toDelete) {
-      if (obj.type !== "chair" || !obj.parentId) continue;
-      if (deletedTableIds.has(obj.parentId)) continue;
-
-      const side = chairSideFromId(obj.id);
-      const entry = removedChairByTable.get(obj.parentId) ?? {
-        removed: 0,
-        bySide: {},
-      };
-      entry.removed += 1;
-      if (side) {
-        entry.bySide[side] = (entry.bySide[side] ?? 0) + 1;
-      }
-      removedChairByTable.set(obj.parentId, entry);
-    }
-
     const filtered = store.objects.filter(
       (obj) => !idSet.has(obj.id) && !(obj.parentId && idSet.has(obj.parentId)),
     );
 
-    const finalObjects = filtered.map((obj) => {
-      if (obj.type !== "table") return obj;
-
-      const removedInfo = removedChairByTable.get(obj.id);
-      if (!removedInfo) return obj;
-
-      const oldCapacity = obj.capacity ?? 4;
-      const newCapacity = Math.max(0, oldCapacity - removedInfo.removed);
-
-      if (obj.tableShape === "circle") {
-        return { ...obj, capacity: newCapacity };
-      }
-
-      const sideCapacity = getTableSideCapacity(obj);
-      const currentDistribution = normalizeDistribution(
-        obj.chairDistribution ?? inferDistributionFromChildren(store.objects, obj.id),
-        oldCapacity,
-        sideCapacity,
-      );
-      const nextDraft = { ...currentDistribution };
-
-      for (const side of CHAIR_LAYOUT_SIDES) {
-        const removedOnSide = removedInfo.bySide[side] ?? 0;
-        if (removedOnSide > 0) {
-          nextDraft[side] = Math.max(0, nextDraft[side] - removedOnSide);
-        }
-      }
-
-      const nextDistribution = normalizeDistribution(nextDraft, newCapacity, sideCapacity);
-      return {
-        ...obj,
-        capacity: newCapacity,
-        chairDistribution: nextDistribution,
-      };
-    });
-
-    store.setObjects(finalObjects);
+    store.setObjects(filtered);
     store.setSelectedObjectId(null);
     store.setSelectedObjectIds([]);
     store.setIsDirty(true);
@@ -1089,6 +818,22 @@ export function useCanvasEditor(floorPlanId: string) {
     [store, saveLayoutMutation],
   );
 
+  // Save layout data and publish in one consolidated action
+  const saveAndPublishLayout = useCallback(
+    async (t: (key: string) => string) => {
+      try {
+        const layoutData = JSON.stringify(store.objects);
+        await saveLayoutMutation.mutateAsync(layoutData);
+        await publishMutation.mutateAsync(floorPlanId);
+        store.setIsDirty(false);
+        toast.success(t("messages.saveSuccess"));
+      } catch {
+        toast.error(t("messages.saveError"));
+      }
+    },
+    [store, saveLayoutMutation, publishMutation, floorPlanId],
+  );
+
   // Publish floor plan
   const publishLayout = useCallback(
     async (t: (key: string) => string) => {
@@ -1119,6 +864,31 @@ export function useCanvasEditor(floorPlanId: string) {
           objects = [];
         }
       }
+
+      // Sanitize: strip legacy chairs and preserve seat count as table capacity
+      const chairCounts = new Map<string, number>();
+      let hasChairs = false;
+      for (const obj of objects) {
+        if (obj.type === "chair") {
+          hasChairs = true;
+          if (obj.parentId) {
+            chairCounts.set(obj.parentId, (chairCounts.get(obj.parentId) ?? 0) + 1);
+          }
+        }
+      }
+      if (hasChairs) {
+        objects = objects
+          .filter((obj) => obj.type !== "chair")
+          .map((obj) => {
+            if (obj.type === "table") {
+              const chairs = chairCounts.get(obj.id) ?? 0;
+              const cap = Math.max(obj.capacity ?? 0, chairs, 1);
+              return { ...obj, capacity: cap };
+            }
+            return obj;
+          });
+      }
+
       store.setObjects(objects);
       store.setGridSize(gridSize);
       store.setSnapToGrid(snapToGridSetting);
@@ -1191,6 +961,11 @@ export function useCanvasEditor(floorPlanId: string) {
     (obj) => obj.id === store.selectedObjectId,
   );
 
+  const resetZoom = useCallback(() => {
+    store.setZoom(1);
+    store.setPanOffset({ x: 0, y: 0 });
+  }, [store]);
+
   return {
     // State
     objects: store.objects,
@@ -1207,12 +982,13 @@ export function useCanvasEditor(floorPlanId: string) {
     isDirty: store.isDirty,
     canUndo: store.undoStack.length > 0,
     canRedo: store.redoStack.length > 0,
-    isSaving: saveLayoutMutation.isPending,
+    isSaving: saveLayoutMutation.isPending || publishMutation.isPending,
     isPublishing: publishMutation.isPending,
 
     // Tool selection
     setActiveTool: store.setActiveTool,
     setZoom: store.setZoom,
+    resetZoom,
     setPanOffset: store.setPanOffset,
     setSelectedObjectId: store.setSelectedObjectId,
     setSelectedObjectIds: store.setSelectedObjectIds,
@@ -1230,6 +1006,8 @@ export function useCanvasEditor(floorPlanId: string) {
     assignChairToTable,
     moveChairWithinTable,
     moveObject,
+    moveObjects,
+    moveDoorWithSnap,
     resizeObject,
     rotateObject,
     startDrag,
@@ -1253,6 +1031,7 @@ export function useCanvasEditor(floorPlanId: string) {
 
     // Persistence
     saveLayout,
+    saveAndPublishLayout,
     publishLayout,
     loadLayout,
 

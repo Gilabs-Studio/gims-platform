@@ -138,9 +138,6 @@ function formatDuration(sec: number): string {
   return `${h}h ${m % 60}m`;
 }
 
-function formatSeatCount(count: number): string {
-  return `${count} seat${count === 1 ? "" : "s"}`;
-}
 
 function getPendingServeItemCount(order: POSOrder): number {
   if (!order.items.length) return 0;
@@ -223,7 +220,7 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
       </div>
       <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <Users className="h-3.5 w-3.5 shrink-0" />
-        <span>{formatSeatCount(info.seatCount)}</span>
+        <span>{t("peopleCount", { count: info.seatCount })}</span>
       </div>
       {(info.needsPaymentCount > 0 ||
         info.needsServeCount > 0 ||
@@ -234,7 +231,7 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
               variant="outline"
               className="h-5 rounded-full border-amber-500/35 bg-amber-500/10 px-2 text-[9px] font-semibold text-amber-700"
             >
-              Pay {info.needsPaymentCount}
+              {t("badgePay", { count: info.needsPaymentCount })}
             </Badge>
           )}
           {info.needsServeCount > 0 && (
@@ -242,7 +239,7 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
               variant="outline"
               className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] font-semibold text-primary"
             >
-              Serve {info.needsServeCount}
+              {t("badgeServe", { count: info.needsServeCount })}
             </Badge>
           )}
           {info.doneCount > 0 && (
@@ -250,7 +247,7 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
               variant="outline"
               className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] font-semibold text-success"
             >
-              Done {info.doneCount}
+              {t("badgeDone", { count: info.doneCount })}
             </Badge>
           )}
         </div>
@@ -771,6 +768,8 @@ function LiveFloorView({
   onTableClick,
   onDropDraft,
 }: LiveFloorViewProps) {
+  const t = useTranslations("posTerminal.liveTable");
+
   const infoByLabel = useMemo(() => {
     const map = new Map<string, LiveTableInfo>();
     for (const info of infos) {
@@ -790,6 +789,36 @@ function LiveFloorView({
     e.preventDefault();
     setScale((prev) => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.0004)));
   }, []);
+
+  const boundingBox = useMemo(() => {
+    if (!layoutObjects.length) {
+      return { minX: 0, minY: 0, width: planWidth, height: planHeight };
+    }
+    const PADDING = 60;
+    let minX = 0;
+    let minY = 0;
+    let maxX = planWidth;
+    let maxY = planHeight;
+
+    for (const obj of layoutObjects) {
+      minX = Math.min(minX, obj.x);
+      minY = Math.min(minY, obj.y);
+      maxX = Math.max(maxX, obj.x + (obj.width || 0));
+      maxY = Math.max(maxY, obj.y + (obj.height || 0));
+    }
+
+    const boxX = minX - PADDING;
+    const boxY = minY - PADDING;
+    const boxW = Math.max(maxX - minX + PADDING * 2, 400);
+    const boxH = Math.max(maxY - minY + PADDING * 2, 300);
+
+    return {
+      minX: boxX,
+      minY: boxY,
+      width: boxW,
+      height: boxH,
+    };
+  }, [layoutObjects, planWidth, planHeight]);
 
   return (
     <div className="relative flex min-h-full flex-1 items-center justify-center overflow-auto p-4">
@@ -824,11 +853,11 @@ function LiveFloorView({
         style={{ maxWidth: "100%", maxHeight: "100%" }}
       >
         <svg
-          viewBox={`0 0 ${planWidth} ${planHeight}`}
-          className="rounded-2xl border bg-muted/10"
+          viewBox={`${boundingBox.minX} ${boundingBox.minY} ${boundingBox.width} ${boundingBox.height}`}
+          className="bg-transparent"
           style={{
-            width: planWidth * scale,
-            height: planHeight * scale,
+            width: boundingBox.width * scale,
+            height: boundingBox.height * scale,
             minWidth: 280,
             transition: "width 0.15s, height 0.15s",
           }}
@@ -845,7 +874,7 @@ function LiveFloorView({
                 : STATUS_SVG.AVAILABLE;
               const isCircle = obj.tableShape === "circle";
               const r = Math.min(obj.width, obj.height) / 2;
-              const seatCountText = formatSeatCount(info?.seatCount ?? 0);
+              const seatCountText = t("peopleCount", { count: info?.seatCount ?? 0 });
 
               const isOver = hoveredTableId === obj.id;
               const isAvailable = !info || info.status === "AVAILABLE";
@@ -1205,7 +1234,7 @@ function TableSidebar({
 
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Users className="h-3 w-3 shrink-0" />
-                    <span>{formatSeatCount(info.seatCount)}</span>
+                    <span>{t("peopleCount", { count: info.seatCount })}</span>
                   </div>
 
                   {(info.needsPaymentCount > 0 ||
@@ -1217,7 +1246,7 @@ function TableSidebar({
                           variant="outline"
                           className="h-5 rounded-full border-amber-500/35 bg-amber-500/10 px-2 text-[9px] font-semibold text-amber-700"
                         >
-                          Pay {info.needsPaymentCount}
+                          {t("badgePay", { count: info.needsPaymentCount })}
                         </Badge>
                       )}
                       {info.needsServeCount > 0 && (
@@ -1225,7 +1254,7 @@ function TableSidebar({
                           variant="outline"
                           className="h-5 rounded-full border-primary/35 bg-primary/10 px-2 text-[9px] font-semibold text-primary"
                         >
-                          Serve {info.needsServeCount}
+                          {t("badgeServe", { count: info.needsServeCount })}
                         </Badge>
                       )}
                       {info.doneCount > 0 && (
@@ -1233,7 +1262,7 @@ function TableSidebar({
                           variant="outline"
                           className="h-5 rounded-full border-success/35 bg-success/10 px-2 text-[9px] font-semibold text-success"
                         >
-                          Done {info.doneCount}
+                          {t("badgeDone", { count: info.doneCount })}
                         </Badge>
                       )}
                     </div>
@@ -1970,7 +1999,7 @@ export function LiveTablePageClient() {
         <ScrollArea className="flex-1">
           {liveTableInfos.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
-              <p className="text-sm">No tables in this floor plan.</p>
+              <p className="text-sm">{t("noTablesInFloorPlan")}</p>
             </div>
           ) : viewMode === "grid" ? (
             <TableGrid
@@ -2092,14 +2121,14 @@ export function LiveTablePageClient() {
                           }
                         }}
                       >
-                        Table {label} ({info.seatCount} seats)
+                        {t("tableWithCapacity", { label, count: info.seatCount })}
                       </Button>
                     );
                   })}
                 {liveTableInfos.filter((info) => info.status === "AVAILABLE")
                   .length === 0 && (
                   <p className="text-center text-xs text-muted-foreground py-4">
-                    No empty tables available.
+                    {t("noEmptyTables")}
                   </p>
                 )}
               </div>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { PlusIcon, LayoutIcon, SearchIcon, Trash2Icon, PencilIcon } from "lucide-react";
+import { PlusIcon, LayoutIcon, SearchIcon, Ban, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export function FloorLayoutList({ onOpenEditor, companyId, outlets }: FloorLayou
   const [search, setSearch] = useState("");
   const [outletFilter, setOutletFilter] = useState<string>("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<FloorPlan | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<FloorPlan | null>(null);
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -64,16 +64,16 @@ export function FloorLayoutList({ onOpenEditor, companyId, outlets }: FloorLayou
 
   const deleteMutation = useDeleteFloorLayout();
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return;
+  const handleDeactivate = useCallback(async () => {
+    if (!deactivateTarget) return;
     try {
-      await deleteMutation.mutateAsync(deleteTarget.id);
-      toast.success(t("messages.deleteSuccess"));
-      setDeleteTarget(null);
+      await deleteMutation.mutateAsync(deactivateTarget.id);
+      toast.success(t("messages.deactivateSuccess"));
+      setDeactivateTarget(null);
     } catch {
-      toast.error(t("messages.deleteError"));
+      toast.error(t("messages.deactivateError"));
     }
-  }, [deleteTarget, deleteMutation, t]);
+  }, [deactivateTarget, deleteMutation, t]);
 
   const handleCreateSuccess = useCallback(
     (id: string) => {
@@ -162,7 +162,7 @@ export function FloorLayoutList({ onOpenEditor, companyId, outlets }: FloorLayou
               key={fp.id}
               floorPlan={fp}
               onOpen={() => onOpenEditor(fp.id)}
-              onDelete={() => setDeleteTarget(fp)}
+              onDeactivate={() => setDeactivateTarget(fp)}
               t={t}
             />
           ))}
@@ -177,25 +177,25 @@ export function FloorLayoutList({ onOpenEditor, companyId, outlets }: FloorLayou
         companyId={companyId}
       />
 
-      {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      {/* Deactivate confirmation */}
+      <AlertDialog open={!!deactivateTarget} onOpenChange={(open) => !open && setDeactivateTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("delete")}</AlertDialogTitle>
+            <AlertDialogTitle>{t("deactivateTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("deleteConfirm")}
+              {t("deactivateConfirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="cursor-pointer" disabled={deleteMutation.isPending}>
-              Cancel
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={handleDeactivate}
               disabled={deleteMutation.isPending}
-              className="cursor-pointer bg-destructive text-white hover:bg-destructive/90"
+              className="cursor-pointer bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-700"
             >
-              {deleteMutation.isPending ? "Deleting..." : t("delete")}
+              {deleteMutation.isPending ? "..." : t("deactivate")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -208,12 +208,12 @@ export function FloorLayoutList({ onOpenEditor, companyId, outlets }: FloorLayou
 function FloorPlanCard({
   floorPlan,
   onOpen,
-  onDelete,
+  onDeactivate,
   t,
 }: {
   readonly floorPlan: FloorPlan;
   readonly onOpen: () => void;
-  readonly onDelete: () => void;
+  readonly onDeactivate: () => void;
   readonly t: ReturnType<typeof useTranslations>;
 }) {
   const objects = useMemo<LayoutObject[]>(() => {
@@ -314,13 +314,14 @@ function FloorPlanCard({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-destructive cursor-pointer shrink-0"
+          className="h-8 w-8 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10 cursor-pointer shrink-0"
+          title={t("deactivate")}
           onClick={(e) => {
             e.stopPropagation();
-            onDelete();
+            onDeactivate();
           }}
         >
-          <Trash2Icon className="h-3.5 w-3.5" />
+          <Ban className="h-3.5 w-3.5" />
         </Button>
       </CardContent>
     </Card>

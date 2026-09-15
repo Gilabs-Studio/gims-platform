@@ -23,6 +23,7 @@ const ZONE_COLORS: Record<string, string> = {
 interface CanvasObjectProps {
   readonly object: LayoutObject;
   readonly isSelected: boolean;
+  readonly isHighlighted?: boolean;
   readonly onMouseDown: (e: React.MouseEvent, id: string) => void;
   readonly onClick: (e: React.MouseEvent, id: string) => void;
   readonly onResizeStart?: (e: React.MouseEvent, id: string, handle: ResizeHandle) => void;
@@ -33,6 +34,8 @@ function TableObject({ object, isSelected }: { readonly object: LayoutObject; re
   const isCircle = object.tableShape === "circle";
   const strokeColor = isSelected ? "var(--pos-accent)" : "var(--pos-stroke-muted)";
   const fillColor = "var(--pos-table-fill)";
+  const capacity = object.capacity ?? 4;
+  const label = object.label ?? `T${object.tableNumber}`;
 
   if (isCircle) {
     const r = Math.min(object.width, object.height) / 2;
@@ -48,15 +51,27 @@ function TableObject({ object, isSelected }: { readonly object: LayoutObject; re
         />
         <text
           x={object.width / 2}
-          y={object.height / 2}
+          y={object.height * 0.42}
           textAnchor="middle"
           dominantBaseline="central"
-          fontSize={12}
+          fontSize={Math.max(10, Math.min(object.width, object.height) * 0.22)}
           fontWeight="bold"
           fill="var(--pos-table-text)"
           className="select-none pointer-events-none"
         >
-          {object.label ?? `T${object.tableNumber}`}
+          {label}
+        </text>
+        <text
+          x={object.width / 2}
+          y={object.height * 0.68}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={Math.max(9, Math.min(object.width, object.height) * 0.14)}
+          fill="var(--pos-table-text)"
+          opacity={0.8}
+          className="select-none pointer-events-none"
+        >
+          {`👥 ${capacity}`}
         </text>
       </g>
     );
@@ -76,81 +91,100 @@ function TableObject({ object, isSelected }: { readonly object: LayoutObject; re
       />
       <text
         x={object.width / 2}
-        y={object.height / 2}
+        y={object.height * 0.42}
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize={12}
+        fontSize={Math.max(10, Math.min(object.width, object.height) * 0.22)}
         fontWeight="bold"
         fill="var(--pos-table-text)"
         className="select-none pointer-events-none"
       >
-        {object.label ?? `T${object.tableNumber}`}
+        {label}
+      </text>
+      <text
+        x={object.width / 2}
+        y={object.height * 0.68}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={Math.max(9, Math.min(object.width, object.height) * 0.14)}
+        fill="var(--pos-table-text)"
+        opacity={0.8}
+        className="select-none pointer-events-none"
+      >
+        {`👥 ${capacity}`}
       </text>
     </g>
   );
 }
 
-function ChairObject({ object, isSelected }: { readonly object: LayoutObject; readonly isSelected: boolean }) {
-  const w = object.width;
-  const h = object.height;
-  const strokeColor = isSelected ? "var(--pos-accent)" : "var(--pos-chair-stroke)";
-  const backrestH = Math.max(6, Math.round(h * 0.3));
-  const seatH = Math.max(6, h - backrestH - 4);
-  return (
-    <g>
-      {/* Backrest */}
-      <rect
-        x={2}
-        y={2}
-        width={w - 4}
-        height={backrestH}
-        rx={2}
-        fill="var(--pos-chair-fill)"
-        stroke={strokeColor}
-        strokeWidth={isSelected ? 2 : 1.5}
-      />
-      {/* Seat */}
-      <rect
-        x={2}
-        y={backrestH + 4}
-        width={w - 4}
-        height={seatH}
-        rx={3}
-        fill="var(--pos-chair-fill)"
-        stroke={strokeColor}
-        strokeWidth={isSelected ? 2 : 1.5}
-      />
-    </g>
-  );
-}
-
-function WallObject({ object, isSelected }: { readonly object: LayoutObject; readonly isSelected: boolean }) {
+function WallObject({
+  object,
+  isSelected,
+  isHighlighted,
+}: {
+  readonly object: LayoutObject;
+  readonly isSelected: boolean;
+  readonly isHighlighted?: boolean;
+}) {
   return (
     <rect
       x={0}
       y={0}
       width={object.width}
       height={object.height}
-      fill="var(--pos-wall-fill)"
-      stroke={isSelected ? "var(--pos-accent)" : "var(--pos-wall-stroke)"}
-      strokeWidth={isSelected ? 2 : 1}
+      fill={isHighlighted ? "rgba(234, 179, 8, 0.35)" : "var(--pos-wall-fill)"}
+      stroke={
+        isHighlighted
+          ? "#eab308"
+          : isSelected
+            ? "var(--pos-accent)"
+            : "var(--pos-wall-stroke)"
+      }
+      strokeWidth={isHighlighted ? 3.5 : isSelected ? 2 : 1}
+      filter={isHighlighted ? "drop-shadow(0 0 8px rgba(234, 179, 8, 0.9))" : undefined}
       rx={1}
     />
   );
 }
 
-function DoorObject({ object, isSelected }: { readonly object: LayoutObject; readonly isSelected: boolean }) {
+function DoorObject({
+  object,
+  isSelected,
+  isHighlighted,
+}: {
+  readonly object: LayoutObject;
+  readonly isSelected: boolean;
+  readonly isHighlighted?: boolean;
+}) {
   const w = object.width;
   const h = object.height;
+  const isYellow = isHighlighted || !!object.parentId;
   return (
-    <g>
-      <rect x={0} y={0} width={w} height={h} fill="var(--pos-door-fill)" stroke={isSelected ? "var(--pos-accent)" : "var(--pos-door-stroke)"} strokeWidth={isSelected ? 2 : 1} rx={2} />
+    <g filter={isHighlighted ? "drop-shadow(0 0 8px rgba(234, 179, 8, 0.9))" : undefined}>
+      <rect
+        x={0}
+        y={0}
+        width={w}
+        height={h}
+        fill={isYellow ? "rgba(254, 240, 138, 0.6)" : "var(--pos-door-fill)"}
+        stroke={
+          isHighlighted
+            ? "#eab308"
+            : isSelected
+              ? "var(--pos-accent)"
+              : isYellow
+                ? "#eab308"
+                : "var(--pos-door-stroke)"
+        }
+        strokeWidth={isHighlighted ? 2.5 : isSelected ? 2 : 1.5}
+        rx={2}
+      />
       {/* Door swing arc */}
       <path
         d={`M ${w * 0.1} ${h * 0.5} A ${w * 0.35} ${w * 0.35} 0 0 1 ${w * 0.9} ${h * 0.5}`}
         fill="none"
-        stroke="var(--pos-door-stroke)"
-        strokeWidth={1}
+        stroke={isYellow ? "#ca8a04" : "var(--pos-door-stroke)"}
+        strokeWidth={1.2}
         strokeDasharray="3 2"
       />
     </g>
@@ -274,13 +308,11 @@ function SelectionHandles({ object, onResizeStart, onRotateStart }: SelectionHan
   const h = object.height;
 
   const handles: { id: ResizeHandle; x: number; y: number; cursor: string }[] =
-    object.type === "wall"
+    object.type === "wall" || object.type === "door"
       ? [
           { id: "w", x: -hs / 2, y: h / 2 - hs / 2, cursor: "ew-resize" },
           { id: "e", x: w - hs / 2, y: h / 2 - hs / 2, cursor: "ew-resize" },
         ]
-      : object.type === "door"
-        ? []
       : [
           { id: "nw", x: -hs / 2,         y: -hs / 2,         cursor: "nw-resize" },
           { id: "n",  x: w / 2 - hs / 2,  y: -hs / 2,         cursor: "n-resize"  },
@@ -338,9 +370,8 @@ function SelectionHandles({ object, onResizeStart, onRotateStart }: SelectionHan
   );
 }
 
-const RENDERERS: Record<string, React.FC<{ object: LayoutObject; isSelected: boolean }>> = {
+const RENDERERS: Record<string, React.FC<{ object: LayoutObject; isSelected: boolean; isHighlighted?: boolean }>> = {
   table: TableObject,
-  chair: ChairObject,
   wall: WallObject,
   door: DoorObject,
   cashier: CashierObject,
@@ -348,7 +379,15 @@ const RENDERERS: Record<string, React.FC<{ object: LayoutObject; isSelected: boo
   decoration: DecorationObject,
 };
 
-function CanvasObjectInner({ object, isSelected, onMouseDown, onClick, onResizeStart, onRotateStart }: CanvasObjectProps) {
+function CanvasObjectInner({
+  object,
+  isSelected,
+  isHighlighted,
+  onMouseDown,
+  onClick,
+  onResizeStart,
+  onRotateStart,
+}: CanvasObjectProps) {
   const Renderer = RENDERERS[object.type];
   if (!Renderer) return null;
 
@@ -360,7 +399,7 @@ function CanvasObjectInner({ object, isSelected, onMouseDown, onClick, onResizeS
       className={object.locked ? "cursor-not-allowed" : "cursor-move"}
       style={{ opacity: object.locked ? 0.6 : 1 }}
     >
-      <Renderer object={object} isSelected={isSelected} />
+      <Renderer object={object} isSelected={isSelected} isHighlighted={isHighlighted} />
       {isSelected && !object.locked && (
         <SelectionHandles
           object={object}

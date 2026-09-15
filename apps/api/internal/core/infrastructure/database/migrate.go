@@ -663,6 +663,10 @@ func AutoMigrate() error {
 		log.Printf("Warning: bank reconciliation index migration failed (non-fatal): %v", err)
 	}
 
+	if err := migrations.RemoveFloorPlanChairsMigration(DB); err != nil {
+		log.Printf("Warning: floor plan chairs migration failed (non-fatal): %v", err)
+	}
+
 	return nil
 }
 

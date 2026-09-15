@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
-import type { LayoutObject, LayoutObjectType, TableChairLayout } from "../types";
+import type { LayoutObject, LayoutObjectType } from "../types";
 import type { ResizeHandle } from "./canvas-object";
 import { CanvasObject } from "./canvas-object";
 import type { useCanvasEditor } from "../hooks/use-canvas-editor";
@@ -88,12 +89,42 @@ interface HitObject {
   zIndex: number;
 }
 
+interface AlignmentGuide {
+  type: "horizontal" | "vertical";
+  coordinate: number;
+}
+
 function snapToOrthogonal(start: Point, end: Point): Point {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   return Math.abs(dx) >= Math.abs(dy)
     ? { x: end.x, y: start.y }
     : { x: start.x, y: end.y };
+}
+
+function snapToCleanAngle(start: Point, current: Point): Point {
+  const dx = current.x - start.x;
+  const dy = current.y - start.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  if (length < 8) return current;
+
+  const angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const normalized = ((angleDeg % 360) + 360) % 360;
+
+  const snapAngles = [0, 45, 90, 135, 180, 225, 270, 315, 360];
+  const TOLERANCE = 4.5; // degrees
+
+  for (const snap of snapAngles) {
+    if (Math.abs(normalized - snap) <= TOLERANCE) {
+      const rad = (snap * Math.PI) / 180;
+      return {
+        x: start.x + length * Math.cos(rad),
+        y: start.y + length * Math.sin(rad),
+      };
+    }
+  }
+
+  return current;
 }
 
 function distance(a: Point, b: Point): number {
@@ -130,28 +161,19 @@ function getWallEndpoints(objects: LayoutObject[]): WallEndpoint[] {
 }
 
 function wallSegmentFromObject(wall: LayoutObject): { start: Point; end: Point } {
+  const isVerticalAspect = wall.height > wall.width;
+  const length = isVerticalAspect ? wall.height : wall.width;
+  const baseAngle = isVerticalAspect ? (wall.rotation + 90) : wall.rotation;
   const centerX = wall.x + wall.width / 2;
   const centerY = wall.y + wall.height / 2;
-  const halfLength = wall.width / 2;
-  const angle = (wall.rotation * Math.PI) / 180;
+  const halfLength = length / 2;
+  const angle = (baseAngle * Math.PI) / 180;
   const ux = Math.cos(angle);
   const uy = Math.sin(angle);
   return {
     start: { x: centerX - ux * halfLength, y: centerY - uy * halfLength },
     end: { x: centerX + ux * halfLength, y: centerY + uy * halfLength },
   };
-}
-
-function distancePointToSegment(point: Point, start: Point, end: Point): number {
-  const vx = end.x - start.x;
-  const vy = end.y - start.y;
-  const wx = point.x - start.x;
-  const wy = point.y - start.y;
-  const len2 = vx * vx + vy * vy;
-  if (len2 <= 0.0001) return distance(point, start);
-  const t = Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2));
-  const proj = { x: start.x + t * vx, y: start.y + t * vy };
-  return distance(point, proj);
 }
 
 function isPointInsideObject(point: Point, obj: LayoutObject): boolean {
@@ -182,19 +204,133 @@ function getTopDownHitObjects(objects: LayoutObject[], point: Point): HitObject[
     .map(({ obj, zIndex }) => ({ id: obj.id, zIndex }));
 }
 
-function findNearestWallForPoint(objects: LayoutObject[], point: Point, maxDistance: number): LayoutObject | null {
-  let best: LayoutObject | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
+function doesObjectIntersectRect(
+  obj: LayoutObject,
+  rect: { minX: number; maxX: number; minY: number; maxY: number },
+): boolean {
+  // If no rotation, simple AABB overlap
+  if (!obj.rotation || obj.rotation % 360 === 0) {
+    return (
+      obj.x < rect.maxX &&
+      obj.x + obj.width > rect.minX &&
+      obj.y < rect.maxY &&
+      obj.y + obj.height > rect.minY
+    );
+  }
+
+  // Center and half-extents
+  const cx = obj.x + obj.width / 2;
+  const cy = obj.y + obj.height / 2;
+  const hw = obj.width / 2;
+  const hh = obj.height / 2;
+
+  const rad = (obj.rotation * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+
+  // 4 corners of the oriented object
+  const corners = [
+    { x: cx + (-hw * cos - -hh * sin), y: cy + (-hw * sin + -hh * cos) },
+    { x: cx + ( hw * cos - -hh * sin), y: cy + ( hw * sin + -hh * cos) },
+    { x: cx + ( hw * cos -  hh * sin), y: cy + ( hw * sin +  hh * cos) },
+    { x: cx + (-hw * cos -  hh * sin), y: cy + (-hw * sin +  hh * cos) },
+  ];
+
+  // Axis 1: World X axis
+  let objMinX = corners[0].x;
+  let objMaxX = corners[0].x;
+  for (let i = 1; i < 4; i++) {
+    if (corners[i].x < objMinX) objMinX = corners[i].x;
+    if (corners[i].x > objMaxX) objMaxX = corners[i].x;
+  }
+  if (objMaxX < rect.minX || objMinX > rect.maxX) return false;
+
+  // Axis 2: World Y axis
+  let objMinY = corners[0].y;
+  let objMaxY = corners[0].y;
+  for (let i = 1; i < 4; i++) {
+    if (corners[i].y < objMinY) objMinY = corners[i].y;
+    if (corners[i].y > objMaxY) objMaxY = corners[i].y;
+  }
+  if (objMaxY < rect.minY || objMinY > rect.maxY) return false;
+
+  // Axis 3: Object local U axis (cos, sin)
+  const rectCorners = [
+    { x: rect.minX, y: rect.minY },
+    { x: rect.maxX, y: rect.minY },
+    { x: rect.maxX, y: rect.maxY },
+    { x: rect.minX, y: rect.maxY },
+  ];
+
+  let rMinU = Infinity;
+  let rMaxU = -Infinity;
+  for (const rc of rectCorners) {
+    const proj = rc.x * cos + rc.y * sin;
+    if (proj < rMinU) rMinU = proj;
+    if (proj > rMaxU) rMaxU = proj;
+  }
+  const objCenterU = cx * cos + cy * sin;
+  if (rMaxU < objCenterU - hw || rMinU > objCenterU + hw) return false;
+
+  // Axis 4: Object local V axis (-sin, cos)
+  let rMinV = Infinity;
+  let rMaxV = -Infinity;
+  for (const rc of rectCorners) {
+    const proj = -rc.x * sin + rc.y * cos;
+    if (proj < rMinV) rMinV = proj;
+    if (proj > rMaxV) rMaxV = proj;
+  }
+  const objCenterV = -cx * sin + cy * cos;
+  if (rMaxV < objCenterV - hh || rMinV > objCenterV + hh) return false;
+
+  return true;
+}
+
+interface ClosestWallSnap {
+  wall: LayoutObject;
+  snappedCenter: Point;
+  wallAngle: number;
+  wallThickness: number;
+  distance: number;
+}
+
+function findClosestWallForDoor(
+  point: Point,
+  objects: LayoutObject[],
+  maxDistance = 20,
+): ClosestWallSnap | null {
+  let best: ClosestWallSnap | null = null;
+  let minDistance = maxDistance;
+
   for (const obj of objects) {
     if (obj.type !== "wall") continue;
     const seg = wallSegmentFromObject(obj);
-    const d = distancePointToSegment(point, seg.start, seg.end);
-    const threshold = Math.max(maxDistance, (obj.thickness ?? obj.height) / 2 + 6);
-    if (d <= threshold && d < bestDistance) {
-      best = obj;
-      bestDistance = d;
+    const vx = seg.end.x - seg.start.x;
+    const vy = seg.end.y - seg.start.y;
+    const wx = point.x - seg.start.x;
+    const wy = point.y - seg.start.y;
+    const len2 = vx * vx + vy * vy;
+    if (len2 <= 0.0001) continue;
+    const t = Math.max(0, Math.min(1, (wx * vx + wy * vy) / len2));
+    const proj = { x: seg.start.x + t * vx, y: seg.start.y + t * vy };
+    const dist = distance(point, proj);
+    const isVerticalAspect = obj.height > obj.width;
+    const thickness = isVerticalAspect ? obj.width : (obj.thickness ?? obj.height ?? WALL_THICKNESS);
+    const threshold = Math.max(maxDistance, thickness / 2 + 8);
+
+    if (dist <= threshold && dist < minDistance) {
+      minDistance = dist;
+      const angle = (Math.atan2(vy, vx) * 180) / Math.PI;
+      best = {
+        wall: obj,
+        snappedCenter: proj,
+        wallAngle: ((angle % 360) + 360) % 360,
+        wallThickness: thickness,
+        distance: dist,
+      };
     }
   }
+
   return best;
 }
 
@@ -254,16 +390,6 @@ function wallRectFromEndpoints(start: Point, end: Point, thickness: number): { x
   };
 }
 
-function tableSideFromPoint(table: LayoutObject, point: Point): Exclude<TableChairLayout, "auto"> {
-  const cx = table.x + table.width / 2;
-  const cy = table.y + table.height / 2;
-  const nx = (point.x - cx) / Math.max(1, table.width / 2);
-  const ny = (point.y - cy) / Math.max(1, table.height / 2);
-  if (Math.abs(nx) >= Math.abs(ny)) {
-    return nx >= 0 ? "right" : "left";
-  }
-  return ny >= 0 ? "bottom" : "top";
-}
 
 function calcResize(
   state: ResizeState,
@@ -289,7 +415,11 @@ function calcResize(
 }
 
 export function FloorCanvas({ editor }: FloorCanvasProps) {
+  const t = useTranslations("floorLayout.editor");
+  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const mouseScreenRef = useRef<{ clientX: number; clientY: number } | null>(null);
+
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState<DragStartState | null>(null);
@@ -299,19 +429,26 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
   const [cornerDragState, setCornerDragState] = useState<CornerDragState | null>(null);
   const [boxSelectRect, setBoxSelectRect] = useState<BoxSelectRect | null>(null);
   const [zoneDraftRect, setZoneDraftRect] = useState<ZoneDraftRect | null>(null);
+  const [activeGuides, setActiveGuides] = useState<AlignmentGuide[]>([]);
+  const [snappedWallId, setSnappedWallId] = useState<string | null>(null);
+  const [isPaletteDragging, setIsPaletteDragging] = useState(false);
+  const [toolGhostPreview, setToolGhostPreview] = useState<{
+    type: LayoutObjectType;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    isSnappedToWall: boolean;
+    snappedWallId?: string;
+  } | null>(null);
+  const pendingDoorSnapRef = useRef<{
+    doorId: string;
+    wallId: string;
+    anchorPoint: Point;
+  } | null>(null);
   const suppressNextClick = useRef(false);
-
-  // Alias for readability
-  const activeWallState = editor.wallDrawing;
-  const setActiveWallState = editor.setWallDrawing;
-  const wallEndpoints = useMemo(
-    () => (editor.activeTool === "wall" ? getWallEndpoints(editor.objects) : []),
-    [editor.activeTool, editor.objects],
-  );
-  const wallJunctions = useMemo(
-    () => buildWallJunctions(getWallEndpoints(editor.objects)).filter((j) => j.connections.length >= 2),
-    [editor.objects],
-  );
+  const hasMovedRef = useRef(false);
 
   const screenToCanvas = useCallback(
     (clientX: number, clientY: number) => {
@@ -334,6 +471,211 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       };
     },
     [editor.gridSize, editor.snapToGrid],
+  );
+
+  const computeDoorSnap = useCallback(
+    (point: Point, doorLength = 60) => {
+      const snap = findClosestWallForDoor(point, editor.objects, 20);
+      if (!snap) {
+        return {
+          x: point.x - doorLength / 2,
+          y: point.y - WALL_THICKNESS / 2,
+          width: doorLength,
+          height: WALL_THICKNESS,
+          rotation: 0,
+          isSnappedToWall: false,
+          snappedWallId: null,
+          snappedCenter: point,
+        };
+      }
+      return {
+        x: snap.snappedCenter.x - doorLength / 2,
+        y: snap.snappedCenter.y - snap.wallThickness / 2,
+        width: doorLength,
+        height: snap.wallThickness,
+        rotation: snap.wallAngle,
+        isSnappedToWall: true,
+        snappedWallId: snap.wall.id,
+        snappedCenter: snap.snappedCenter,
+      };
+    },
+    [editor.objects],
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      setIsPaletteDragging(true);
+
+      const pos = screenToCanvas(e.clientX, e.clientY);
+      const activeTool = editor.activeTool as string;
+      const toolType = (activeTool !== "select" ? activeTool : "door") as LayoutObjectType;
+
+      if (toolType === "door") {
+        const snap = computeDoorSnap(pos, 60);
+        setSnappedWallId(snap.isSnappedToWall ? (snap.snappedWallId ?? null) : null);
+        setToolGhostPreview({
+          type: "door",
+          x: snap.x,
+          y: snap.y,
+          width: snap.width,
+          height: snap.height,
+          rotation: snap.rotation,
+          isSnappedToWall: snap.isSnappedToWall,
+          snappedWallId: snap.snappedWallId ?? undefined,
+        });
+      } else {
+        setSnappedWallId(null);
+        setToolGhostPreview({
+          type: toolType,
+          x: pos.x - 40,
+          y: pos.y - 30,
+          width: 80,
+          height: 60,
+          rotation: 0,
+          isSnappedToWall: false,
+        });
+      }
+    },
+    [editor.activeTool, screenToCanvas, computeDoorSnap],
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsPaletteDragging(false);
+    setToolGhostPreview(null);
+    setSnappedWallId(null);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsPaletteDragging(false);
+      setToolGhostPreview(null);
+      setSnappedWallId(null);
+
+      const rawTool =
+        e.dataTransfer.getData("application/pos-tool") ||
+        e.dataTransfer.getData("text/plain") ||
+        (editor.activeTool as string);
+
+      if (!rawTool || rawTool === "select") return;
+      const toolType = rawTool as LayoutObjectType;
+
+      const pos = screenToCanvas(e.clientX, e.clientY);
+
+      if (toolType === "door") {
+        const snap = computeDoorSnap(pos, 60);
+        const newDoorId = editor.addObject("door", snap.x, snap.y, {
+          width: snap.width,
+          height: snap.height,
+          doorWidth: snap.width,
+          rotation: snap.rotation,
+          parentId: snap.isSnappedToWall && snap.snappedWallId ? snap.snappedWallId : undefined,
+        });
+        if (snap.isSnappedToWall && snap.snappedWallId) {
+          editor.attachDoorToWall(newDoorId, snap.snappedWallId, {
+            anchorPoint: snap.snappedCenter,
+            skipUndo: true,
+          });
+        }
+        editor.setSelectedObjectId(newDoorId);
+        editor.setSelectedObjectIds([newDoorId]);
+        editor.setActiveTool("select");
+        return;
+      }
+
+      if (toolType === "wall") {
+        editor.setActiveTool("wall");
+        return;
+      }
+
+      const snapped = snapPoint(pos);
+      const newId = editor.addObject(toolType, snapped.x, snapped.y);
+      editor.setSelectedObjectId(newId);
+      editor.setSelectedObjectIds([newId]);
+      editor.setActiveTool("select");
+    },
+    [editor, screenToCanvas, snapPoint, computeDoorSnap],
+  );
+
+  // Auto-scroll (Draw.io style): when dragging or drawing near viewport boundaries
+  useEffect(() => {
+    const isInteracting = !!(
+      draggingId ||
+      resizeState ||
+      rotationState ||
+      cornerDragState ||
+      editor.wallDrawing?.hasStart ||
+      boxSelectRect ||
+      zoneDraftRect
+    );
+    if (!isInteracting) {
+      mouseScreenRef.current = null;
+      return;
+    }
+
+    let rafId: number;
+    const checkAndScroll = () => {
+      if (containerRef.current && mouseScreenRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const { clientX, clientY } = mouseScreenRef.current;
+        const EDGE_THRESHOLD = 45;
+        const MAX_SPEED = 12;
+
+        let deltaX = 0;
+        let deltaY = 0;
+
+        if (clientX < rect.left + EDGE_THRESHOLD) {
+          const factor = (rect.left + EDGE_THRESHOLD - clientX) / EDGE_THRESHOLD;
+          deltaX = Math.min(MAX_SPEED, factor * MAX_SPEED);
+        } else if (clientX > rect.right - EDGE_THRESHOLD) {
+          const factor = (clientX - (rect.right - EDGE_THRESHOLD)) / EDGE_THRESHOLD;
+          deltaX = -Math.min(MAX_SPEED, factor * MAX_SPEED);
+        }
+
+        if (clientY < rect.top + EDGE_THRESHOLD) {
+          const factor = (rect.top + EDGE_THRESHOLD - clientY) / EDGE_THRESHOLD;
+          deltaY = Math.min(MAX_SPEED, factor * MAX_SPEED);
+        } else if (clientY > rect.bottom - EDGE_THRESHOLD) {
+          const factor = (clientY - (rect.bottom - EDGE_THRESHOLD)) / EDGE_THRESHOLD;
+          deltaY = -Math.min(MAX_SPEED, factor * MAX_SPEED);
+        }
+
+        if (deltaX !== 0 || deltaY !== 0) {
+          editor.setPanOffset({
+            x: editor.panOffset.x + deltaX,
+            y: editor.panOffset.y + deltaY,
+          });
+        }
+      }
+      rafId = requestAnimationFrame(checkAndScroll);
+    };
+
+    rafId = requestAnimationFrame(checkAndScroll);
+    return () => cancelAnimationFrame(rafId);
+  }, [
+    draggingId,
+    resizeState,
+    rotationState,
+    cornerDragState,
+    editor.wallDrawing?.hasStart,
+    boxSelectRect,
+    zoneDraftRect,
+    editor,
+  ]);
+
+  // Alias for readability
+  const activeWallState = editor.wallDrawing;
+  const setActiveWallState = editor.setWallDrawing;
+  const wallEndpoints = useMemo(
+    () => (editor.activeTool === "wall" ? getWallEndpoints(editor.objects) : []),
+    [editor.activeTool, editor.objects],
+  );
+  const wallJunctions = useMemo(
+    () => buildWallJunctions(getWallEndpoints(editor.objects)).filter((j) => j.connections.length >= 2),
+    [editor.objects],
   );
 
   const handleResizeStart = useCallback(
@@ -453,14 +795,41 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         return;
       }
 
+      if (tool === "door") {
+        const snap = computeDoorSnap(pos, 60);
+        const newDoorId = editor.addObject("door", snap.x, snap.y, {
+          width: snap.width,
+          height: snap.height,
+          doorWidth: snap.width,
+          rotation: snap.rotation,
+          parentId: snap.isSnappedToWall && snap.snappedWallId ? snap.snappedWallId : undefined,
+        });
+        if (snap.isSnappedToWall && snap.snappedWallId) {
+          editor.attachDoorToWall(newDoorId, snap.snappedWallId, {
+            anchorPoint: snap.snappedCenter,
+            skipUndo: true,
+          });
+        }
+        editor.setSelectedObjectId(newDoorId);
+        editor.setSelectedObjectIds([newDoorId]);
+        editor.setActiveTool("select");
+        setToolGhostPreview(null);
+        setSnappedWallId(null);
+        return;
+      }
+
       // Zone tool uses drag-to-create rectangle, not click placement.
       if (tool === "zone") {
         return;
       }
 
-      editor.addObject(tool as LayoutObjectType, pos.x, pos.y);
+      const newId = editor.addObject(tool as LayoutObjectType, pos.x, pos.y);
+      editor.setSelectedObjectId(newId);
+      editor.setSelectedObjectIds([newId]);
+      editor.setActiveTool("select");
+      setToolGhostPreview(null);
     },
-    [editor, screenToCanvas, draggingId, activeWallState, setActiveWallState, wallEndpoints],
+    [editor, screenToCanvas, draggingId, activeWallState, setActiveWallState, wallEndpoints, computeDoorSnap],
   );
 
   const handleObjectMouseDown = useCallback(
@@ -489,6 +858,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       }
 
       editor.startDrag();
+      hasMovedRef.current = false;
       const pos = screenToCanvas(e.clientX, e.clientY);
       const dragItems = editor.objects
         .filter((o) => dragIds.includes(o.id) && !o.locked)
@@ -515,8 +885,20 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       if (editor.activeTool === "door") {
         const target = editor.objects.find((o) => o.id === id);
         if (target?.type === "wall") {
-          const doorId = editor.addObject("door", pos.x, pos.y);
-          editor.attachDoorToWall(doorId, target.id, { anchorPoint: pos, skipUndo: true });
+          const snap = computeDoorSnap(pos, 60);
+          const doorId = editor.addObject("door", snap.x, snap.y, {
+            width: snap.width,
+            height: snap.height,
+            doorWidth: snap.width,
+            rotation: snap.rotation,
+            parentId: target.id,
+          });
+          editor.attachDoorToWall(doorId, target.id, { anchorPoint: snap.snappedCenter, skipUndo: true });
+          editor.setSelectedObjectId(doorId);
+          editor.setSelectedObjectIds([doorId]);
+          editor.setActiveTool("select");
+          setToolGhostPreview(null);
+          setSnappedWallId(null);
         }
         return;
       }
@@ -558,7 +940,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         }
       }
     },
-    [editor, screenToCanvas],
+    [editor, screenToCanvas, computeDoorSnap],
   );
 
   const handleWallJunctionMouseDown = useCallback(
@@ -608,6 +990,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
+      mouseScreenRef.current = { clientX: e.clientX, clientY: e.clientY };
       const pos = screenToCanvas(e.clientX, e.clientY);
 
       if (cornerDragState) {
@@ -631,11 +1014,36 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         if (resizeState.wallFixedPoint && resizeState.wallMovingEndpoint) {
           let movingPoint: Point = pos;
           const snapped = nearestWallEndpoint(pos, resizeState.wallSnapEndpoints ?? []);
-          if (snapped) movingPoint = snapped;
-          if (e.shiftKey) {
-            movingPoint = snapToOrthogonal(resizeState.wallFixedPoint, movingPoint);
+          const newGuides: AlignmentGuide[] = [];
+
+          if (snapped) {
+            movingPoint = snapped;
+            newGuides.push({ type: "horizontal", coordinate: snapped.y });
+            newGuides.push({ type: "vertical", coordinate: snapped.x });
+          } else {
+            for (const ep of (resizeState.wallSnapEndpoints ?? [])) {
+              if (Math.abs(movingPoint.y - ep.y) <= 6) {
+                movingPoint.y = ep.y;
+                newGuides.push({ type: "horizontal", coordinate: ep.y });
+                break;
+              }
+            }
+            for (const ep of (resizeState.wallSnapEndpoints ?? [])) {
+              if (Math.abs(movingPoint.x - ep.x) <= 6) {
+                movingPoint.x = ep.x;
+                newGuides.push({ type: "vertical", coordinate: ep.x });
+                break;
+              }
+            }
+
+            if (e.shiftKey) {
+              movingPoint = snapToOrthogonal(resizeState.wallFixedPoint, movingPoint);
+            } else {
+              movingPoint = snapToCleanAngle(resizeState.wallFixedPoint, movingPoint);
+            }
           }
 
+          setActiveGuides(newGuides);
           const thickness = resizeState.initHeight;
           const fixed = resizeState.wallFixedPoint;
           const start = resizeState.wallMovingEndpoint === "start" ? movingPoint : fixed;
@@ -646,6 +1054,26 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
 
         const dx = pos.x - resizeState.startMouseX;
         const dy = pos.y - resizeState.startMouseY;
+
+        const targetObj = editor.objects.find((o) => o.id === resizeState.id);
+        if (targetObj?.type === "door") {
+          const rad = (targetObj.rotation * Math.PI) / 180;
+          const ux = Math.cos(rad);
+          const uy = Math.sin(rad);
+          const deltaLen = dx * ux + dy * uy;
+          const change = resizeState.handle === "e" ? deltaLen * 2 : -deltaLen * 2;
+          const newWidth = Math.max(20, Math.round(resizeState.initWidth + change));
+          const cx = resizeState.initX + resizeState.initWidth / 2;
+          const cy = resizeState.initY + resizeState.initHeight / 2;
+          editor.resizeObject(resizeState.id, {
+            x: cx - newWidth / 2,
+            y: cy - resizeState.initHeight / 2,
+            width: newWidth,
+            height: resizeState.initHeight,
+          });
+          return;
+        }
+
         editor.resizeObject(resizeState.id, calcResize(resizeState, dx, dy));
         return;
       }
@@ -661,12 +1089,36 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       if (activeWallState?.hasStart) {
         let nextPoint: Point = pos;
         const endpointSnap = nearestWallEndpoint(pos, wallEndpoints);
+        const newGuides: AlignmentGuide[] = [];
+
         if (endpointSnap) {
           nextPoint = endpointSnap;
+          newGuides.push({ type: "horizontal", coordinate: endpointSnap.y });
+          newGuides.push({ type: "vertical", coordinate: endpointSnap.x });
+        } else {
+          // Check alignment guides against wall endpoints
+          let alignedY = false;
+          let alignedX = false;
+          for (const ep of wallEndpoints) {
+            if (!alignedY && Math.abs(nextPoint.y - ep.y) <= 6) {
+              nextPoint.y = ep.y;
+              alignedY = true;
+              newGuides.push({ type: "horizontal", coordinate: ep.y });
+            }
+            if (!alignedX && Math.abs(nextPoint.x - ep.x) <= 6) {
+              nextPoint.x = ep.x;
+              alignedX = true;
+              newGuides.push({ type: "vertical", coordinate: ep.x });
+            }
+          }
+
+          if (e.shiftKey) {
+            nextPoint = snapToOrthogonal({ x: activeWallState.startX, y: activeWallState.startY }, nextPoint);
+          } else {
+            nextPoint = snapToCleanAngle({ x: activeWallState.startX, y: activeWallState.startY }, nextPoint);
+          }
         }
-        if (e.shiftKey) {
-          nextPoint = snapToOrthogonal({ x: activeWallState.startX, y: activeWallState.startY }, nextPoint);
-        }
+        setActiveGuides(newGuides);
         setActiveWallState({ ...activeWallState, currentX: nextPoint.x, currentY: nextPoint.y });
         return;
       }
@@ -681,12 +1133,67 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         return;
       }
 
+      if (editor.activeTool === "door") {
+        const snap = computeDoorSnap(pos, 60);
+        setSnappedWallId(snap.isSnappedToWall ? (snap.snappedWallId ?? null) : null);
+        setToolGhostPreview({
+          type: "door",
+          x: snap.x,
+          y: snap.y,
+          width: snap.width,
+          height: snap.height,
+          rotation: snap.rotation,
+          isSnappedToWall: snap.isSnappedToWall,
+          snappedWallId: snap.snappedWallId ?? undefined,
+        });
+      }
+
       if (draggingId && dragStart) {
         const dx = pos.x - dragStart.x;
         const dy = pos.y - dragStart.y;
-        for (const item of dragStart.items) {
-          editor.moveObject(item.id, item.objX + dx, item.objY + dy, true);
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+          hasMovedRef.current = true;
         }
+        const draggedObj = editor.objects.find((o) => o.id === draggingId);
+
+        if (draggedObj?.type === "door" && dragStart.items.length === 1) {
+          const item = dragStart.items[0];
+          const doorLen = draggedObj.doorWidth ?? draggedObj.width ?? 60;
+          const rawCenterX = item.objX + dx + doorLen / 2;
+          const rawCenterY = item.objY + dy + (draggedObj.height ?? WALL_THICKNESS) / 2;
+          const snap = computeDoorSnap({ x: rawCenterX, y: rawCenterY }, doorLen);
+
+          if (snap.isSnappedToWall && snap.snappedWallId) {
+            setSnappedWallId(snap.snappedWallId);
+            pendingDoorSnapRef.current = {
+              doorId: draggedObj.id,
+              wallId: snap.snappedWallId,
+              anchorPoint: snap.snappedCenter,
+            };
+            editor.moveDoorWithSnap(draggedObj.id, snap);
+            return;
+          } else {
+            setSnappedWallId(null);
+            pendingDoorSnapRef.current = null;
+            editor.moveDoorWithSnap(draggedObj.id, {
+              x: item.objX + dx,
+              y: item.objY + dy,
+              rotation: draggedObj.rotation,
+              isSnappedToWall: false,
+              snappedWallId: null,
+            });
+            return;
+          }
+        }
+
+        editor.moveObjects(
+          dragStart.items.map((item) => ({
+            id: item.id,
+            x: item.objX + dx,
+            y: item.objY + dy,
+          })),
+          true,
+        );
         return;
       }
 
@@ -697,7 +1204,24 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         setPanStart({ x: e.clientX, y: e.clientY });
       }
     },
-    [cornerDragState, resizeState, rotationState, activeWallState, setActiveWallState, wallEndpoints, boxSelectRect, zoneDraftRect, snapPoint, draggingId, dragStart, isPanning, panStart, editor, screenToCanvas],
+    [
+      cornerDragState,
+      resizeState,
+      rotationState,
+      activeWallState,
+      setActiveWallState,
+      wallEndpoints,
+      boxSelectRect,
+      zoneDraftRect,
+      snapPoint,
+      draggingId,
+      dragStart,
+      isPanning,
+      panStart,
+      editor,
+      screenToCanvas,
+      computeDoorSnap,
+    ],
   );
 
   const handleMouseUp = useCallback(
@@ -730,8 +1254,9 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         const maxX = Math.max(boxSelectRect.startX, boxSelectRect.currentX);
         const minY = Math.min(boxSelectRect.startY, boxSelectRect.currentY);
         const maxY = Math.max(boxSelectRect.startY, boxSelectRect.currentY);
+        const rect = { minX, maxX, minY, maxY };
         const selected = editor.objects
-          .filter((obj) => obj.x < maxX && obj.x + obj.width > minX && obj.y < maxY && obj.y + obj.height > minY)
+          .filter((obj) => doesObjectIntersectRect(obj, rect))
           .map((obj) => obj.id);
         if (selected.length > 0) {
           editor.setSelectedObjectIds(selected);
@@ -762,39 +1287,37 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
       }
 
       if (draggingId) {
-        const draggedObj = editor.objects.find((o) => o.id === draggingId);
-        if (draggedObj?.type === "door") {
-          const cx = draggedObj.x + draggedObj.width / 2;
-          const cy = draggedObj.y + draggedObj.height / 2;
-          const targetWall = findNearestWallForPoint(editor.objects, { x: cx, y: cy }, DOOR_ATTACH_MAX_DISTANCE);
-          if (targetWall) {
-            editor.attachDoorToWall(draggingId, targetWall.id, { anchorPoint: { x: cx, y: cy } });
-          }
-        }
-        if (draggedObj?.type === "chair") {
-          const cx = draggedObj.x + draggedObj.width / 2;
-          const cy = draggedObj.y + draggedObj.height / 2;
-          const targetTable = editor.objects.find(
-            (o) =>
-              o.type === "table" &&
-              cx >= o.x && cx <= o.x + o.width &&
-              cy >= o.y && cy <= o.y + o.height,
-          );
-          if (targetTable) {
-            const preferredSide = tableSideFromPoint(targetTable, { x: cx, y: cy });
-
-            if (draggedObj.parentId === targetTable.id) {
-              // Move only one chair side-to-side (delta 1), keep others in place.
-              editor.moveChairWithinTable(draggingId, targetTable.id, preferredSide);
-            } else if (!draggedObj.parentId) {
-              editor.assignChairToTable(draggingId, targetTable.id, preferredSide);
+        if (pendingDoorSnapRef.current) {
+          const snap = pendingDoorSnapRef.current;
+          editor.attachDoorToWall(snap.doorId, snap.wallId, {
+            anchorPoint: snap.anchorPoint,
+            skipUndo: true,
+          });
+          pendingDoorSnapRef.current = null;
+        } else {
+          const draggedObj = editor.objects.find((o) => o.id === draggingId);
+          if (draggedObj?.type === "door") {
+            const cx = draggedObj.x + draggedObj.width / 2;
+            const cy = draggedObj.y + draggedObj.height / 2;
+            const targetWall = findClosestWallForDoor({ x: cx, y: cy }, editor.objects, DOOR_ATTACH_MAX_DISTANCE);
+            if (targetWall) {
+              editor.attachDoorToWall(draggingId, targetWall.wall.id, {
+                anchorPoint: targetWall.snappedCenter,
+                skipUndo: true,
+              });
             }
           }
         }
+        setSnappedWallId(null);
         editor.endDrag();
         requestAnimationFrame(() => setDraggingId(null));
         setDragStart(null);
+        if (hasMovedRef.current) {
+          suppressNextClick.current = true;
+          hasMovedRef.current = false;
+        }
       }
+      setActiveGuides([]);
       setIsPanning(false);
     },
     [cornerDragState, resizeState, rotationState, boxSelectRect, zoneDraftRect, draggingId, editor],
@@ -802,10 +1325,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        editor.setZoom(editor.zoom + (e.deltaY > 0 ? -0.1 : 0.1));
-      }
+      e.preventDefault();
+      editor.setZoom(Math.min(3, Math.max(0.3, +(editor.zoom - e.deltaY * 0.0008).toFixed(2))));
     },
     [editor],
   );
@@ -820,6 +1341,7 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
   const isAnyInteracting = !!(resizeState || rotationState || activeWallState);
   const cursorClass =
     isPanning ? "cursor-grabbing"
+    : isPaletteDragging ? "cursor-copy"
     : editor.activeTool === "wall" ? "cursor-crosshair"
     : editor.activeTool !== "select" ? "cursor-crosshair"
     : isAnyInteracting ? "cursor-default"
@@ -849,10 +1371,33 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
   } : null;
 
   return (
-    <div className="relative flex-1 overflow-hidden bg-muted/30 rounded-lg border">
-      {/* Zoom indicator */}
-      <div className="absolute top-2 right-2 z-10 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm rounded px-2 py-1">
-        {Math.round(editor.zoom * 100)}%
+    <div ref={containerRef} className="relative flex-1 overflow-hidden bg-background" onWheel={handleWheel}>
+      {/* Zoom controls (matches Live Table UX) */}
+      <div className="absolute right-4 top-4 z-20 flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => editor.setZoom(Math.min(3, +(editor.zoom + 0.1).toFixed(2)))}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent transition-colors"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.resetZoom()}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-[11px] font-medium shadow hover:bg-accent transition-colors"
+          title="Reset zoom"
+        >
+          {Math.round(editor.zoom * 100)}%
+        </button>
+        <button
+          type="button"
+          onClick={() => editor.setZoom(Math.max(0.3, +(editor.zoom - 0.1).toFixed(2)))}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent transition-colors"
+          title="Zoom out"
+        >
+          &minus;
+        </button>
       </div>
 
       <svg
@@ -866,6 +1411,9 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         style={{ minHeight: "100%" }}
       >
         <g transform={`translate(${editor.panOffset.x}, ${editor.panOffset.y}) scale(${editor.zoom})`}>
@@ -884,18 +1432,93 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
             className="canvas-bg"
           />
 
+          {/* Dynamic Alignment Guides (Draw.io / Figma style) */}
+          {activeGuides.map((guide, idx) => (
+            <line
+              key={`guide-${guide.type}-${idx}`}
+              x1={guide.type === "vertical" ? guide.coordinate : -INFINITE_SIZE / 2}
+              y1={guide.type === "horizontal" ? guide.coordinate : -INFINITE_SIZE / 2}
+              x2={guide.type === "vertical" ? guide.coordinate : INFINITE_SIZE / 2}
+              y2={guide.type === "horizontal" ? guide.coordinate : INFINITE_SIZE / 2}
+              stroke="var(--color-primary, #3b82f6)"
+              strokeWidth={1.2 / editor.zoom}
+              strokeDasharray="4 3"
+              className="pointer-events-none"
+              opacity={0.85}
+            />
+          ))}
+
           {/* Canvas objects */}
           {sortedObjects.map((obj) => (
             <CanvasObject
               key={obj.id}
               object={obj}
               isSelected={obj.id === editor.selectedObjectId || editor.selectedObjectIds.includes(obj.id)}
+              isHighlighted={
+                obj.id === snappedWallId ||
+                (obj.type === "door" && (
+                  obj.id === editor.selectedObjectId ||
+                  (!!snappedWallId && (obj.parentId === snappedWallId || obj.id === draggingId))
+                ))
+              }
               onMouseDown={handleObjectMouseDown}
               onClick={handleObjectClick}
               onResizeStart={handleResizeStart}
               onRotateStart={handleRotateStart}
             />
           ))}
+
+          {/* Tool Ghost Preview (Drag from palette or tool placement) */}
+          {toolGhostPreview && (
+            <g
+              transform={`translate(${toolGhostPreview.x}, ${toolGhostPreview.y}) rotate(${toolGhostPreview.rotation}, ${toolGhostPreview.width / 2}, ${toolGhostPreview.height / 2})`}
+              className="pointer-events-none"
+              opacity={0.85}
+            >
+              {toolGhostPreview.type === "door" ? (
+                <>
+                  <rect
+                    x={0}
+                    y={0}
+                    width={toolGhostPreview.width}
+                    height={toolGhostPreview.height}
+                    fill={toolGhostPreview.isSnappedToWall ? "rgba(254, 240, 138, 0.7)" : "var(--pos-zone-preview-fill)"}
+                    stroke={toolGhostPreview.isSnappedToWall ? "#eab308" : "var(--pos-zone-preview-stroke)"}
+                    strokeWidth={toolGhostPreview.isSnappedToWall ? 2.5 : 1.5}
+                    rx={2}
+                    filter={toolGhostPreview.isSnappedToWall ? "drop-shadow(0 0 8px rgba(234, 179, 8, 0.9))" : undefined}
+                  />
+                  <path
+                    d={`M 0,${toolGhostPreview.height} A ${toolGhostPreview.width},${toolGhostPreview.width} 0 0,1 ${toolGhostPreview.width},0`}
+                    fill="none"
+                    stroke={toolGhostPreview.isSnappedToWall ? "#ca8a04" : "var(--pos-zone-preview-stroke)"}
+                    strokeWidth={1.5}
+                    strokeDasharray="4 3"
+                  />
+                  <line
+                    x1={0}
+                    y1={0}
+                    x2={0}
+                    y2={toolGhostPreview.height}
+                    stroke={toolGhostPreview.isSnappedToWall ? "#eab308" : "var(--pos-zone-preview-stroke)"}
+                    strokeWidth={2}
+                  />
+                </>
+              ) : (
+                <rect
+                  x={0}
+                  y={0}
+                  width={toolGhostPreview.width}
+                  height={toolGhostPreview.height}
+                  fill="var(--pos-zone-preview-fill)"
+                  stroke="var(--pos-zone-preview-stroke)"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                  rx={4}
+                />
+              )}
+            </g>
+          )}
 
           {/* Wall endpoints helper dots in wall mode */}
           {editor.activeTool === "wall" && wallEndpoints.map((ep) => (
@@ -1021,8 +1644,8 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
               <path d="M3 9h18" />
               <path d="M9 21V9" />
             </svg>
-            <p className="text-sm font-medium">Click a tool, then click the canvas to place objects</p>
-            <p className="text-xs mt-1">Wall tool: click endpoints to chain • Hold Shift for straight wall / 90° rotate snap • Shift+click or drag to multi-select • Ctrl+C/V copy-paste • Ctrl+scroll to zoom</p>
+            <p className="text-sm font-medium">{t("emptyCanvasHint")}</p>
+            <p className="text-xs mt-1">{t("emptyCanvasSubhint")}</p>
           </div>
         </div>
       )}

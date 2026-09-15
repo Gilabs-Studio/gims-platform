@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -11,7 +10,6 @@ import { LayoutPalette } from "./layout-palette";
 import { FloorCanvas } from "./floor-canvas";
 import { ObjectInspector } from "./object-inspector";
 import { LayoutToolbar } from "./layout-toolbar";
-import { PublishDialog } from "./publish-dialog";
 import { VersionHistoryPanel } from "./version-history-panel";
 
 interface FloorLayoutEditorProps {
@@ -20,12 +18,10 @@ interface FloorLayoutEditorProps {
 }
 
 export function FloorLayoutEditor({ floorPlanId, onBack }: FloorLayoutEditorProps) {
-  const t = useTranslations("floorLayout");
   const { data, isPending, isError } = useFloorLayout(floorPlanId);
   const floorPlan = data?.data;
   const editor = useCanvasEditor(floorPlanId);
 
-  const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
 
   // Load layout data when floor plan is fetched
@@ -52,14 +48,9 @@ export function FloorLayoutEditor({ floorPlanId, onBack }: FloorLayoutEditorProp
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [editor.isDirty]);
 
-  const handlePublish = async () => {
-    await editor.publishLayout(t);
-    setShowPublishDialog(false);
-  };
-
   if (isPending) {
     return (
-      <div className="h-[calc(100vh-8rem)] flex flex-col gap-2">
+      <div className="h-full w-full flex flex-col gap-2 p-4">
         <Skeleton className="h-12 w-full" />
         <div className="flex-1 flex gap-2">
           <Skeleton className="w-20 h-full" />
@@ -72,7 +63,7 @@ export function FloorLayoutEditor({ floorPlanId, onBack }: FloorLayoutEditorProp
 
   if (isError || !floorPlan) {
     return (
-      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
+      <div className="h-full w-full flex items-center justify-center">
         <div className="text-center text-muted-foreground">
           <p className="text-sm font-medium">Floor plan not found</p>
           <button onClick={onBack} className="text-primary text-sm mt-2 cursor-pointer hover:underline">
@@ -84,13 +75,13 @@ export function FloorLayoutEditor({ floorPlanId, onBack }: FloorLayoutEditorProp
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col overflow-hidden rounded-lg border bg-background">
-      {/* Top toolbar */}
+    <div className="h-full w-full flex flex-col overflow-hidden bg-background">
+      {/* Top toolbar with unified back button */}
       <LayoutToolbar
         editor={editor}
-        floorPlanName={floorPlan.name}
+        floorPlanName={floorPlan.outlet_name || floorPlan.name}
         status={floorPlan.status}
-        onPublish={() => setShowPublishDialog(true)}
+        onBack={onBack}
         onShowVersions={() => setShowVersions(true)}
       />
 
@@ -104,14 +95,6 @@ export function FloorLayoutEditor({ floorPlanId, onBack }: FloorLayoutEditorProp
           outletName={floorPlan?.outlet_name ?? ""}
         />
       </div>
-
-      {/* Publish dialog */}
-      <PublishDialog
-        open={showPublishDialog}
-        onOpenChange={setShowPublishDialog}
-        onConfirm={handlePublish}
-        isPending={editor.isPublishing}
-      />
 
       {/* Version history */}
       <VersionHistoryPanel

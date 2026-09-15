@@ -2,12 +2,13 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowLeftIcon, Store, ShieldOff } from "lucide-react";
+import { Store, ShieldOff } from "lucide-react";
 
 import { LoadingSpinner } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { PageMotion } from "@/components/motion";
 import { usePOSOutlets } from "@/features/pos/terminal/hooks/use-pos";
+import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import { Link } from "@/i18n/routing";
 import { useFloorLayouts } from "../hooks/use-floor-layouts";
 
@@ -21,6 +22,14 @@ export function FloorLayoutContainer() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [autoCreateOutletId, setAutoCreateOutletId] = useState<string | null>(null);
   const hasAutoNavigated = useRef(false);
+
+  const setFullScreen = usePOSUIStore((s) => s.setFullScreen);
+
+  // Full-window mode when editor is active (matches Live Table & POS Terminal)
+  useEffect(() => {
+    setFullScreen(!!editorFloorPlanId);
+    return () => setFullScreen(false);
+  }, [editorFloorPlanId, setFullScreen]);
 
   // Fetch user's assigned outlets
   const { data: outletsData, isLoading: outletsLoading } = usePOSOutlets();
@@ -94,30 +103,13 @@ export function FloorLayoutContainer() {
     }
   }, [outletsLoading, layoutsLoading, assignedOutlets, existingLayouts]);
 
-  // Editor mode
+  // Editor mode (full window canvas, back button is integrated in canvas top bar)
   if (editorFloorPlanId) {
     return (
-      <PageMotion>
-        <div className="space-y-2">
-          {/* Back button - only show if multiple outlets or single outlet with existing layout */}
-          {assignedOutlets.length > 1 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBackToList}
-              className="cursor-pointer mb-1"
-            >
-              <ArrowLeftIcon className="h-4 w-4 mr-1" />
-              {t("title")}
-            </Button>
-          )}
-
-          <FloorLayoutEditor
-            floorPlanId={editorFloorPlanId}
-            onBack={handleBackToList}
-          />
-        </div>
-      </PageMotion>
+      <FloorLayoutEditor
+        floorPlanId={editorFloorPlanId}
+        onBack={handleBackToList}
+      />
     );
   }
 

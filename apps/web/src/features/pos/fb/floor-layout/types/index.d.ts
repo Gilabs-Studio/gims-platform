@@ -2,12 +2,12 @@
 
 export type LayoutObjectType =
   | "table"
-  | "chair"
   | "wall"
   | "door"
   | "cashier"
   | "zone"
-  | "decoration";
+  | "decoration"
+  | "chair"; // Deprecated legacy type, stripped on load
 
 export type TableShape = "rectangle" | "circle" | "square";
 export type TableChairLayout = "auto" | "top" | "right" | "bottom" | "left";

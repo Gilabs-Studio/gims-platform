@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 
-import type { LayoutObject, TableChairLayout, TableShape, ZoneType } from "../types";
+import type { LayoutObject, TableShape, ZoneType } from "../types";
 import type { useCanvasEditor } from "../hooks/use-canvas-editor";
 import { useTableQRTokens } from "../hooks/use-table-qr";
 import { TableQRPrintDialog } from "./table-qr-print-dialog";
@@ -29,14 +29,6 @@ const TABLE_SHAPES: { value: TableShape; labelKey: string }[] = [
   { value: "rectangle", labelKey: "rectangle" },
   { value: "circle", labelKey: "circle" },
   { value: "square", labelKey: "square" },
-];
-
-const TABLE_CHAIR_LAYOUTS: { value: TableChairLayout; label: string }[] = [
-  { value: "auto", label: "Auto (Around)" },
-  { value: "top", label: "Top Side" },
-  { value: "right", label: "Right Side" },
-  { value: "bottom", label: "Bottom Side" },
-  { value: "left", label: "Left Side" },
 ];
 
 const ZONE_TYPES: { value: ZoneType; labelKey: string }[] = [
@@ -89,7 +81,7 @@ export function ObjectInspector({ editor, floorPlanId, outletName = "" }: Object
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
           <p className="text-xs text-muted-foreground text-center">
-            Select an object to edit its properties
+            {t("noSelection")}
           </p>
         </div>
       </div>
@@ -151,32 +143,48 @@ export function ObjectInspector({ editor, floorPlanId, outletName = "" }: Object
               <Input
                 type="number"
                 value={obj.width}
-                onChange={(e) =>
-                  obj.type === "table"
-                    ? editor.updateTableLayout(obj.id, { width: Math.max(10, Number(e.target.value)) })
-                    : obj.type === "door"
-                      ? undefined
-                    : handleUpdate({ width: Number(e.target.value) })
-                }
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (obj.type === "table") {
+                    editor.updateTableLayout(obj.id, { width: Math.max(10, val) });
+                  } else if (obj.type === "door") {
+                    const newW = Math.max(15, val);
+                    const cx = obj.x + obj.width / 2;
+                    handleUpdate({
+                      x: cx - newW / 2,
+                      width: newW,
+                      doorWidth: newW,
+                    });
+                  } else {
+                    handleUpdate({ width: val });
+                  }
+                }}
                 className="h-7 text-xs"
                 min={10}
-                disabled={obj.type === "door"}
               />
             </InspectorField>
             <InspectorField label={t("height")}>
               <Input
                 type="number"
                 value={obj.height}
-                onChange={(e) =>
-                  obj.type === "table"
-                    ? editor.updateTableLayout(obj.id, { height: Math.max(10, Number(e.target.value)) })
-                    : obj.type === "door"
-                      ? undefined
-                    : handleUpdate({ height: Number(e.target.value) })
-                }
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (obj.type === "table") {
+                    editor.updateTableLayout(obj.id, { height: Math.max(10, val) });
+                  } else if (obj.type === "door") {
+                    const newH = Math.max(4, val);
+                    const cy = obj.y + obj.height / 2;
+                    handleUpdate({
+                      y: cy - newH / 2,
+                      height: newH,
+                      thickness: newH,
+                    });
+                  } else {
+                    handleUpdate({ height: val });
+                  }
+                }}
                 className="h-7 text-xs"
-                min={10}
-                disabled={obj.type === "door"}
+                min={4}
               />
             </InspectorField>
           </div>
@@ -215,7 +223,7 @@ export function ObjectInspector({ editor, floorPlanId, outletName = "" }: Object
                   onChange={(e) => editor.updateTableLayout(obj.id, { capacity: Math.max(1, Number(e.target.value)) })}
                   className="h-7 text-xs"
                   min={1}
-                  max={20}
+                  max={100}
                 />
               </InspectorField>
               <InspectorField label={t("shape")}>
@@ -230,23 +238,6 @@ export function ObjectInspector({ editor, floorPlanId, outletName = "" }: Object
                     {TABLE_SHAPES.map((shape) => (
                       <SelectItem key={shape.value} value={shape.value} className="text-xs">
                         {t(shape.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </InspectorField>
-              <InspectorField label="Chair Layout">
-                <Select
-                  value={obj.chairLayout ?? "auto"}
-                  onValueChange={(v) => editor.setTableChairLayout(obj.id, v as TableChairLayout)}
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TABLE_CHAIR_LAYOUTS.map((layout) => (
-                      <SelectItem key={layout.value} value={layout.value} className="text-xs">
-                        {layout.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

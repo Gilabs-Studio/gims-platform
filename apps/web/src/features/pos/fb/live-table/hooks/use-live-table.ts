@@ -62,7 +62,7 @@ function buildTableSeatCountMap(objects: LayoutObject[]): Map<string, number> {
   const seatCountMap = new Map<string, number>();
 
   for (const obj of objects) {
-    if (obj.type !== "chair" || !obj.parentId) continue;
+    if ((obj.type as string) !== "chair" || !obj.parentId) continue;
     seatCountMap.set(obj.parentId, (seatCountMap.get(obj.parentId) ?? 0) + 1);
   }
 
@@ -112,16 +112,19 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
   } = useFloorLayout(plan?.id ?? "", { enabled: !!plan?.id });
 
   // Parse table objects from layout_data JSON
-  const layoutObjects = useMemo<LayoutObject[]>(() => {
+  const { layoutObjects, rawObjects } = useMemo<{
+    layoutObjects: LayoutObject[];
+    rawObjects: LayoutObject[];
+  }>(() => {
     const rawData = planDetail?.data?.layout_data;
-    if (!rawData) return [];
+    if (!rawData) return { layoutObjects: [], rawObjects: [] };
     try {
-      const parsed: LayoutObject[] = typeof rawData === "string"
-        ? JSON.parse(rawData)
-        : rawData;
-      return parsed;
+      const parsed: LayoutObject[] =
+        typeof rawData === "string" ? JSON.parse(rawData) : rawData;
+      const filtered = parsed.filter((obj) => (obj.type as string) !== "chair");
+      return { layoutObjects: filtered, rawObjects: parsed };
     } catch {
-      return [];
+      return { layoutObjects: [], rawObjects: [] };
     }
   }, [planDetail?.data?.layout_data]);
 
@@ -129,7 +132,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
     return layoutObjects.filter((obj) => obj.type === "table");
   }, [layoutObjects]);
 
-  const tableSeatCountMap = useMemo(() => buildTableSeatCountMap(layoutObjects), [layoutObjects]);
+  const tableSeatCountMap = useMemo(() => buildTableSeatCountMap(rawObjects), [rawObjects]);
 
   // Load orders once; real-time updates are pushed via WebSocket invalidation.
   const {
@@ -202,7 +205,10 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
       const doneCount = servedOrders.length;
 
       const displayOrder = unpaidOrder ?? serviceOrder ?? draftOrder ?? servedOrders[0] ?? matchedOrders[0] ?? null;
-      const seatCount = tableSeatCountMap.get(obj.id) ?? 0;
+      const seatCount =
+        typeof obj.capacity === "number" && obj.capacity > 0
+          ? obj.capacity
+          : (tableSeatCountMap.get(obj.id) ?? (obj.tableShape === "circle" ? 2 : 4));
       const activeTimingOrder = unpaidOrder ?? serviceOrder;
       const durationSec =
         activeTimingOrder && typeof nowProp === "number"
