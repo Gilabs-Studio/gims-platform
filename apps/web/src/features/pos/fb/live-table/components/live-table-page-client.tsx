@@ -15,7 +15,6 @@ import {
   LogOut,
   Map as MapIcon,
   Users,
-  RefreshCw,
   Utensils,
   Archive,
   Trash2,
@@ -53,7 +52,6 @@ import {
   usePOSPayments,
   useVoidOrder,
   useDeleteOrder,
-  useAssignTable,
 } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
@@ -257,7 +255,7 @@ function TableCard({ info, onClick, onDropDraft }: TableCardProps) {
           )}
         </div>
       )}
-      {info.order ? (
+      {info.status !== "AVAILABLE" && info.order ? (
         <div className="mt-3 space-y-0.5">
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <Clock className="h-3 w-3 shrink-0" />
@@ -715,40 +713,7 @@ function ActiveTableCancelDialog({
   );
 }
 
-// ─── Live Table Stats Bar ─────────────────────────────────────────────────────
 
-interface StatsBarProps {
-  infos: LiveTableInfo[];
-}
-
-function StatsBar({ infos }: StatsBarProps) {
-  const total = infos.length;
-  const available = infos.filter((i) => i.status === "AVAILABLE").length;
-  const occupied = infos.filter((i) => i.status !== "AVAILABLE").length;
-  const warnings = infos.filter((i) => i.isOverThreshold).length;
-
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="text-muted-foreground tabular-nums">
-        <span className="font-semibold text-foreground">{total}</span> tables
-      </span>
-      <span className="text-success tabular-nums">
-        <span className="font-semibold">{available}</span>
-        <span className="text-muted-foreground ml-1">free</span>
-      </span>
-      <span className="text-primary tabular-nums">
-        <span className="font-semibold">{occupied}</span>
-        <span className="text-muted-foreground ml-1">occupied</span>
-      </span>
-      {warnings > 0 && (
-        <span className="flex items-center gap-1 text-rose font-semibold animate-pulse">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          {warnings}
-        </span>
-      )}
-    </div>
-  );
-}
 
 // ─── SVG fill colors for floor-layout view (raw CSS values, no Tailwind) ────
 const STATUS_SVG: Record<
@@ -1223,18 +1188,20 @@ function TableSidebar({
                   </div>
 
                   {/* Timer */}
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <Clock className="h-3 w-3 shrink-0" />
-                    <span>{formatDuration(info.durationSec)}</span>
-                    {info.order?.order_number && (
-                      <>
-                        <span className="mx-0.5">·</span>
-                        <span className="truncate font-mono text-[10px]">
-                          {info.order.order_number}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  {info.status !== "AVAILABLE" && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span>{formatDuration(info.durationSec)}</span>
+                      {info.order?.order_number && (
+                        <>
+                          <span className="mx-0.5">·</span>
+                          <span className="truncate font-mono text-[10px]">
+                            {info.order.order_number}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                     <Users className="h-3 w-3 shrink-0" />
@@ -1555,32 +1522,20 @@ export function LiveTablePageClient() {
   }, [orders]);
 
   const deleteOrder = useDeleteOrder({ invalidateOnSuccess: false });
-  const assignTable = useAssignTable();
   const [applyingDraft, setApplyingDraft] = useState<POSOrder | null>(null);
 
   const handleDropDraftOnTable = useCallback(
-    async (draftId: string, tableId: string, tableLabel: string) => {
-      try {
-        await assignTable.mutateAsync({
-          orderId: draftId,
-          data: {
-            table_id: tableId,
-            table_label: tableLabel,
-          },
-        });
-        toast.success(`Draft applied to table ${tableLabel}`);
-        if (outletId) {
-          const query = new URLSearchParams();
-          query.set("outlet_id", outletId);
-          query.set("table_id", tableId);
-          query.set("table_label", tableLabel);
-          router.push(`/pos/fb/terminal?${query.toString()}`);
-        }
-      } catch {
-        toast.error("Failed to apply draft to table");
+    (draftId: string, tableId: string, tableLabel: string) => {
+      if (outletId) {
+        const query = new URLSearchParams();
+        query.set("outlet_id", outletId);
+        query.set("table_id", tableId);
+        query.set("table_label", tableLabel);
+        query.set("draft_id", draftId);
+        router.push(`/pos/fb/terminal?${query.toString()}`);
       }
     },
-    [assignTable, outletId, router],
+    [outletId, router],
   );
 
   const handleEditOrder = useCallback(
@@ -1847,8 +1802,6 @@ export function LiveTablePageClient() {
         </div>
 
         <div className="flex items-center gap-2">
-          <StatsBar infos={liveTableInfos} />
-
           {/* View mode segmented switcher */}
           <div className="flex items-center p-0.5 rounded-lg bg-muted/80 border border-border/60 text-xs shadow-2xs">
             <button
@@ -1991,11 +1944,6 @@ export function LiveTablePageClient() {
               </ScrollArea>
             </PopoverContent>
           </Popover>
-
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/60">
-            <RefreshCw className="h-3 w-3" />
-            <span>WS</span>
-          </div>
         </div>
       </header>
 

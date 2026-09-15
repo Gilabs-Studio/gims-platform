@@ -86,6 +86,7 @@ interface POSTerminalContainerProps {
   outletName: string;
   initialTableId?: string;
   initialTableLabel?: string;
+  initialDraftId?: string;
   /** URL to navigate to after successful payment (e.g. live-table). If absent, stays on POS. */
   returnUrl?: string;
   hasFloorLayout?: boolean;
@@ -96,6 +97,7 @@ export function POSTerminalContainer({
   outletName,
   initialTableId,
   initialTableLabel,
+  initialDraftId,
   returnUrl,
   hasFloorLayout = false,
 }: POSTerminalContainerProps) {
@@ -194,6 +196,38 @@ export function POSTerminalContainer({
       }
     }
   }, [initialTableId, draftOrdersData?.data, catalogItems, activeOrderId]);
+
+  // When opening terminal with an initial draft ID (e.g. from Live Table "Apply to Table")
+  useEffect(() => {
+    if (initialDraftId && draftOrdersData?.data) {
+      const targetDraft = draftOrdersData.data.find((order) => order.id === initialDraftId);
+      if (targetDraft && targetDraft.id !== activeOrderId) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setActiveOrderId(targetDraft.id);
+        const mappedCart: CartItem[] = targetDraft.items.map((item) => {
+          const catalogItem = catalogItems.find((p) => p.product_id === item.product_id);
+          return {
+            product_id: item.product_id,
+            product_name: item.product_name,
+            product_code: item.product_code || "",
+            product_kind: catalogItem?.product_kind || "STOCK",
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            subtotal: item.subtotal,
+            notes: item.notes ?? undefined,
+          };
+        });
+        setCart(mappedCart);
+        if (targetDraft.customer_id) {
+          setLoyaltyLookup({
+            found: true,
+            member_id: targetDraft.customer_id,
+            customer_name: targetDraft.customer_name || "",
+          });
+        }
+      }
+    }
+  }, [initialDraftId, draftOrdersData?.data, catalogItems, activeOrderId]);
 
   const handleApplyDraft = useCallback(
     async (draft: POSOrder) => {
@@ -304,6 +338,24 @@ export function POSTerminalContainer({
     },
     [activeOrder, preparedOrder, hasFloorLayout, refetchDrafts],
   );
+
+  const handleOrderVoided = useCallback(() => {
+    setVoidOpen(false);
+    setCart([]);
+    setActiveOrderId(null);
+    setPreparedOrder(null);
+    setPaymentOpen(false);
+    setLoyaltyLookup(undefined);
+    setLoyaltyMember(undefined);
+    setLoyaltyRewards([]);
+    toast.success("Order voided successfully");
+    if (hasFloorLayout) {
+      const destination = returnUrl || `/pos/fb/live-table?outlet_id=${outletId}`;
+      router.push(destination);
+    } else {
+      refetchDrafts();
+    }
+  }, [hasFloorLayout, returnUrl, outletId, router, refetchDrafts]);
 
   // If payment fails, auto-void the created order so no orphan draft remains.
   const handlePaymentError = useCallback(async () => {
@@ -485,6 +537,12 @@ export function POSTerminalContainer({
         orderToPay = (createResult as { data: POSOrder }).data;
         setActiveOrderId(orderToPay.id);
       } else {
+        if (linkedTable?.id && (!activeOrder?.table_id || activeOrder.table_id !== linkedTable.id)) {
+          await assignTable.mutateAsync({
+            orderId: targetOrderId,
+            data: { table_id: linkedTable.id, table_label: linkedTable.label },
+          });
+        }
         const syncResult = await syncItems.mutateAsync({
           orderId: targetOrderId,
           data: { items: itemsPayload },
@@ -743,7 +801,7 @@ export function POSTerminalContainer({
               onOpenChange={setVoidOpen}
               orderId={activeOrder.id}
               orderNumber={activeOrder.order_number}
-              onSuccess={() => handleOrderCompleted()}
+              onSuccess={handleOrderVoided}
             />
           )}
         </>

@@ -33,6 +33,7 @@ export function POSTerminalPageClient() {
   const outletIdFromQuery = searchParams.get("outlet_id");
   const tableIdFromQuery = searchParams.get("table_id") ?? undefined;
   const tableLabelFromQuery = searchParams.get("table_label") ?? undefined;
+  const draftIdFromQuery = searchParams.get("draft_id") ?? undefined;
   const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
   const hasAutoNavigated = useRef(false);
 
@@ -315,6 +316,7 @@ export function POSTerminalPageClient() {
           outletName={selectedOutlet.name}
           initialTableId={tableIdFromQuery}
           initialTableLabel={tableLabelFromQuery}
+          initialDraftId={draftIdFromQuery}
           returnUrl={liveTableReturnUrl}
           hasFloorLayout={selectedOutlet.pos_mode === "LIVE_TABLE"}
         />

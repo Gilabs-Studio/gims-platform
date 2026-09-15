@@ -203,9 +203,10 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
 
       const displayOrder = unpaidOrder ?? serviceOrder ?? draftOrder ?? servedOrders[0] ?? matchedOrders[0] ?? null;
       const seatCount = tableSeatCountMap.get(obj.id) ?? 0;
+      const activeTimingOrder = unpaidOrder ?? serviceOrder;
       const durationSec =
-        displayOrder && typeof nowProp === "number"
-          ? Math.floor((nowProp - new Date(displayOrder.created_at).getTime()) / 1000)
+        activeTimingOrder && typeof nowProp === "number"
+          ? Math.floor((nowProp - new Date(activeTimingOrder.created_at).getTime()) / 1000)
           : 0;
       return {
         tableObj: obj,
