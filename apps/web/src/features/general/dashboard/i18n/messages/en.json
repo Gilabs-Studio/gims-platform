@@ -408,6 +408,8 @@
         "activeTables": "{count} active tables",
         "totalActiveTables": "Total active tables: {count}",
         "noActiveTables": "No active tables",
+        "allTablesAvailable": "All tables available",
+        "backToAll": "View All Outlets",
         "activeSessions": "{count} active sessions",
         "servedRate": "{rate}% served",
         "expectedCash": "Expected Cash",

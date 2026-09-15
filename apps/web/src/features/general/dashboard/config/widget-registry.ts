@@ -810,7 +810,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     minRowSpan: 2,
     titleKey: "widgets.pos_cash_control.title",
     descriptionKey: "widgets.pos_cash_control.description",
-    icon: "ReceiptText",
+    icon: "LayoutGrid",
     permission: "pos.order.read",
   },
 

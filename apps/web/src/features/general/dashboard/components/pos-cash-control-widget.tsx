@@ -6,7 +6,7 @@ import { ArrowRight, LayoutGrid } from "lucide-react";
 import type { WidgetConfig, POSOutletItem } from "../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { WidgetAsyncState } from "./widget-async-state";
-import { WIDGET_REGISTRY } from "../config/widget-registry";
+import { WIDGET_REGISTRY, resolveWidgetSpan } from "../config/widget-registry";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -64,30 +64,40 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
     router.push(`/pos/fb/live-table?outlet_id=${encodeURIComponent(outlet.outlet_id)}`);
   };
 
+  const { col } = resolveWidgetSpan(widget);
+  const gridColsClass =
+    col >= 4
+      ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      : col === 3
+        ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        : "grid-cols-1 sm:grid-cols-2";
+
   if (!canView) {
     return null;
   }
 
   return (
     <WidgetAsyncState isLoading={isLoading} isError={isError} onRetry={refetch}>
-      <Card className="h-full">
-        <CardHeader className="space-y-1 pb-2">
+      <Card className="h-full flex flex-col">
+        <CardHeader className="space-y-1 pb-2 shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <CardDescription className="flex items-center gap-2">
-              <LayoutGrid className="h-4 w-4" />
+            <CardDescription className="flex items-center gap-2 font-medium text-foreground">
+              <LayoutGrid className="h-4 w-4 text-muted-foreground" />
               {t("widgets.pos_cash_control.title")}
             </CardDescription>
             {hasOutletFilter && (
               <Select value={selectedOutletId} onValueChange={setSelectedOutletId}>
-                <SelectTrigger className="h-7 w-40 text-xs">
+                <SelectTrigger className="h-7 w-40 text-xs cursor-pointer">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {canSelectAllOutlets && (
-                    <SelectItem value="all">{t("widgets.pos_cash_control.allOutlets")}</SelectItem>
+                    <SelectItem value="all" className="cursor-pointer">
+                      {t("widgets.pos_cash_control.allOutlets")}
+                    </SelectItem>
                   )}
                   {visibleOutlets.map((outlet) => (
-                    <SelectItem key={outlet.outlet_id} value={outlet.outlet_id}>
+                    <SelectItem key={outlet.outlet_id} value={outlet.outlet_id} className="cursor-pointer">
                       {outlet.outlet_name}
                     </SelectItem>
                   ))}
@@ -98,76 +108,87 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
           <p className="text-xs text-muted-foreground">{t("widgets.pos_cash_control.description")}</p>
         </CardHeader>
 
-        <CardContent className="flex h-full flex-col gap-3 pt-0">
-          <div className="rounded-lg border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            {t("widgets.pos_cash_control.totalActiveTables", { count: totalActiveTables })}
+        <CardContent className="flex flex-1 flex-col gap-3 pt-0 min-h-0">
+          {/* Minimalist Summary Bar */}
+          <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2 text-xs shrink-0">
+            <span className="font-medium text-foreground">
+              {t("widgets.pos_cash_control.totalActiveTables", { count: totalActiveTables })}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {t("widgets.pos_cash_control.activeSessions", { count: pos?.active_sessions ?? 0 })}
+            </span>
           </div>
 
           {isSingleOutletScope && focusedOutlet ? (
             <FocusedActiveTablesCard
               outlet={focusedOutlet}
-              title={t("widgets.pos_cash_control.focusedTitle")}
               activeTablesText={t("widgets.pos_cash_control.activeTables", { count: focusedOutlet.active_table_count ?? 0 })}
               openLabel={t("widgets.pos_cash_control.openLiveTable")}
               onOpen={() => openLiveTable(focusedOutlet)}
               emptyLabel={t("widgets.pos_cash_control.noActiveTables")}
             />
           ) : (
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {displayedOutlets.map((outlet) => (
-                  <div
-                    key={outlet.outlet_id}
-                    className={cn(
-                      "space-y-2 rounded-lg border p-3",
-                      selectedOutletId === outlet.outlet_id ? "border-primary bg-primary/5" : "border-border"
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{outlet.outlet_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("widgets.pos_cash_control.activeTables", { count: outlet.active_table_count ?? 0 })}
-                        </p>
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden min-h-0 pr-0.5">
+              <div className={cn("grid gap-3", gridColsClass)}>
+                {displayedOutlets.map((outlet) => {
+                  const tableLabels = outlet.active_table_labels ?? [];
+                  const count = outlet.active_table_count ?? 0;
+
+                  return (
+                    <div
+                      key={outlet.outlet_id}
+                      className="flex flex-col justify-between rounded-lg border bg-card p-3 transition-all duration-200 hover:border-border/80"
+                    >
+                      <div className="space-y-2">
+                        {/* Header: Name and Table Count */}
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {outlet.outlet_name}
+                          </p>
+                          <span className="shrink-0 text-xs text-muted-foreground font-medium">
+                            {count > 0
+                              ? t("widgets.pos_cash_control.activeTables", { count })
+                              : t("widgets.pos_cash_control.noActiveTables")}
+                          </span>
+                        </div>
+
+                        {/* Table Chips: Simple minimalist tags */}
+                        <div className="flex flex-wrap items-center gap-1.5 py-0.5 min-h-[1.75rem]">
+                          {tableLabels.slice(0, 6).map((tableName) => (
+                            <span
+                              key={`${outlet.outlet_id}-${tableName}`}
+                              className="rounded border bg-muted/40 px-2 py-0.5 text-xs font-medium text-foreground"
+                            >
+                              {tableName}
+                            </span>
+                          ))}
+                          {tableLabels.length > 6 && (
+                            <span className="rounded border bg-muted/20 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                              +{tableLabels.length - 6}
+                            </span>
+                          )}
+                          {tableLabels.length === 0 && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </div>
                       </div>
-                      <LayoutGrid className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </div>
 
-                    <div className="flex flex-wrap gap-1.5">
-                      {(outlet.active_table_labels ?? []).slice(0, 6).map((tableName) => (
-                        <span
-                          key={`${outlet.outlet_id}-${tableName}`}
-                          className="rounded-md border bg-card px-2 py-1 text-[11px] font-medium"
+                      {/* Single Action Button */}
+                      <div className="mt-3 border-t pt-2.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 w-full cursor-pointer justify-between text-xs font-medium transition-colors hover:bg-muted"
+                          onClick={() => openLiveTable(outlet)}
                         >
-                          {tableName}
-                        </span>
-                      ))}
-                      {(outlet.active_table_labels ?? []).length === 0 && (
-                        <p className="text-xs text-muted-foreground">{t("widgets.pos_cash_control.noActiveTables")}</p>
-                      )}
+                          <span>{t("widgets.pos_cash_control.openLiveTable")}</span>
+                          <ArrowRight className="h-3 w-3 shrink-0" />
+                        </Button>
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-7 cursor-pointer"
-                        onClick={() => setSelectedOutletId(outlet.outlet_id)}
-                      >
-                        {t("widgets.pos_cash_control.focus")}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-7 cursor-pointer"
-                        onClick={() => openLiveTable(outlet)}
-                      >
-                        {t("widgets.pos_cash_control.openLiveTable")}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {filteredOutlets.length === 0 && (
                   <div className="col-span-full flex items-center justify-center py-6 text-sm text-muted-foreground">
@@ -177,12 +198,12 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
               </div>
 
               {hasMore && (
-                <div className="flex justify-center">
+                <div className="flex justify-center pt-2">
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="cursor-pointer"
+                    className="cursor-pointer text-xs"
                     onClick={() => setVisibleCount((current) => current + pageSize)}
                   >
                     {t("widgets.pos_cash_control.loadMore")}
@@ -191,10 +212,6 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
               )}
             </div>
           )}
-
-          <div className="text-[11px] text-muted-foreground">
-            {t("widgets.pos_cash_control.activeSessions", { count: pos?.active_sessions ?? 0 })}
-          </div>
         </CardContent>
       </Card>
     </WidgetAsyncState>
@@ -203,41 +220,49 @@ export function PosCashControlWidget({ widget }: PosCashControlWidgetProps) {
 
 function FocusedActiveTablesCard({
   outlet,
-  title,
   activeTablesText,
   openLabel,
   onOpen,
   emptyLabel,
 }: {
   readonly outlet: POSOutletItem;
-  readonly title: string;
   readonly activeTablesText: string;
   readonly openLabel: string;
   readonly onOpen: () => void;
   readonly emptyLabel: string;
 }) {
+  const tableLabels = outlet.active_table_labels ?? [];
+
   return (
-    <div className="space-y-3 rounded-lg border bg-muted/10 p-3">
-      <div className="space-y-1">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{title}</p>
-        <p className="truncate text-sm font-semibold">{outlet.outlet_name}</p>
-        <p className="text-xs text-muted-foreground">{activeTablesText}</p>
+    <div className="space-y-3 rounded-lg border bg-card p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-sm font-semibold text-foreground">{outlet.outlet_name}</p>
+        <span className="text-xs text-muted-foreground">{activeTablesText}</span>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {(outlet.active_table_labels ?? []).slice(0, 12).map((tableName) => (
-          <span key={`${outlet.outlet_id}-${tableName}`} className="rounded-md border bg-card px-2 py-1 text-[11px] font-medium">
+      <div className="flex flex-wrap gap-1.5 py-1 min-h-[1.75rem]">
+        {tableLabels.slice(0, 12).map((tableName) => (
+          <span
+            key={`${outlet.outlet_id}-${tableName}`}
+            className="rounded border bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-foreground"
+          >
             {tableName}
           </span>
         ))}
-        {(outlet.active_table_labels ?? []).length === 0 && (
+        {tableLabels.length === 0 && (
           <p className="text-xs text-muted-foreground">{emptyLabel}</p>
         )}
       </div>
 
-      <Button type="button" size="sm" className="w-full cursor-pointer" onClick={onOpen}>
-        {openLabel}
-        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="w-full h-8 cursor-pointer text-xs font-medium justify-between hover:bg-muted"
+        onClick={onOpen}
+      >
+        <span>{openLabel}</span>
+        <ArrowRight className="h-3.5 w-3.5 shrink-0" />
       </Button>
     </div>
   );

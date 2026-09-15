@@ -408,6 +408,8 @@
         "activeTables": "{count} meja aktif",
         "totalActiveTables": "Total meja aktif: {count}",
         "noActiveTables": "Tidak ada meja aktif",
+        "allTablesAvailable": "Semua meja tersedia",
+        "backToAll": "Lihat Semua Outlet",
         "activeSessions": "{count} sesi aktif",
         "servedRate": "{rate}% tersaji",
         "expectedCash": "Kas Harapan",

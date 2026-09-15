@@ -153,16 +153,16 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
             </CardDescription>
             {hasOutletFilter && (
               <Select value={selectedOutletId} onValueChange={setSelectedOutletId}>
-                <SelectTrigger className="h-7 w-40 text-xs">
+                <SelectTrigger className="h-7 w-40 text-xs cursor-pointer">
                   <Filter className="mr-1 h-3 w-3" />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {canSelectAllOutlets && (
-                    <SelectItem value="all">{t("widgets.pos_live_table_overview.allOutlets")}</SelectItem>
+                    <SelectItem value="all" className="cursor-pointer">{t("widgets.pos_live_table_overview.allOutlets")}</SelectItem>
                   )}
                   {visibleOutlets.map((o) => (
-                    <SelectItem key={o.outlet_id} value={o.outlet_id}>
+                    <SelectItem key={o.outlet_id} value={o.outlet_id} className="cursor-pointer">
                       {o.outlet_name}
                     </SelectItem>
                   ))}
@@ -221,7 +221,10 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
                     <button
                       type="button"
                       key={outlet.outlet_id}
-                      className="space-y-2 rounded-lg border p-3 text-left transition-colors hover:bg-muted/20"
+                      className={cn(
+                        "space-y-2 rounded-lg border p-3 text-left transition-all duration-200 cursor-pointer",
+                        "hover:bg-muted/20 hover:border-primary/40 hover:-translate-y-0.5 active:translate-y-0 hover:shadow-xs"
+                      )}
                       onClick={() => openLiveTable(outlet)}
                     >
                       <p className="truncate text-sm font-medium">{outlet.outlet_name}</p>
@@ -338,7 +341,10 @@ function FocusedLiveTableCard({
         ) : tableNames.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {tableNames.slice(0, 12).map((name) => (
-              <span key={name} className="rounded-md border bg-card px-2 py-1 text-[11px] font-medium">
+              <span
+                key={name}
+                className="rounded border bg-muted/40 px-2 py-0.5 text-xs font-medium text-foreground"
+              >
                 {name}
               </span>
             ))}
@@ -348,8 +354,13 @@ function FocusedLiveTableCard({
         )}
       </div>
 
-      <Button type="button" size="sm" className="w-full cursor-pointer" onClick={onOpen}>
-        {cta}
+      <Button
+        type="button"
+        size="sm"
+        className="w-full cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 hover:shadow-xs hover:shadow-primary/30 font-medium"
+        onClick={onOpen}
+      >
+        <span>{cta}</span>
         <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
       </Button>
     </div>
