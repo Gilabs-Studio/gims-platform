@@ -28,6 +28,7 @@ type POSCatalogProduct struct {
 // POSProductRepository provides product data access needed by the POS domain
 type POSProductRepository interface {
 	FindByID(ctx context.Context, id string) (*productModels.Product, error)
+	FindByIDs(ctx context.Context, ids []string) ([]productModels.Product, error)
 	FindByIDWithRecipe(ctx context.Context, id string) (*productModels.Product, error)
 	FindPOSAvailable(ctx context.Context, warehouseID string, outletID string) ([]POSCatalogProduct, error)
 }
@@ -50,6 +51,20 @@ func (r *posProductRepository) FindByID(ctx context.Context, id string) (*produc
 		return nil, err
 	}
 	return &product, nil
+}
+
+func (r *posProductRepository) FindByIDs(ctx context.Context, ids []string) ([]productModels.Product, error) {
+	if len(ids) == 0 {
+		return []productModels.Product{}, nil
+	}
+	var products []productModels.Product
+	err := database.GetDB(ctx, r.db).
+		Where("id IN ? AND deleted_at IS NULL", ids).
+		Find(&products).Error
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
 }
 
 func (r *posProductRepository) FindByIDWithRecipe(ctx context.Context, id string) (*productModels.Product, error) {

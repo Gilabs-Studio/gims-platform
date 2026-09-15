@@ -13,7 +13,7 @@ import {
   CreditCard,
   LayoutGrid,
   LogOut,
-  MapPin,
+  Map as MapIcon,
   Users,
   RefreshCw,
   Utensils,
@@ -54,7 +54,6 @@ import {
   useVoidOrder,
   useDeleteOrder,
   useAssignTable,
-  usePOSOrderList,
 } from "@/features/pos/terminal/hooks/use-pos";
 import { usePOSUIStore } from "@/features/pos/stores/use-pos-ui-store";
 import type { LiveTableInfo, LiveTableStatus } from "../types";
@@ -1510,12 +1509,9 @@ export function LiveTablePageClient() {
     return "grid";
   });
 
-  const toggleView = useCallback(() => {
-    setViewMode((v) => {
-      const next = v === "grid" ? "floor" : "grid";
-      localStorage.setItem("live-table-view", next);
-      return next;
-    });
+  const handleSelectView = useCallback((mode: "grid" | "floor") => {
+    setViewMode(mode);
+    localStorage.setItem("live-table-view", mode);
   }, []);
 
   // Tick every second for live duration display.
@@ -1525,7 +1521,7 @@ export function LiveTablePageClient() {
     return () => clearInterval(id);
   }, []);
 
-  const { plan, liveTableInfos, layoutObjects, isLoading } = useLiveTableData({
+  const { plan, liveTableInfos, layoutObjects, orders, isLoading } = useLiveTableData({
     outletId,
     now,
   });
@@ -1554,21 +1550,9 @@ export function LiveTablePageClient() {
     number | undefined
   >();
 
-  const { data: draftOrdersResponse } = usePOSOrderList(
-    {
-      outlet_id: outletId,
-      status: "DRAFT",
-    },
-    {
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-    },
-  );
-
   const drafts = useMemo(() => {
-    return (draftOrdersResponse?.data ?? []).filter((order) => !order.table_id);
-  }, [draftOrdersResponse]);
+    return orders.filter((order) => order.status === "DRAFT" && !order.table_id);
+  }, [orders]);
 
   const deleteOrder = useDeleteOrder({ invalidateOnSuccess: false });
   const assignTable = useAssignTable();
@@ -1865,6 +1849,38 @@ export function LiveTablePageClient() {
         <div className="flex items-center gap-2">
           <StatsBar infos={liveTableInfos} />
 
+          {/* View mode segmented switcher */}
+          <div className="flex items-center p-0.5 rounded-lg bg-muted/80 border border-border/60 text-xs shadow-2xs">
+            <button
+              type="button"
+              onClick={() => handleSelectView("grid")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 cursor-pointer",
+                viewMode === "grid"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/40",
+              )}
+              title={t("views.grid")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t("views.grid")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectView("floor")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 cursor-pointer",
+                viewMode === "floor"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-background/40",
+              )}
+              title={t("views.floor")}
+            >
+              <MapIcon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t("views.floor")}</span>
+            </button>
+          </div>
+
           <Popover>
             <PopoverTrigger asChild>
               <span className="relative inline-block overflow-visible">
@@ -1976,24 +1992,6 @@ export function LiveTablePageClient() {
             </PopoverContent>
           </Popover>
 
-          {/* View toggle: card grid ↔ floor layout */}
-          <Button
-            variant="ghost"
-            size="icon"
-            title={
-              viewMode === "grid"
-                ? "Switch to floor layout"
-                : "Switch to card grid"
-            }
-            className="h-8 w-8 rounded-full cursor-pointer"
-            onClick={toggleView}
-          >
-            {viewMode === "grid" ? (
-              <MapPin className="h-4 w-4" />
-            ) : (
-              <LayoutGrid className="h-4 w-4" />
-            )}
-          </Button>
           <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/60">
             <RefreshCw className="h-3 w-3" />
             <span>WS</span>

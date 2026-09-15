@@ -140,7 +140,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
     {
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: 5000,
     }
   );
 
@@ -234,6 +234,7 @@ export function useLiveTableData({ outletId, floorPlanId, outletName, now: nowPr
     liveTableInfos,
     layoutObjects,
     tableObjects,
+    orders,
     isLoading,
   };
 }

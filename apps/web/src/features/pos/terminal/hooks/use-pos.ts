@@ -13,6 +13,7 @@ import type {
   VoidOrderRequest,
   AddOrderItemRequest,
   UpdateOrderItemRequest,
+  SyncOrderItemsRequest,
   AssignTableRequest,
   POSOrderListParams,
   ProcessPaymentRequest,
@@ -138,7 +139,23 @@ export function useCreateOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateOrderRequest) => posOrderService.create(data),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      qc.setQueriesData<POSOrderListCache>(
+        { queryKey: [...posKeys.orders(), "list"] },
+        (current) => {
+          if (!current?.data) return { data: [result.data] };
+          const exists = current.data.some((order) => order.id === result.data.id);
+          return {
+            ...current,
+            data: exists
+              ? current.data.map((order) =>
+                  order.id === result.data.id ? { ...order, ...result.data } : order,
+                )
+              : [result.data, ...current.data],
+          };
+        },
+      );
+      qc.setQueryData(posKeys.order(result.data.id), result);
       qc.invalidateQueries({ queryKey: posKeys.orders() });
     },
   });
@@ -246,6 +263,36 @@ export function useRemoveOrderItem() {
   });
 }
 
+export function useSyncOrderItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      data,
+    }: {
+      orderId: string;
+      data: SyncOrderItemsRequest;
+    }) => posOrderService.syncItems(orderId, data),
+    onSuccess: (result) => {
+      qc.setQueryData(posKeys.order(result.data.id), result);
+      qc.setQueriesData<POSOrderListCache>(
+        { queryKey: [...posKeys.orders(), "list"] },
+        (current) => {
+          if (!current?.data?.length) return current;
+          return {
+            ...current,
+            data: current.data.map((order) =>
+              order.id === result.data.id ? { ...order, ...result.data } : order,
+            ),
+          };
+        },
+      );
+      qc.invalidateQueries({ queryKey: posKeys.order(result.data.id) });
+      qc.invalidateQueries({ queryKey: posKeys.orders() });
+    },
+  });
+}
+
 export function useAssignTable(options?: POSMutationOptions) {
   const qc = useQueryClient();
   const invalidateOnSuccess = options?.invalidateOnSuccess !== false;
@@ -265,14 +312,18 @@ export function useAssignTable(options?: POSMutationOptions) {
         { queryKey: posKeys.orders() },
         (current) => {
           if (!current?.data?.length) return current;
+          const targetTableId = data.table_id ? data.table_id : null;
+          const targetTableLabel = data.table_id
+            ? (data.table_label ?? orderId)
+            : null;
           return {
             ...current,
             data: current.data.map((order) =>
               order.id === orderId
                 ? {
                     ...order,
-                    table_id: data.table_id,
-                    table_label: data.table_label ?? order.table_label,
+                    table_id: targetTableId,
+                    table_label: targetTableLabel,
                   }
                 : order,
             ),

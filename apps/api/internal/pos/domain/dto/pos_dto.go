@@ -38,16 +38,29 @@ type POSSessionResponse struct {
 
 // ─── Order DTOs ──────────────────────────────────────────────────────────────
 
+// OrderItemInput represents an item line for bulk create or sync operations
+type OrderItemInput struct {
+	ProductID string  `json:"product_id" binding:"required,uuid"`
+	Quantity  float64 `json:"quantity" binding:"required,gt=0"`
+	Notes     *string `json:"notes"`
+}
+
+// SyncOrderItemsRequest synchronizes the entire item list of an order in one atomic batch
+type SyncOrderItemsRequest struct {
+	Items []OrderItemInput `json:"items" binding:"dive"`
+}
+
 // CreateOrderRequest creates a new POS order
 type CreateOrderRequest struct {
-	OutletID     string  `json:"outlet_id" binding:"required,uuid"`
-	OrderType    string  `json:"order_type" binding:"required"`
-	TableID      *string `json:"table_id"`
-	TableLabel   *string `json:"table_label"`
-	CustomerID   *string `json:"customer_id"`
-	CustomerName *string `json:"customer_name"`
-	GuestCount   int     `json:"guest_count"`
-	Notes        *string `json:"notes"`
+	OutletID     string           `json:"outlet_id" binding:"required,uuid"`
+	OrderType    string           `json:"order_type" binding:"required"`
+	TableID      *string          `json:"table_id"`
+	TableLabel   *string          `json:"table_label"`
+	CustomerID   *string          `json:"customer_id"`
+	CustomerName *string          `json:"customer_name"`
+	GuestCount   int              `json:"guest_count" binding:"omitempty,min=1"`
+	Notes        *string          `json:"notes"`
+	Items        []OrderItemInput `json:"items" binding:"omitempty,dive"`
 }
 
 // ConfirmOrderRequest locks the order for checkout (validates stock first)
@@ -60,9 +73,9 @@ type VoidOrderRequest struct {
 	Reason string `json:"reason" binding:"required"`
 }
 
-// AssignTableRequest assigns or re-assigns a table to an order
+// AssignTableRequest assigns, re-assigns, or unassigns (if TableID is empty) a table
 type AssignTableRequest struct {
-	TableID    string `json:"table_id" binding:"required,max=50"`
+	TableID    string `json:"table_id" binding:"max=50"`
 	TableLabel string `json:"table_label" binding:"max=50"`
 }
 

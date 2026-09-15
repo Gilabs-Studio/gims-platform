@@ -56,6 +56,7 @@ type POSOrderUsecase interface {
 	ConfirmWaitingPayment(ctx context.Context, id string, userID string) (*dto.POSOrderResponse, error)
 	Void(ctx context.Context, id string, req *dto.VoidOrderRequest, userID string) (*dto.POSOrderResponse, error)
 	AddItem(ctx context.Context, orderID string, req *dto.AddOrderItemRequest) (*dto.POSOrderResponse, error)
+	SyncItems(ctx context.Context, orderID string, req *dto.SyncOrderItemsRequest) (*dto.POSOrderResponse, error)
 	UpdateItem(ctx context.Context, orderID, itemID string, req *dto.UpdateOrderItemRequest) (*dto.POSOrderResponse, error)
 	RemoveItem(ctx context.Context, orderID, itemID string) (*dto.POSOrderResponse, error)
 	GetCatalog(ctx context.Context, outletID string) ([]dto.POSCatalogItem, error)
@@ -141,23 +142,25 @@ func (u *posOrderUsecase) Create(ctx context.Context, req *dto.CreateOrderReques
 	err = u.db.Transaction(func(tx *gorm.DB) error {
 		txCtx := coreDatabase.WithTx(ctx, tx)
 
-		lockKey := buildPOSTableOrderLockKey(req.OutletID, req.TableID, req.TableLabel)
-		if lockKey != "" {
-			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
-				return fmt.Errorf("failed to acquire pos table lock: %w", err)
+		if tx.Dialector.Name() == "postgres" {
+			lockKey := buildPOSTableOrderLockKey(req.OutletID, req.TableID, req.TableLabel)
+			if lockKey != "" {
+				if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", lockKey).Error; err != nil {
+					return fmt.Errorf("failed to acquire pos table lock: %w", err)
+				}
 			}
-		}
 
-		// Always hold a per-tenant order-number sequencing lock so that concurrent
-		// requests (e.g. simultaneous Save Draft calls across different outlets)
-		// cannot race on the same order number sequence and hit the unique index.
-		tenantID := strings.TrimSpace(scopeString(txCtx, "tenant_id"))
-		if tenantID == "" {
-			tenantID = "global"
-		}
-		seqLockKey := fmt.Sprintf("pos:order-number:%s", tenantID)
-		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", seqLockKey).Error; err != nil {
-			return fmt.Errorf("failed to acquire order-number seq lock: %w", err)
+			// Always hold a per-tenant order-number sequencing lock so that concurrent
+			// requests (e.g. simultaneous Save Draft calls across different outlets)
+			// cannot race on the same order number sequence and hit the unique index.
+			tenantID := strings.TrimSpace(scopeString(txCtx, "tenant_id"))
+			if tenantID == "" {
+				tenantID = "global"
+			}
+			seqLockKey := fmt.Sprintf("pos:order-number:%s", tenantID)
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", seqLockKey).Error; err != nil {
+				return fmt.Errorf("failed to acquire order-number seq lock: %w", err)
+			}
 		}
 
 		existing, findErr := u.findReusableTableOrder(txCtx, req)
@@ -201,6 +204,51 @@ func (u *posOrderUsecase) Create(ctx context.Context, req *dto.CreateOrderReques
 			return err
 		}
 
+		if len(req.Items) > 0 {
+			productIDs := make([]string, 0, len(req.Items))
+			for _, it := range req.Items {
+				productIDs = append(productIDs, it.ProductID)
+			}
+			products, prodErr := u.productRepo.FindByIDs(txCtx, productIDs)
+			if prodErr != nil {
+				return prodErr
+			}
+			prodMap := make(map[string]*productModels.Product, len(products))
+			for i := range products {
+				prodMap[products[i].ID] = &products[i]
+			}
+
+			itemsToInsert := make([]posModels.PosOrderItem, 0, len(req.Items))
+			for _, it := range req.Items {
+				if it.Quantity <= 0 {
+					return errors.New("item quantity must be greater than zero")
+				}
+				p, ok := prodMap[it.ProductID]
+				if !ok {
+					return ErrPOSProductNotAvailable
+				}
+				item := posModels.PosOrderItem{
+					PosOrderID:  order.ID,
+					ProductID:   it.ProductID,
+					ProductName: p.Name,
+					ProductCode: p.Code,
+					Quantity:    it.Quantity,
+					UnitPrice:   p.SellingPrice,
+					Subtotal:    p.SellingPrice * it.Quantity,
+					Notes:       it.Notes,
+					Status:      posModels.PosItemStatusPending,
+				}
+				itemsToInsert = append(itemsToInsert, item)
+			}
+			if err := u.orderRepo.AddItems(txCtx, itemsToInsert); err != nil {
+				return err
+			}
+			order.Items = itemsToInsert
+			if err := u.recalculateAndSaveInMemory(txCtx, order, itemsToInsert); err != nil {
+				return err
+			}
+		}
+
 		result = mapper.ToPOSOrderResponse(order)
 		return nil
 	})
@@ -208,8 +256,8 @@ func (u *posOrderUsecase) Create(ctx context.Context, req *dto.CreateOrderReques
 		return nil, err
 	}
 
+	u.publishOrderStatus(ctx, result, "")
 	return result, nil
-
 }
 
 func (u *posOrderUsecase) findReusableTableOrder(ctx context.Context, req *dto.CreateOrderRequest) (*posModels.PosOrder, error) {
@@ -570,9 +618,143 @@ func (u *posOrderUsecase) AssignTable(ctx context.Context, orderID string, req *
 		return nil, ErrPOSOrderCannotModify
 	}
 
-	order.TableID = &req.TableID
-	order.TableLabel = &req.TableLabel
+	tableID := strings.TrimSpace(req.TableID)
+	tableLabel := strings.TrimSpace(req.TableLabel)
+	if tableID == "" {
+		order.TableID = nil
+		order.TableLabel = nil
+	} else {
+		order.TableID = &tableID
+		if tableLabel != "" {
+			order.TableLabel = &tableLabel
+		} else {
+			order.TableLabel = nil
+		}
+	}
 	if err := u.orderRepo.Update(ctx, order); err != nil {
+		return nil, err
+	}
+
+	resp := mapper.ToPOSOrderResponse(order)
+	u.publishOrderStatus(ctx, resp, "")
+	return resp, nil
+}
+
+// ─── SyncItems ───────────────────────────────────────────────────────────────
+
+func (u *posOrderUsecase) SyncItems(ctx context.Context, orderID string, req *dto.SyncOrderItemsRequest) (*dto.POSOrderResponse, error) {
+	order, err := u.orderRepo.GetByID(ctx, orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPOSOrderNotFound
+		}
+		return nil, err
+	}
+	if isTerminalStatus(order.Status) {
+		return nil, ErrPOSOrderCannotModify
+	}
+
+	err = u.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txCtx := coreDatabase.WithTx(ctx, tx)
+
+		// 1. If empty items requested, delete existing items and reset order totals
+		if len(req.Items) == 0 {
+			if len(order.Items) > 0 {
+				itemIDs := make([]string, 0, len(order.Items))
+				for _, it := range order.Items {
+					itemIDs = append(itemIDs, it.ID)
+				}
+				if err := u.orderRepo.DeleteItemsByIDs(txCtx, itemIDs); err != nil {
+					return err
+				}
+			}
+			order.Items = []posModels.PosOrderItem{}
+			return u.recalculateAndSaveInMemory(txCtx, order, order.Items)
+		}
+
+		// 2. Fetch all requested products in one batch query
+		productIDs := make([]string, 0, len(req.Items))
+		for _, it := range req.Items {
+			productIDs = append(productIDs, it.ProductID)
+		}
+		products, prodErr := u.productRepo.FindByIDs(txCtx, productIDs)
+		if prodErr != nil {
+			return prodErr
+		}
+		prodMap := make(map[string]*productModels.Product, len(products))
+		for i := range products {
+			prodMap[products[i].ID] = &products[i]
+		}
+
+		// 3. Map existing items by ProductID
+		existingMap := make(map[string]*posModels.PosOrderItem, len(order.Items))
+		for i := range order.Items {
+			existingMap[order.Items[i].ProductID] = &order.Items[i]
+		}
+
+		// 4. Reconcile: identify items to delete, update, or insert
+		desiredMap := make(map[string]dto.OrderItemInput, len(req.Items))
+		var itemsToInsert []posModels.PosOrderItem
+		var updatedItems []posModels.PosOrderItem
+
+		for _, it := range req.Items {
+			if it.Quantity <= 0 {
+				return errors.New("item quantity must be greater than zero")
+			}
+			p, ok := prodMap[it.ProductID]
+			if !ok {
+				return ErrPOSProductNotAvailable
+			}
+			desiredMap[it.ProductID] = it
+
+			if existing, found := existingMap[it.ProductID]; found {
+				existing.Quantity = it.Quantity
+				existing.UnitPrice = p.SellingPrice
+				existing.Subtotal = p.SellingPrice * it.Quantity
+				existing.Notes = it.Notes
+				if err := u.orderRepo.UpdateItem(txCtx, existing); err != nil {
+					return err
+				}
+				updatedItems = append(updatedItems, *existing)
+			} else {
+				newItem := posModels.PosOrderItem{
+					PosOrderID:  orderID,
+					ProductID:   it.ProductID,
+					ProductName: p.Name,
+					ProductCode: p.Code,
+					Quantity:    it.Quantity,
+					UnitPrice:   p.SellingPrice,
+					Subtotal:    p.SellingPrice * it.Quantity,
+					Notes:       it.Notes,
+					Status:      posModels.PosItemStatusPending,
+				}
+				itemsToInsert = append(itemsToInsert, newItem)
+			}
+		}
+
+		var deleteIDs []string
+		for _, existing := range order.Items {
+			if _, desired := desiredMap[existing.ProductID]; !desired {
+				deleteIDs = append(deleteIDs, existing.ID)
+			}
+		}
+		if len(deleteIDs) > 0 {
+			if err := u.orderRepo.DeleteItemsByIDs(txCtx, deleteIDs); err != nil {
+				return err
+			}
+		}
+
+		if len(itemsToInsert) > 0 {
+			if err := u.orderRepo.AddItems(txCtx, itemsToInsert); err != nil {
+				return err
+			}
+		}
+
+		finalItems := append(updatedItems, itemsToInsert...)
+		order.Items = finalItems
+		return u.recalculateAndSaveInMemory(txCtx, order, finalItems)
+	})
+	if err != nil {
 		return nil, err
 	}
 

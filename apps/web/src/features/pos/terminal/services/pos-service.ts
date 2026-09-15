@@ -7,6 +7,7 @@ import type {
   VoidOrderRequest,
   AddOrderItemRequest,
   UpdateOrderItemRequest,
+  SyncOrderItemsRequest,
   AssignTableRequest,
   POSOrderListParams,
   POSCatalogItem,
@@ -92,6 +93,12 @@ export const posOrderService = {
   addItem(orderId: string, data: AddOrderItemRequest) {
     return apiClient
       .post<ApiResponse<POSOrder>>(`${BASE}/orders/${orderId}/items`, data)
+      .then((r) => r.data);
+  },
+
+  syncItems(orderId: string, data: SyncOrderItemsRequest) {
+    return apiClient
+      .put<ApiResponse<POSOrder>>(`${BASE}/orders/${orderId}/items/sync`, data)
       .then((r) => r.data);
   },
 

@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Store,
-  LayoutPanelTop,
   ArrowLeft,
   ShieldOff,
   MapPin,
@@ -278,36 +277,34 @@ export function POSTerminalPageClient() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            {isLiveTableMode && (
+            {isLiveTableMode ? (
               <Button
                 variant="ghost"
                 size="sm"
-                className="cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground"
+                className="cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground font-medium"
                 onClick={() => {
                   const query = new URLSearchParams();
                   query.set("outlet_id", selectedOutlet.id);
                   router.push(`/pos/fb/live-table?${query.toString()}`);
                 }}
               >
-                <LayoutPanelTop className="h-4 w-4" />
-                Change Table
+                <ArrowLeft className="h-4 w-4" />
+                {t("liveTable.messages.goBack")}
               </Button>
-            )}
-
-            {outletsWithMode.length > 1 && (
+            ) : outletsWithMode.length > 1 ? (
               <Button
                 variant="ghost"
                 size="sm"
-                className="cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground"
+                className="cursor-pointer gap-1.5 text-muted-foreground hover:text-foreground font-medium"
                 onClick={() => {
                   setSelectedOutletId(null);
                   router.push("/pos/fb/terminal");
                 }}
               >
                 <ArrowLeft className="h-4 w-4" />
-                Change Outlet
+                {t("changeOutlet")}
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
       )}

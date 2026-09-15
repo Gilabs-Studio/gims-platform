@@ -3,6 +3,7 @@ export const posTerminalEn = {
     title: "POS Terminal",
     subtitle: "Point of Sale — serve customers and process orders",
     addOutlet: "Add Outlet",
+    changeOutlet: "Change Outlet",
     session: {
       open: "Open Session",
       close: "Close Session",
@@ -117,6 +118,10 @@ export const posTerminalEn = {
     },
     liveTable: {
       title: "Live Table Management",
+      views: {
+        grid: "Table Grid",
+        floor: "Floor Plan",
+      },
       activeTablesTitle: "Active Tables",
       activeTablesDesc:
         "{count} table{count, plural, =1 { is} other {s}} occupied",

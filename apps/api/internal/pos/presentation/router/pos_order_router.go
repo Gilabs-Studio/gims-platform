@@ -32,6 +32,7 @@ func RegisterPOSOrderRoutes(rg *gin.RouterGroup, h *handler.POSOrderHandler, rec
 
 	// Order item management
 	orders.POST("/:id/items", middleware.IdempotentRequest(), h.AddItem)
+	orders.PUT("/:id/items/sync", h.SyncItems)
 	orders.PUT("/:id/items/:itemID", h.UpdateItem)
 	orders.DELETE("/:id/items/:itemID", h.RemoveItem)
 	// Per-item serve — place before the generic item routes to avoid routing ambiguity

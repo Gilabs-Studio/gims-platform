@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { X, ReceiptText, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,14 +17,14 @@ import { useTranslations } from "next-intl";
 import {
   useCreateOrder,
   usePOSOrder,
-  useAddOrderItem,
-  useRemoveOrderItem,
   useVoidOrder,
   usePOSConfig,
-  useUpdateOrderItem,
   useDeleteOrder,
   usePOSOrderList,
   usePOSCatalog,
+  useSyncOrderItems,
+  useAssignTable,
+  posKeys,
 } from "../hooks/use-pos";
 import { usePOSUIStore } from "../../stores/use-pos-ui-store";
 import { POSCatalogGrid } from "./pos-catalog-grid";
@@ -36,6 +37,8 @@ import { usePosWs } from "../../fb/live-table/hooks/use-pos-ws";
 import type { CartItem, POSCatalogItem, PosOrderStatus, POSOrder } from "../types";
 import type { LoyaltyMember, LoyaltyMemberLookup, RewardConfig } from "@/features/loyalty/types";
 import type { AxiosError } from "axios";
+
+type POSOrderListCache = { data?: POSOrder[] };
 
 /** Extract a human-readable message from an Axios API error or generic Error. */
 function extractApiError(err: unknown, fallback: string): { title: string; description?: string } {
@@ -115,9 +118,8 @@ export function POSTerminalContainer({
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [preparedOrder, setPreparedOrder] = useState<POSOrder | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const orderCreationInFlight = useRef(false);
-  const retryAfterRef = useRef(0);
 
   // Loyalty state — reset on each new transaction
   const [loyaltyLookup, setLoyaltyLookup] = useState<LoyaltyMemberLookup | undefined>();
@@ -225,11 +227,11 @@ export function POSTerminalContainer({
     [t, catalogItems]
   );
 
+  const qc = useQueryClient();
   const createOrder = useCreateOrder();
-  const addItem = useAddOrderItem();
-  const removeItem = useRemoveOrderItem();
+  const syncItems = useSyncOrderItems();
+  const assignTable = useAssignTable();
   const voidOrder = useVoidOrder();
-  const updateItem = useUpdateOrderItem();
   const deleteOrder = useDeleteOrder();
 
   const handleDeleteDraft = useCallback(
@@ -278,12 +280,14 @@ export function POSTerminalContainer({
   const handleOrderCompleted = useCallback(
     (customerName?: string, customerPhone?: string, tenderAmount?: number) => {
       // Snapshot the order for the receipt before resetting state.
-      if (activeOrder) {
-        setReceiptOrder(activeOrder);
+      const snapshotOrder = preparedOrder || activeOrder;
+      if (snapshotOrder) {
+        setReceiptOrder(snapshotOrder);
         setReceiptCustomerName(customerName);
         setReceiptCustomerPhone(customerPhone);
         setReceiptTender(tenderAmount);
       }
+      setPreparedOrder(null);
       setCart([]);
       setActiveOrderId(null);
       setPaymentOpen(false);
@@ -298,7 +302,7 @@ export function POSTerminalContainer({
         refetchDrafts();
       }
     },
-    [activeOrder, hasFloorLayout, refetchDrafts],
+    [activeOrder, preparedOrder, hasFloorLayout, refetchDrafts],
   );
 
   // If payment fails, auto-void the created order so no orphan draft remains.
@@ -312,43 +316,11 @@ export function POSTerminalContainer({
     } catch {
       // Ignore void errors; the draft order will expire or be cleaned up manually.
     } finally {
+      setPreparedOrder(null);
       setPaymentOpen(false);
       setActiveOrderId(null);
     }
   }, [activeOrderId, voidOrder]);
-
-  // Order creation is intentionally deferred until the cashier clicks "Pay".
-  // This prevents ghost orders on the Live Table when a table is merely opened and items are browsed
-  // without completing a transaction. All cart operations remain local until handleCheckout is called.
-
-  async function ensureOrder(): Promise<string | null> {
-    if (activeOrderId && !isTerminalStatus) return activeOrderId;
-    if (orderCreationInFlight.current || Date.now() < retryAfterRef.current) {
-      return null;
-    }
-
-    // Create new draft order
-    orderCreationInFlight.current = true;
-    try {
-      const result = await createOrder.mutateAsync({
-        outlet_id: outletId,
-        order_type: "DINE_IN",
-        table_id: linkedTable?.id,
-        table_label: linkedTable?.label,
-        guest_count: 1,
-      });
-      const newOrderId = (result as { data: { id: string } }).data.id;
-      setActiveOrderId(newOrderId);
-      retryAfterRef.current = 0;
-      return newOrderId;
-    } catch {
-      retryAfterRef.current = Date.now() + 5000;
-      toast.error("Unable to create order right now.", { description: "Please retry in a moment." });
-      return null;
-    } finally {
-      orderCreationInFlight.current = false;
-    }
-  }
 
   // Compute a map of product_id → total cart qty so the catalog can show live stock
   const cartQuantities = useMemo<Record<string, number>>(() => {
@@ -359,8 +331,8 @@ export function POSTerminalContainer({
   }, [cart]);
 
   function handleAddItem(item: POSCatalogItem) {
-    // Update local cart state only. If an order already exists (from a prior checkout
-    // attempt), also sync the delta immediately so the backend stays in sync.
+    // Pure local UI update only — zero API calls on clicks to prevent backend waterfall/traffic spikes
+    setPreparedOrder(null);
     setCart((prev) => {
       const existing = prev.find((c) => c.product_id === item.product_id);
       if (existing) {
@@ -384,35 +356,6 @@ export function POSTerminalContainer({
         },
       ];
     });
-
-    if (activeOrderId && !isTerminalStatus) {
-      addItem.mutate({ orderId: activeOrderId, data: { product_id: item.product_id, quantity: 1 } });
-    }
-  }
-
-  async function syncCartToBackend(orderId: string, currentCart: CartItem[], backendItems: POSOrder["items"]) {
-    // 1. Remove backend items not in cart
-    for (const bItem of backendItems) {
-      if (!currentCart.some((c) => c.product_id === bItem.product_id)) {
-        await removeItem.mutateAsync({ orderId, itemId: bItem.id });
-      }
-    }
-    // 2. Add or update items from cart
-    for (const cItem of currentCart) {
-      const bItem = backendItems.find((b) => b.product_id === cItem.product_id);
-      if (!bItem) {
-        await addItem.mutateAsync({
-          orderId,
-          data: { product_id: cItem.product_id, quantity: cItem.quantity },
-        });
-      } else if (bItem.quantity !== cItem.quantity) {
-        await updateItem.mutateAsync({
-          orderId,
-          itemId: bItem.id,
-          data: { quantity: cItem.quantity },
-        });
-      }
-    }
   }
 
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -420,39 +363,81 @@ export function POSTerminalContainer({
   async function handleSaveDraft() {
     if (cart.length === 0) return;
     setIsSavingDraft(true);
+    setPreparedOrder(null);
     try {
-      // Always create a new draft order at the outlet level (no table)
-      const result = await createOrder.mutateAsync({
-        outlet_id: outletId,
-        order_type: "DINE_IN",
-        guest_count: 1,
-      });
-      const newOrderId = (result as { data: { id: string } }).data.id;
+      const itemsPayload = cart.map((item) => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        notes: item.notes,
+      }));
 
-      // Add all cart items to the new order
-      for (const item of cart) {
-        await addItem.mutateAsync({
-          orderId: newOrderId,
-          data: { product_id: item.product_id, quantity: item.quantity },
-        });
-      }
+      let savedDraft: POSOrder | null = null;
 
-      // If there was an old active order, release it.
-      // DELETE only works on DRAFT orders — for WAITING_PAYMENT / IN_PROGRESS etc we must VOID.
       if (activeOrderId) {
         const currentStatus = activeOrder?.status;
-        try {
-          if (!currentStatus || currentStatus === "DRAFT") {
-            await deleteOrder.mutateAsync(activeOrderId);
-          } else {
+        if (!currentStatus || currentStatus === "DRAFT") {
+          // If already a draft order (even if previously assigned to a table):
+          // 1. Unassign table to free the table and return it to the outlet draft list.
+          await assignTable.mutateAsync({
+            orderId: activeOrderId,
+            data: { table_id: "", table_label: "" },
+          });
+          // 2. Synchronize all cart items in a single atomic batch.
+          const syncRes = await syncItems.mutateAsync({
+            orderId: activeOrderId,
+            data: { items: itemsPayload },
+          });
+          savedDraft = syncRes.data;
+        } else {
+          // If in a non-draft active status, void previous order and create new outlet draft
+          try {
             await voidOrder.mutateAsync({
               id: activeOrderId,
               data: { reason: "Saved as outlet-level draft" },
             });
+          } catch {
+            // Swallow
           }
-        } catch {
-          // Swallow — even if release fails the new draft is already saved
+          const createRes = await createOrder.mutateAsync({
+            outlet_id: outletId,
+            order_type: "DINE_IN",
+            guest_count: 1,
+            items: itemsPayload,
+          });
+          savedDraft = (createRes as { data: POSOrder }).data;
         }
+      } else {
+        // No prior active order: create new draft with items in 1 single request
+        const createRes = await createOrder.mutateAsync({
+          outlet_id: outletId,
+          order_type: "DINE_IN",
+          guest_count: 1,
+          items: itemsPayload,
+        });
+        savedDraft = (createRes as { data: POSOrder }).data;
+      }
+
+      if (savedDraft) {
+        // Directly upsert into list caches with table_id = null so it immediately appears in the drafts drawer
+        const normalizedDraft: POSOrder = {
+          ...savedDraft,
+          table_id: null,
+          table_label: null,
+        };
+        qc.setQueriesData<POSOrderListCache>(
+          { queryKey: [...posKeys.orders(), "list"] },
+          (current) => {
+            if (!current?.data) return { data: [normalizedDraft] };
+            const exists = current.data.some((o) => o.id === normalizedDraft.id);
+            return {
+              ...current,
+              data: exists
+                ? current.data.map((o) => (o.id === normalizedDraft.id ? normalizedDraft : o))
+                : [normalizedDraft, ...current.data],
+            };
+          },
+        );
+        qc.setQueryData(posKeys.order(savedDraft.id), { data: normalizedDraft });
       }
 
       toast.success("Draft saved successfully.");
@@ -460,10 +445,11 @@ export function POSTerminalContainer({
       setActiveOrderId(null);
 
       if (hasFloorLayout) {
-        // Return to Live Table
+        qc.invalidateQueries({ queryKey: posKeys.orders(), refetchType: "none" });
         const destination = returnUrl || `/pos/fb/live-table?outlet_id=${outletId}`;
         router.push(destination);
       } else {
+        await qc.invalidateQueries({ queryKey: posKeys.orders(), refetchType: "active" });
         refetchDrafts();
       }
     } catch (err) {
@@ -475,18 +461,38 @@ export function POSTerminalContainer({
   }
 
   async function handleCheckout() {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || isCheckingOut) return;
     setIsCheckingOut(true);
     try {
-      // Determine or create the active order id.
-      let orderId = (!activeOrderId || isTerminalStatus) ? null : activeOrderId;
-      if (!orderId) {
-        orderId = await ensureOrder();
-        if (!orderId) return;
+      const itemsPayload = cart.map((item) => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        notes: item.notes,
+      }));
+
+      const targetOrderId = (!activeOrderId || isTerminalStatus) ? null : activeOrderId;
+      let orderToPay: POSOrder | null = null;
+
+      if (!targetOrderId) {
+        const createResult = await createOrder.mutateAsync({
+          outlet_id: outletId,
+          order_type: "DINE_IN",
+          table_id: linkedTable?.id,
+          table_label: linkedTable?.label,
+          guest_count: 1,
+          items: itemsPayload,
+        });
+        orderToPay = (createResult as { data: POSOrder }).data;
+        setActiveOrderId(orderToPay.id);
+      } else {
+        const syncResult = await syncItems.mutateAsync({
+          orderId: targetOrderId,
+          data: { items: itemsPayload },
+        });
+        orderToPay = syncResult.data;
       }
 
-      await syncCartToBackend(orderId, cart, activeOrder?.items ?? []);
-
+      setPreparedOrder(orderToPay);
       setPaymentOpen(true);
     } catch (err) {
       const { title, description } = extractApiError(err, "Failed to prepare order.");
@@ -497,6 +503,7 @@ export function POSTerminalContainer({
   }
 
   function handleIncrement(productId: string) {
+    setPreparedOrder(null);
     setCart((prev) =>
       prev.map((c) =>
         c.product_id === productId
@@ -504,14 +511,10 @@ export function POSTerminalContainer({
           : c
       )
     );
-    if (!activeOrderId) return;
-    const cartItem = cart.find((c) => c.product_id === productId);
-    if (cartItem) {
-      addItem.mutate({ orderId: activeOrderId, data: { product_id: productId, quantity: 1 } });
-    }
   }
 
   function handleDecrement(productId: string) {
+    setPreparedOrder(null);
     const item = cart.find((c) => c.product_id === productId);
     if (!item) return;
     if (item.quantity <= 1) {
@@ -525,18 +528,11 @@ export function POSTerminalContainer({
           : c
       )
     );
-    // Backend decrement is handled as a full re-sync at next checkout when no order exists.
-    // When an order already exists, the quantity in the cart is the authoritative source —
-    // we skip a backend call here because there is no "decrement by 1" endpoint.
   }
 
   function handleRemove(productId: string) {
+    setPreparedOrder(null);
     setCart((prev) => prev.filter((c) => c.product_id !== productId));
-    if (!activeOrderId || !activeOrder) return;
-    const orderItem = activeOrder.items.find((i) => i.product_id === productId);
-    if (orderItem) {
-      removeItem.mutate({ orderId: activeOrderId, itemId: orderItem.id });
-    }
   }
 
   const cartItemCount = cart.reduce((sum, i) => sum + i.quantity, 0);
@@ -652,7 +648,7 @@ export function POSTerminalContainer({
             onCheckout={handleCheckout}
             onSaveDraft={handleSaveDraft}
             isSavingDraft={isSavingDraft}
-            isPending={isCheckingOut || createOrder.isPending || addItem.isPending}
+            isPending={isCheckingOut || createOrder.isPending || syncItems.isPending}
           />
         </div>
 
@@ -717,18 +713,23 @@ export function POSTerminalContainer({
                 await handleSaveDraft();
               }}
               isSavingDraft={isSavingDraft}
-              isPending={isCheckingOut || createOrder.isPending || addItem.isPending}
+              isPending={isCheckingOut || createOrder.isPending || syncItems.isPending}
             />
           </div>
         </SheetContent>
       </Sheet>
 
-      {activeOrder && !isTerminalStatus && (
+      {(preparedOrder || (activeOrder && !isTerminalStatus)) && (
         <>
           <POSPaymentModal
             open={paymentOpen}
-            onOpenChange={setPaymentOpen}
-            order={activeOrder}
+            onOpenChange={(open) => {
+              setPaymentOpen(open);
+              if (!open) {
+                setPreparedOrder(null);
+              }
+            }}
+            order={preparedOrder || activeOrder!}
             config={config}
             onSuccess={(cName, cPhone, tender) => handleOrderCompleted(cName, cPhone, tender)}
             onPaymentError={handlePaymentError}
@@ -736,13 +737,15 @@ export function POSTerminalContainer({
             loyaltyRewards={loyaltyRewards}
           />
 
-          <VoidOrderDialog
-            open={voidOpen}
-            onOpenChange={setVoidOpen}
-            orderId={activeOrder.id}
-            orderNumber={activeOrder.order_number}
-            onSuccess={() => handleOrderCompleted()}
-          />
+          {activeOrder && (
+            <VoidOrderDialog
+              open={voidOpen}
+              onOpenChange={setVoidOpen}
+              orderId={activeOrder.id}
+              orderNumber={activeOrder.order_number}
+              onSuccess={() => handleOrderCompleted()}
+            />
+          )}
         </>
       )}
 

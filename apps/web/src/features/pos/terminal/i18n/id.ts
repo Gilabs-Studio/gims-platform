@@ -3,6 +3,7 @@ export const posTerminalId = {
     title: "Terminal POS",
     subtitle: "Point of Sale — layani pelanggan dan proses pesanan",
     addOutlet: "Tambah Outlet",
+    changeOutlet: "Ganti Outlet",
     session: {
       open: "Buka Sesi",
       close: "Tutup Sesi",
@@ -118,6 +119,10 @@ export const posTerminalId = {
     },
     liveTable: {
       title: "Manajemen Live Table",
+      views: {
+        grid: "Tampilan Meja",
+        floor: "Denah Lantai",
+      },
       activeTablesTitle: "Meja Aktif",
       activeTablesDesc: "{count} meja ditempati",
       allTablesAvailable: "Semua meja tersedia",

@@ -1,0 +1,48 @@
+meta {
+  name: Sync POS Order Items
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{base_url}}/api/v1/pos/orders/6f4928ef-019b-48e9-a303-cbef55f31c63/items/sync
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-CSRF-Token: {{csrf_token}}
+}
+
+body:json {
+  {
+    "items": [
+      {
+        "product_id": "c2000001-0000-0000-0000-000000000001",
+        "quantity": 4,
+        "notes": "Dingin"
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const csrfHeader = res.getHeader('X-CSRF-Token');
+  if (csrfHeader) {
+    bru.setEnvVar('csrf_token', csrfHeader);
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+}
+
+docs {
+  Batch synchronize items of a POS order in a single atomic transaction.
+  Replaces HTTP waterfalls with a single bulk reconciliation request.
+  Permission required: `pos.order.update`
+}

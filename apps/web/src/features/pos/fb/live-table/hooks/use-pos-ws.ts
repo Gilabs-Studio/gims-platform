@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { posKeys } from "@/features/pos/terminal/hooks/use-pos";
@@ -182,11 +182,11 @@ export function usePosWs(
   options?: UsePosWsOptions,
 ) {
   const queryClient = useQueryClient();
-  const onEvent = options?.onEvent;
-  const suppressToastEvents = useMemo(
-    () => options?.suppressToastEvents ?? [],
-    [options?.suppressToastEvents],
-  );
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
   const addRealtimeNotification = useNotificationStore(
     (state) => state.addRealtimeNotification,
   );
@@ -233,7 +233,7 @@ export function usePosWs(
         const eventType = msg.event ?? msg.type;
         if (!eventType) return;
         const payload = msg.data ?? msg.payload;
-        onEvent?.(eventType, payload);
+        optionsRef.current?.onEvent?.(eventType, payload);
 
         const realtimeNotification = buildPosRealtimeNotification(
           eventType,
@@ -249,8 +249,9 @@ export function usePosWs(
         if (eventType === "pos.new_customer_order") {
           const tableLabel = payload?.table_label ?? "Meja";
           const toastKey = `${eventType}:${payload?.order_id ?? tableLabel}`;
+          const suppressed = optionsRef.current?.suppressToastEvents ?? [];
           if (
-            !suppressToastEvents.includes(eventType) &&
+            !suppressed.includes(eventType) &&
             shouldShowToast(toastKey)
           ) {
             toast.info(`Pesanan baru dari ${tableLabel}!`, {
@@ -281,11 +282,5 @@ export function usePosWs(
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [
-    addRealtimeNotification,
-    onEvent,
-    outletId,
-    queryClient,
-    suppressToastEvents,
-  ]);
+  }, [addRealtimeNotification, outletId, queryClient]);
 }

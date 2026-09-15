@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus, Trash2, ShoppingCart, Package, UtensilsCrossed } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, Package, UtensilsCrossed, Loader2 } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -266,7 +266,14 @@ export function POSCartPanel({
               onClick={onSaveDraft}
               disabled={isPending || isSavingDraft || items.length === 0}
             >
-              {isSavingDraft ? "Saving…" : "Save Draft"}
+              {isSavingDraft ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save Draft"
+              )}
             </Button>
           )}
           <Button
@@ -275,7 +282,14 @@ export function POSCartPanel({
             onClick={onCheckout}
             disabled={isPending || isSavingDraft || items.length === 0}
           >
-            {isPending ? "Processing…" : `Pay ${formatCurrency(total)}`}
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing…
+              </>
+            ) : (
+              `Pay ${formatCurrency(total)}`
+            )}
           </Button>
         </div>
       </div>

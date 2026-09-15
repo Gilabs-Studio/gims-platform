@@ -165,6 +165,22 @@ func (h *POSOrderHandler) AddItem(c *gin.Context) {
 	response.SuccessResponse(c, order, nil)
 }
 
+// SyncItems synchronizes the entire item list of an order in one atomic batch
+func (h *POSOrderHandler) SyncItems(c *gin.Context) {
+	var req dto.SyncOrderItemsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		coreErrors.HandleValidationError(c, err)
+		return
+	}
+
+	order, err := h.uc.SyncItems(c.Request.Context(), c.Param("id"), &req)
+	if err != nil {
+		handlePOSOrderError(c, err)
+		return
+	}
+	response.SuccessResponse(c, order, nil)
+}
+
 // UpdateItem modifies an existing order item
 func (h *POSOrderHandler) UpdateItem(c *gin.Context) {
 	var req dto.UpdateOrderItemRequest

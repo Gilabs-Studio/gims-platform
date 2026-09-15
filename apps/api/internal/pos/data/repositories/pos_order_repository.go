@@ -41,8 +41,10 @@ type PosOrderRepository interface {
 	ListByParams(ctx context.Context, params POSOrderListParams) ([]models.PosOrder, int64, error)
 	GetNextOrderNumber(ctx context.Context, prefix string) (string, error)
 	AddItem(ctx context.Context, item *models.PosOrderItem) error
+	AddItems(ctx context.Context, items []models.PosOrderItem) error
 	UpdateItem(ctx context.Context, item *models.PosOrderItem) error
 	DeleteItem(ctx context.Context, itemID string) error
+	DeleteItemsByIDs(ctx context.Context, itemIDs []string) error
 	Delete(ctx context.Context, id string) error
 	GetItems(ctx context.Context, orderID string) ([]models.PosOrderItem, error)
 }
@@ -182,12 +184,26 @@ func (r *posOrderRepository) AddItem(ctx context.Context, item *models.PosOrderI
 	return r.getDB(ctx).Create(item).Error
 }
 
+func (r *posOrderRepository) AddItems(ctx context.Context, items []models.PosOrderItem) error {
+	if len(items) == 0 {
+		return nil
+	}
+	return r.getDB(ctx).Create(&items).Error
+}
+
 func (r *posOrderRepository) UpdateItem(ctx context.Context, item *models.PosOrderItem) error {
 	return r.getDB(ctx).Save(item).Error
 }
 
 func (r *posOrderRepository) DeleteItem(ctx context.Context, itemID string) error {
 	return r.getDB(ctx).Delete(&models.PosOrderItem{}, "id = ?", itemID).Error
+}
+
+func (r *posOrderRepository) DeleteItemsByIDs(ctx context.Context, itemIDs []string) error {
+	if len(itemIDs) == 0 {
+		return nil
+	}
+	return r.getDB(ctx).Where("id IN ?", itemIDs).Delete(&models.PosOrderItem{}).Error
 }
 
 func (r *posOrderRepository) Delete(ctx context.Context, id string) error {

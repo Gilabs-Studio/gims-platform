@@ -102,6 +102,16 @@ export interface POSOrder {
   updated_at: string;
 }
 
+export interface OrderItemInput {
+  product_id: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface SyncOrderItemsRequest {
+  items: OrderItemInput[];
+}
+
 export interface CreateOrderRequest {
   outlet_id: string;
   order_type: PosOrderType;
@@ -111,6 +121,7 @@ export interface CreateOrderRequest {
   customer_name?: string;
   guest_count?: number;
   notes?: string;
+  items?: OrderItemInput[];
 }
 
 export interface ConfirmOrderRequest {
@@ -134,7 +145,7 @@ export interface UpdateOrderItemRequest {
 
 export interface AssignTableRequest {
   table_id: string;
-  table_label: string;
+  table_label?: string;
 }
 
 export interface POSOrderListParams {
