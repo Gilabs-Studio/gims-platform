@@ -212,6 +212,67 @@ function alignAttachedDoorsToWalls(objects: LayoutObject[], changedWallIds?: Set
   });
 }
 
+export function getObjectsBoundingBox(objects: LayoutObject[]): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
+} | null {
+  if (objects.length === 0) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const obj of objects) {
+    const cx = obj.x + obj.width / 2;
+    const cy = obj.y + obj.height / 2;
+    if (!obj.rotation || obj.rotation % 360 === 0) {
+      minX = Math.min(minX, obj.x);
+      minY = Math.min(minY, obj.y);
+      maxX = Math.max(maxX, obj.x + obj.width);
+      maxY = Math.max(maxY, obj.y + obj.height);
+    } else {
+      const hw = obj.width / 2;
+      const hh = obj.height / 2;
+      const rad = (obj.rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const corners = [
+        { x: -hw, y: -hh },
+        { x: hw, y: -hh },
+        { x: hw, y: hh },
+        { x: -hw, y: hh },
+      ];
+      for (const c of corners) {
+        const rx = cx + (c.x * cos - c.y * sin);
+        const ry = cy + (c.x * sin + c.y * cos);
+        if (rx < minX) minX = rx;
+        if (rx > maxX) maxX = rx;
+        if (ry < minY) minY = ry;
+        if (ry > maxY) maxY = ry;
+      }
+    }
+  }
+
+  const width = Math.max(20, maxX - minX);
+  const height = Math.max(20, maxY - minY);
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width,
+    height,
+    centerX: minX + width / 2,
+    centerY: minY + height / 2,
+  };
+}
 
 export function useCanvasEditor(floorPlanId: string) {
   const store = useCanvasStore();
@@ -961,13 +1022,56 @@ export function useCanvasEditor(floorPlanId: string) {
     (obj) => obj.id === store.selectedObjectId,
   );
 
-  const resetZoom = useCallback(() => {
-    store.setZoom(1);
-    store.setPanOffset({ x: 0, y: 0 });
-  }, [store]);
+  const fitToView = useCallback(
+    (containerWidth: number, containerHeight: number, padding = 80) => {
+      if (!containerWidth || !containerHeight) return;
+      const objects = store.objects;
+      if (objects.length === 0) {
+        const cw = store.canvasWidth || 1200;
+        const ch = store.canvasHeight || 800;
+        const availW = Math.max(100, containerWidth - padding * 2);
+        const availH = Math.max(100, containerHeight - padding * 2);
+        const zoom = Math.max(0.25, Math.min(1.0, +(Math.min(availW / cw, availH / ch)).toFixed(2)));
+        const panX = Math.round(containerWidth / 2 - (cw / 2) * zoom);
+        const panY = Math.round(containerHeight / 2 - (ch / 2) * zoom);
+        store.setZoom(zoom);
+        store.setPanOffset({ x: panX, y: panY });
+        return;
+      }
+
+      const bounds = getObjectsBoundingBox(objects);
+      if (!bounds) return;
+
+      const availW = Math.max(100, containerWidth - padding * 2);
+      const availH = Math.max(100, containerHeight - padding * 2);
+
+      const scaleX = availW / bounds.width;
+      const scaleY = availH / bounds.height;
+      const targetZoom = Math.max(0.25, Math.min(1.0, +(Math.min(scaleX, scaleY)).toFixed(2)));
+
+      const panX = Math.round(containerWidth / 2 - bounds.centerX * targetZoom);
+      const panY = Math.round(containerHeight / 2 - bounds.centerY * targetZoom);
+
+      store.setZoom(targetZoom);
+      store.setPanOffset({ x: panX, y: panY });
+    },
+    [store],
+  );
+
+  const resetZoom = useCallback(
+    (containerWidth?: number, containerHeight?: number) => {
+      if (containerWidth && containerHeight) {
+        fitToView(containerWidth, containerHeight);
+      } else {
+        fitToView(store.canvasWidth || 1200, store.canvasHeight || 800);
+      }
+    },
+    [fitToView, store.canvasWidth, store.canvasHeight],
+  );
 
   return {
     // State
+    floorPlanId,
     objects: store.objects,
     selectedObjectId: store.selectedObjectId,
     selectedObjectIds: store.selectedObjectIds,
@@ -989,6 +1093,7 @@ export function useCanvasEditor(floorPlanId: string) {
     setActiveTool: store.setActiveTool,
     setZoom: store.setZoom,
     resetZoom,
+    fitToView,
     setPanOffset: store.setPanOffset,
     setSelectedObjectId: store.setSelectedObjectId,
     setSelectedObjectIds: store.setSelectedObjectIds,

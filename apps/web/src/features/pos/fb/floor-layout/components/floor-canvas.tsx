@@ -449,6 +449,36 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
   } | null>(null);
   const suppressNextClick = useRef(false);
   const hasMovedRef = useRef(false);
+  const hasAutoCenteredRef = useRef<string | null>(null);
+
+  const { floorPlanId, objects, fitToView } = editor;
+
+  // Auto-fit and center layout when opening or when objects load
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const checkAndFit = (width: number, height: number) => {
+      if (width > 0 && height > 0 && objects.length > 0) {
+        if (hasAutoCenteredRef.current !== floorPlanId) {
+          hasAutoCenteredRef.current = floorPlanId ?? "loaded";
+          fitToView(width, height);
+        }
+      }
+    };
+
+    checkAndFit(el.clientWidth, el.clientHeight);
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        checkAndFit(width, height);
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [floorPlanId, objects.length, fitToView]);
 
   const screenToCanvas = useCallback(
     (clientX: number, clientY: number) => {
@@ -1384,7 +1414,13 @@ export function FloorCanvas({ editor }: FloorCanvasProps) {
         </button>
         <button
           type="button"
-          onClick={() => editor.resetZoom()}
+          onClick={() => {
+            if (containerRef.current) {
+              editor.fitToView(containerRef.current.clientWidth, containerRef.current.clientHeight);
+            } else {
+              editor.resetZoom();
+            }
+          }}
           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-[11px] font-medium shadow hover:bg-accent transition-colors"
           title="Reset zoom"
         >

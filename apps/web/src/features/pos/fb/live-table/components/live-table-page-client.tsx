@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -760,6 +760,73 @@ interface LiveFloorViewProps {
   onDropDraft: (draftId: string, tableId: string, tableLabel: string) => void;
 }
 
+function getLiveFloorBoundingBox(
+  objects: LayoutObject[],
+  planWidth = 1200,
+  planHeight = 800,
+): { minX: number; minY: number; width: number; height: number; centerX: number; centerY: number } {
+  if (!objects.length) {
+    return {
+      minX: 0,
+      minY: 0,
+      width: planWidth,
+      height: planHeight,
+      centerX: planWidth / 2,
+      centerY: planHeight / 2,
+    };
+  }
+  const PADDING = 48;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const obj of objects) {
+    const cx = obj.x + obj.width / 2;
+    const cy = obj.y + obj.height / 2;
+    if (!obj.rotation || obj.rotation % 360 === 0) {
+      minX = Math.min(minX, obj.x);
+      minY = Math.min(minY, obj.y);
+      maxX = Math.max(maxX, obj.x + (obj.width || 0));
+      maxY = Math.max(maxY, obj.y + (obj.height || 0));
+    } else {
+      const hw = (obj.width || 0) / 2;
+      const hh = (obj.height || 0) / 2;
+      const rad = (obj.rotation * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const corners = [
+        { x: -hw, y: -hh },
+        { x: hw, y: -hh },
+        { x: hw, y: hh },
+        { x: -hw, y: hh },
+      ];
+      for (const c of corners) {
+        const rx = cx + (c.x * cos - c.y * sin);
+        const ry = cy + (c.x * sin + c.y * cos);
+        if (rx < minX) minX = rx;
+        if (rx > maxX) maxX = rx;
+        if (ry < minY) minY = ry;
+        if (ry > maxY) maxY = ry;
+      }
+    }
+  }
+
+  const boxX = minX - PADDING;
+  const boxY = minY - PADDING;
+  const boxW = Math.max(maxX - minX + PADDING * 2, 400);
+  const boxH = Math.max(maxY - minY + PADDING * 2, 300);
+
+  return {
+    minX: boxX,
+    minY: boxY,
+    width: boxW,
+    height: boxH,
+    centerX: boxX + boxW / 2,
+    centerY: boxY + boxH / 2,
+  };
+}
+
 function LiveFloorView({
   planWidth,
   planHeight,
@@ -782,65 +849,126 @@ function LiveFloorView({
     return map;
   }, [infos]);
 
+  const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [fitScale, setFitScale] = useState(1);
   const [hoveredTableId, setHoveredTableId] = useState<string | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+
+  const isInitialFitDone = useRef(false);
+  const lastSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  const boundingBox = useMemo(() => {
+    return getLiveFloorBoundingBox(layoutObjects, planWidth, planHeight);
+  }, [layoutObjects, planWidth, planHeight]);
+
+  const updateAutoFit = useCallback((force = false) => {
+    if (!containerRef.current) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    if (!clientWidth || !clientHeight) return;
+
+    const sizeChanged =
+      Math.abs(clientWidth - lastSizeRef.current.w) > 25 ||
+      Math.abs(clientHeight - lastSizeRef.current.h) > 25;
+
+    lastSizeRef.current = { w: clientWidth, h: clientHeight };
+
+    const pad = 48;
+    const availW = Math.max(100, clientWidth - pad);
+    const availH = Math.max(100, clientHeight - pad);
+
+    const scaleX = availW / boundingBox.width;
+    const scaleY = availH / boundingBox.height;
+    const optimal = Math.max(0.2, Math.min(1.0, +(Math.min(scaleX, scaleY)).toFixed(2)));
+
+    setFitScale(optimal);
+    if (force || !isInitialFitDone.current || sizeChanged) {
+      setScale(optimal);
+      isInitialFitDone.current = true;
+    }
+  }, [boundingBox.width, boundingBox.height]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    updateAutoFit();
+
+    const observer = new ResizeObserver(() => {
+      updateAutoFit();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [updateAutoFit]);
 
   const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setScale((prev) => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.0004)));
+    setScale((prev) => Math.min(3, Math.max(0.2, +(prev - e.deltaY * 0.0008).toFixed(2))));
   }, []);
 
-  const boundingBox = useMemo(() => {
-    if (!layoutObjects.length) {
-      return { minX: 0, minY: 0, width: planWidth, height: planHeight };
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("[data-table]")) {
+      return;
     }
-    const PADDING = 60;
-    let minX = 0;
-    let minY = 0;
-    let maxX = planWidth;
-    let maxY = planHeight;
-
-    for (const obj of layoutObjects) {
-      minX = Math.min(minX, obj.x);
-      minY = Math.min(minY, obj.y);
-      maxX = Math.max(maxX, obj.x + (obj.width || 0));
-      maxY = Math.max(maxY, obj.y + (obj.height || 0));
+    if (e.button === 0 || e.button === 1) {
+      setIsPanning(true);
+      setPanStart({
+        x: e.clientX,
+        y: e.clientY,
+        scrollLeft: containerRef.current?.scrollLeft ?? 0,
+        scrollTop: containerRef.current?.scrollTop ?? 0,
+      });
     }
+  }, []);
 
-    const boxX = minX - PADDING;
-    const boxY = minY - PADDING;
-    const boxW = Math.max(maxX - minX + PADDING * 2, 400);
-    const boxH = Math.max(maxY - minY + PADDING * 2, 300);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isPanning || !containerRef.current) return;
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      containerRef.current.scrollLeft = panStart.scrollLeft - dx;
+      containerRef.current.scrollTop = panStart.scrollTop - dy;
+    },
+    [isPanning, panStart],
+  );
 
-    return {
-      minX: boxX,
-      minY: boxY,
-      width: boxW,
-      height: boxH,
-    };
-  }, [layoutObjects, planWidth, planHeight]);
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false);
+  }, []);
 
   return (
-    <div className="relative flex min-h-full flex-1 items-center justify-center overflow-auto p-4">
+    <div
+      ref={containerRef}
+      className={`relative flex h-full w-full flex-1 items-center justify-center overflow-auto p-4 select-none ${
+        isPanning ? "cursor-grabbing" : scale > fitScale ? "cursor-grab" : "cursor-default"
+      }`}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
       {/* Zoom controls */}
       <div className="absolute right-5 top-5 z-10 flex flex-col gap-1">
         <button
           onClick={() => setScale((s) => Math.min(3, +(s + 0.1).toFixed(2)))}
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent"
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent transition-colors"
           title="Zoom in"
         >
           +
         </button>
         <button
-          onClick={() => setScale(1)}
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-[11px] font-medium shadow hover:bg-accent"
+          onClick={() => updateAutoFit(true)}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-[11px] font-medium shadow hover:bg-accent transition-colors"
           title="Reset zoom"
         >
           {Math.round(scale * 100)}%
         </button>
         <button
-          onClick={() => setScale((s) => Math.max(0.3, +(s - 0.1).toFixed(2)))}
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent"
+          onClick={() => setScale((s) => Math.max(0.2, +(s - 0.1).toFixed(2)))}
+          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border bg-background text-lg leading-none shadow hover:bg-accent transition-colors"
           title="Zoom out"
         >
           &minus;
@@ -848,19 +976,18 @@ function LiveFloorView({
       </div>
 
       <div
-        className="overflow-auto"
-        onWheel={handleWheel}
-        style={{ maxWidth: "100%", maxHeight: "100%" }}
+        className="flex items-center justify-center"
+        style={{
+          width: boundingBox.width * scale,
+          height: boundingBox.height * scale,
+          maxWidth: scale <= fitScale ? "100%" : undefined,
+          maxHeight: scale <= fitScale ? "100%" : undefined,
+          transition: isPanning ? "none" : "width 0.15s ease-out, height 0.15s ease-out",
+        }}
       >
         <svg
           viewBox={`${boundingBox.minX} ${boundingBox.minY} ${boundingBox.width} ${boundingBox.height}`}
-          className="bg-transparent"
-          style={{
-            width: boundingBox.width * scale,
-            height: boundingBox.height * scale,
-            minWidth: 280,
-            transition: "width 0.15s, height 0.15s",
-          }}
+          className="bg-transparent w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
           {layoutObjects.map((obj) => {
@@ -1996,28 +2123,38 @@ export function LiveTablePageClient() {
       {/* ── Main content: table view + sidebar ── */}
       <div className="flex flex-1 overflow-hidden">
         {/* Table grid / floor layout */}
-        <ScrollArea className="flex-1">
-          {liveTableInfos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
-              <p className="text-sm">{t("noTablesInFloorPlan")}</p>
-            </div>
-          ) : viewMode === "grid" ? (
-            <TableGrid
-              infos={liveTableInfos}
-              onTableClick={handleTableClick}
-              onDropDraft={handleDropDraftOnTable}
-            />
-          ) : (
-            <LiveFloorView
-              planWidth={plan.width ?? 1200}
-              planHeight={plan.height ?? 800}
-              layoutObjects={layoutObjects}
-              infos={liveTableInfos}
-              onTableClick={handleTableClick}
-              onDropDraft={handleDropDraftOnTable}
-            />
-          )}
-        </ScrollArea>
+        {viewMode === "grid" ? (
+          <ScrollArea className="flex-1">
+            {liveTableInfos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
+                <p className="text-sm">{t("noTablesInFloorPlan")}</p>
+              </div>
+            ) : (
+              <TableGrid
+                infos={liveTableInfos}
+                onTableClick={handleTableClick}
+                onDropDraft={handleDropDraftOnTable}
+              />
+            )}
+          </ScrollArea>
+        ) : (
+          <div className="flex-1 h-full relative overflow-hidden flex flex-col">
+            {liveTableInfos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground">
+                <p className="text-sm">{t("noTablesInFloorPlan")}</p>
+              </div>
+            ) : (
+              <LiveFloorView
+                planWidth={plan.width ?? 1200}
+                planHeight={plan.height ?? 800}
+                layoutObjects={layoutObjects}
+                infos={liveTableInfos}
+                onTableClick={handleTableClick}
+                onDropDraft={handleDropDraftOnTable}
+              />
+            )}
+          </div>
+        )}
 
         {/* Right sidebar: active table management */}
         <TableSidebar
