@@ -284,7 +284,7 @@ export function SortableWidget({
       ref={setRefs}
       style={style}
       className={[
-        "relative",
+        "relative h-full flex flex-col",
         COL_SPAN_CLASSES[col],
         ROW_SPAN_CLASSES[row],
         isEditMode

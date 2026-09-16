@@ -43,7 +43,6 @@ export function OwnerKpiCard({
   metric,
   formula,
   purpose,
-  icon,
 }: OwnerKpiCardProps) {
   const t = useTranslations("dashboard");
   const statusStyle = STATUS_STYLES[metric.status];
@@ -55,14 +54,7 @@ export function OwnerKpiCard({
     <Card className="h-full">
       <CardHeader className="space-y-1">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {icon && (
-              <span className={`shrink-0 ${statusStyle.text}`}>
-                {icon}
-              </span>
-            )}
-            <CardDescription>{title}</CardDescription>
-          </div>
+          <CardDescription>{title}</CardDescription>
 
           <TooltipProvider delayDuration={200}>
             <Tooltip>

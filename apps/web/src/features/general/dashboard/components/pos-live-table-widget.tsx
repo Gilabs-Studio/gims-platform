@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import { LayoutGrid, Filter, Users, ArrowRight } from "lucide-react";
+import { LayoutGrid, Filter, ArrowRight, Store, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { WidgetConfig, POSOutletItem } from "../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { WidgetAsyncState } from "./widget-async-state";
@@ -15,11 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePosOutletOverview } from "../hooks/use-pos-outlet-overview";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useFloorLayout } from "@/features/pos/fb/floor-layout/hooks/use-floor-layouts";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 
@@ -144,55 +144,105 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
 
   return (
     <WidgetAsyncState isLoading={isLoading} isError={isError} onRetry={refetch}>
-      <Card className="h-full">
-        <CardHeader className="space-y-1 pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <CardDescription className="flex items-center gap-2">
-              <LayoutGrid className="h-4 w-4" />
+      <Card className="flex h-full flex-col">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div>
+            <CardTitle className="text-base font-semibold leading-normal">
               {t("widgets.pos_live_table_overview.title")}
+            </CardTitle>
+            <CardDescription className="mt-1.5 text-xs text-muted-foreground leading-normal">
+              {t("widgets.pos_live_table_overview.description")}
             </CardDescription>
-            {hasOutletFilter && (
-              <Select value={selectedOutletId} onValueChange={setSelectedOutletId}>
-                <SelectTrigger className="h-7 w-40 text-xs cursor-pointer">
-                  <Filter className="mr-1 h-3 w-3" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {canSelectAllOutlets && (
-                    <SelectItem value="all" className="cursor-pointer">{t("widgets.pos_live_table_overview.allOutlets")}</SelectItem>
-                  )}
-                  {visibleOutlets.map((o) => (
-                    <SelectItem key={o.outlet_id} value={o.outlet_id} className="cursor-pointer">
-                      {o.outlet_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
+          {hasOutletFilter && (
+            <Select value={selectedOutletId} onValueChange={setSelectedOutletId}>
+              <SelectTrigger className="h-8 w-40 text-xs cursor-pointer">
+                <Filter className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {canSelectAllOutlets && (
+                  <SelectItem value="all" className="cursor-pointer">{t("widgets.pos_live_table_overview.allOutlets")}</SelectItem>
+                )}
+                {visibleOutlets.map((o) => (
+                  <SelectItem key={o.outlet_id} value={o.outlet_id} className="cursor-pointer">
+                    {o.outlet_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </CardHeader>
 
         <CardContent className="flex h-full flex-col gap-3 pt-0">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{t("widgets.pos_live_table_overview.occupancy")}</span>
-              <span className="font-medium">{occupiedTables}/{totalTables} ({occupancyRate}%)</span>
+          {/* 4 Solid & Minimalist Stat Cards */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-primary text-primary-foreground"
+                style={{ borderRadius: "9999px" }}
+              >
+                <LayoutGrid className="size-3.5" />
+              </div>
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_live_table_overview.occupancy")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {occupiedTables}/{totalTables} ({occupancyRate}%)
+                </p>
+              </div>
             </div>
-            <Progress value={occupancyRate} className="h-2" />
-          </div>
 
-          <div className="grid grid-cols-3 gap-3 text-xs">
-            <div className="rounded-lg border px-3 py-2">
-              <div className="text-muted-foreground">{t("widgets.pos_live_table_overview.served")}</div>
-              <div className="mt-1 text-sm font-semibold">{pos?.served_orders ?? 0}</div>
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-primary text-primary-foreground"
+                style={{ borderRadius: "9999px" }}
+              >
+                <CheckCircle2 className="size-3.5" />
+              </div>
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_live_table_overview.served")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {pos?.served_orders ?? 0}
+                </p>
+              </div>
             </div>
-            <div className="rounded-lg border px-3 py-2">
-              <div className="text-muted-foreground">{t("widgets.pos_live_table_overview.waiting")}</div>
-              <div className="mt-1 text-sm font-semibold">{pos?.waiting_orders ?? 0}</div>
+
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-amber-500 text-white"
+                style={{ borderRadius: "9999px" }}
+              >
+                <Clock className="size-3.5" />
+              </div>
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_live_table_overview.waiting")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {pos?.waiting_orders ?? 0}
+                </p>
+              </div>
             </div>
-            <div className="rounded-lg border px-3 py-2">
-              <div className="text-muted-foreground">{t("widgets.pos_live_table_overview.warnings")}</div>
-              <div className="mt-1 text-sm font-semibold text-warning">{pos?.warning_orders ?? 0}</div>
+
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-rose-500 text-white"
+                style={{ borderRadius: "9999px" }}
+              >
+                <AlertTriangle className="size-3.5" />
+              </div>
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_live_table_overview.warnings")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {pos?.warning_orders ?? 0}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -211,57 +261,74 @@ export function PosLiveTableWidget({ widget }: PosLiveTableWidgetProps) {
               noTableLabels={t("widgets.pos_live_table_overview.noTableLabels")}
             />
           ) : (
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {displayedOutlets.map((outlet) => {
-                  const rate = outlet.tables_total > 0
-                    ? Math.round((outlet.tables_occupied / outlet.tables_total) * 100)
-                    : 0;
-                  return (
-                    <button
-                      type="button"
-                      key={outlet.outlet_id}
-                      className={cn(
-                        "space-y-2 rounded-lg border p-3 text-left transition-all duration-200 cursor-pointer",
-                        "hover:bg-muted/20 hover:border-primary/40 hover:-translate-y-0.5 active:translate-y-0 hover:shadow-xs"
-                      )}
-                      onClick={() => openLiveTable(outlet)}
-                    >
-                      <p className="truncate text-sm font-medium">{outlet.outlet_name}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {outlet.tables_occupied}/{outlet.tables_total}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <LayoutGrid className="h-3 w-3" />
-                          {outlet.served_orders} {t("widgets.pos_live_table_overview.served")}
-                        </span>
-                        <span className={cn(
-                          "font-medium",
-                          rate >= 80 ? "text-warning" : rate >= 50 ? "text-primary" : "text-success",
-                        )}>
-                          {rate}%
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-[11px] text-muted-foreground">
-                        <span>{t("widgets.pos_live_table_overview.waitingShort", { count: outlet.waiting_orders })}</span>
-                        <span>{t("widgets.pos_live_table_overview.warningShort", { count: outlet.warning_orders })}</span>
-                        <span className="text-right">{outlet.order_count} {t("widgets.pos_live_table_overview.ordersShort")}</span>
-                      </div>
-                      <Progress value={rate} className="h-1.5" />
-                    </button>
-                  );
-                })}
-                {filteredOutlets.length === 0 && (
-                  <div className="col-span-full flex items-center justify-center py-6 text-sm text-muted-foreground">
-                    {t("noData")}
+            <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
+              {displayedOutlets.map((outlet) => {
+                const rate = outlet.tables_total > 0
+                  ? Math.round((outlet.tables_occupied / outlet.tables_total) * 100)
+                  : 0;
+                return (
+                  <div
+                    key={outlet.outlet_id}
+                    onClick={() => openLiveTable(outlet)}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border border-border/50 p-2.5 hover:bg-muted/30 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Store className="size-3.5 text-primary shrink-0" />
+                      <span className="truncate text-xs font-medium text-foreground">
+                        {outlet.outlet_name}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <span className="font-mono text-xs text-muted-foreground mr-1">
+                        {outlet.tables_occupied}/{outlet.tables_total}
+                      </span>
+
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
+                      >
+                        <span>▲</span>
+                        <span>{outlet.served_orders} {t("widgets.pos_live_table_overview.served")}</span>
+                        <span>{rate}%</span>
+                      </Badge>
+
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+                      >
+                        <span>▲</span>
+                        <span>{outlet.waiting_orders} {t("widgets.pos_live_table_overview.waiting")}</span>
+                      </Badge>
+
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-600 dark:text-rose-400"
+                      >
+                        <span>▲</span>
+                        <span>{outlet.warning_orders} {t("widgets.pos_live_table_overview.warnings")}</span>
+                      </Badge>
+
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400"
+                      >
+                        <span>▲</span>
+                        <span>{outlet.order_count} {t("widgets.pos_live_table_overview.ordersShort")}</span>
+                      </Badge>
+                    </div>
                   </div>
-                )}
-              </div>
+                );
+              })}
+
+              {filteredOutlets.length === 0 && (
+                <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                  {t("noData")}
+                </div>
+              )}
 
               {hasMore && (
-                <div className="flex justify-center">
+                <div className="flex justify-center pt-1">
                   <Button
                     type="button"
                     size="sm"
@@ -341,12 +408,13 @@ function FocusedLiveTableCard({
         ) : tableNames.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {tableNames.slice(0, 12).map((name) => (
-              <span
+              <Badge
                 key={name}
-                className="rounded border bg-muted/40 px-2 py-0.5 text-xs font-medium text-foreground"
+                variant="secondary"
+                className="px-2 py-0.5 text-xs font-medium"
               >
                 {name}
-              </span>
+              </Badge>
             ))}
           </div>
         ) : (

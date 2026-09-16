@@ -23,7 +23,7 @@ export function CostsCategoryWidget({ data }: CostsCategoryWidgetProps) {
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-4">
         <CardTitle className="text-base font-semibold">
           {t("widgets.costs_by_category.title")}
         </CardTitle>

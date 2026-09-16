@@ -18,11 +18,11 @@ import {
 import type { PeriodChartData } from "../types";
 
 const CHART_COLORS = [
-  "hsl(var(--blue))",
-  "hsl(var(--success))",
-  "hsl(var(--warning))",
-  "hsl(var(--purple))",
-  "hsl(var(--cyan))",
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--chart-4))",
 ];
 
 interface ChartWidgetProps {
@@ -43,15 +43,20 @@ export function ChartWidget({ widgetType, data }: ChartWidgetProps) {
     return point;
   });
 
-  if (chartData.length === 0) {
+  const hasData =
+    chartData.length > 0 &&
+    series.length > 0 &&
+    series.some((s) => s.data && s.data.length > 0 && s.data.some((v) => v !== 0));
+
+  if (!hasData) {
     return (
-      <Card className="h-full">
-        <CardHeader className="pb-2">
+      <Card className="h-full flex flex-col justify-between">
+        <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold">
             {t(`widgets.${widgetType}.title` as Parameters<typeof t>[0])}
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex h-48 items-center justify-center">
+        <CardContent className="flex flex-1 items-center justify-center py-6">
           <p className="text-sm text-muted-foreground">{t("noData")}</p>
         </CardContent>
       </Card>
@@ -62,13 +67,13 @@ export function ChartWidget({ widgetType, data }: ChartWidgetProps) {
   const isBarChart = widgetType === "revenue_vs_costs";
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-2">
+    <Card className="h-full flex flex-col justify-between">
+      <CardHeader className="pb-4">
         <CardTitle className="text-base font-semibold">
           {t(`widgets.${widgetType}.title` as Parameters<typeof t>[0])}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pb-4">
+      <CardContent className="pb-4 flex-1">
         <ResponsiveContainer width="100%" height={260}>
           {isBarChart ? (
             <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>

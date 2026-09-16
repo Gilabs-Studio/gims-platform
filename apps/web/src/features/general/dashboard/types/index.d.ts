@@ -93,7 +93,6 @@ export type WidgetType =
   // --- POS ---
   | "pos_outlet_sales"
   | "pos_live_table_overview"
-  | "pos_cash_control"
   // --- HR ---
   | "hr_attendance_today"
   | "hr_pending_leaves";
@@ -227,6 +226,7 @@ export interface TopProductRow {
   quantity_sold: number;
   revenue: number;
   revenue_formatted: string;
+  image?: string;
 }
 
 /** Delivery status breakdown */

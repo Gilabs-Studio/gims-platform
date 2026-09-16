@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Activity,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -129,12 +128,9 @@ export function OwnerIntelligenceWidget({ data }: OwnerIntelligenceWidgetProps) 
   return (
     <Card className="h-full">
       <CardHeader>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Activity className="h-5 w-5 text-primary" />
-          <CardTitle className="text-base font-semibold text-foreground">
-            {t("ownerKpi.intelligence.title")}
-          </CardTitle>
-        </div>
+        <CardTitle className="text-base font-semibold text-foreground">
+          {t("ownerKpi.intelligence.title")}
+        </CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-4">

@@ -22,15 +22,28 @@ type DashboardUsecase interface {
 }
 
 type dashboardUsecase struct {
-	repo       repositories.DashboardRepository
-	layoutRepo repositories.DashboardLayoutRepository
+	repo           repositories.DashboardRepository
+	layoutRepo     repositories.DashboardLayoutRepository
+	onboardingRepo repositories.OnboardingRepository
 }
 
 const dateLayout = "2006-01-02"
 
 // NewDashboardUsecase creates a new DashboardUsecase.
-func NewDashboardUsecase(repo repositories.DashboardRepository, layoutRepo repositories.DashboardLayoutRepository) DashboardUsecase {
-	return &dashboardUsecase{repo: repo, layoutRepo: layoutRepo}
+func NewDashboardUsecase(
+	repo repositories.DashboardRepository,
+	layoutRepo repositories.DashboardLayoutRepository,
+	onboardingRepo ...repositories.OnboardingRepository,
+) DashboardUsecase {
+	var obRepo repositories.OnboardingRepository
+	if len(onboardingRepo) > 0 {
+		obRepo = onboardingRepo[0]
+	}
+	return &dashboardUsecase{
+		repo:           repo,
+		layoutRepo:     layoutRepo,
+		onboardingRepo: obRepo,
+	}
 }
 
 // formatIDR formats a float64 value as Indonesian Rupiah with compact notation.
@@ -416,12 +429,46 @@ func resolvePOSDateRange(req dto.DashboardRequest) (time.Time, time.Time) {
 		time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, time.UTC)
 }
 
-// GetLayout fetches the saved dashboard layout for a user. Returns nil if no layout has been saved yet.
+const DefaultERPLayoutJSON = `{"widgets":[` +
+	`{"id":"w-1","type":"revenue_bar_chart","title":"","size":"md","colSpan":2,"rowSpan":2,"order":0,"visible":true},` +
+	`{"id":"w-2","type":"total_revenue","title":"","size":"sm","colSpan":1,"rowSpan":1,"order":1,"visible":true},` +
+	`{"id":"w-3","type":"total_orders","title":"","size":"sm","colSpan":1,"rowSpan":1,"order":2,"visible":true},` +
+	`{"id":"w-4","type":"total_customers","title":"","size":"sm","colSpan":1,"rowSpan":1,"order":3,"visible":true},` +
+	`{"id":"w-5","type":"total_products","title":"","size":"sm","colSpan":1,"rowSpan":1,"order":4,"visible":true},` +
+	`{"id":"w-6","type":"best_selling","title":"","size":"md","colSpan":2,"rowSpan":2,"order":5,"visible":true},` +
+	`{"id":"w-7","type":"track_orders","title":"","size":"md","colSpan":2,"rowSpan":2,"order":6,"visible":true}` +
+`]}`
+
+const DefaultFNBLayoutJSON = `{"widgets":[` +
+	`{"id":"w-1","type":"total_revenue","title":"","size":"sm","colSpan":1,"rowSpan":1,"order":0,"visible":true},` +
+	`{"id":"w-2","type":"total_orders","title":"","size":"sm","colSpan":1,"rowSpan":1,"order":1,"visible":true},` +
+	`{"id":"w-3","type":"total_products","title":"","size":"sm","colSpan":1,"rowSpan":1,"order":2,"visible":true},` +
+	`{"id":"w-4","type":"total_customers","title":"","size":"sm","colSpan":1,"rowSpan":1,"order":3,"visible":true},` +
+	`{"id":"w-5","type":"revenue_bar_chart","title":"","size":"md","colSpan":2,"rowSpan":2,"order":4,"visible":true},` +
+	`{"id":"w-6","type":"pos_outlet_sales","title":"","size":"md","colSpan":2,"rowSpan":2,"order":5,"visible":true},` +
+	`{"id":"w-7","type":"pos_live_table_overview","title":"","size":"md","colSpan":2,"rowSpan":2,"order":6,"visible":true},` +
+	`{"id":"w-8","type":"best_selling","title":"","size":"md","colSpan":2,"rowSpan":2,"order":7,"visible":true}` +
+`]}`
+
+func (u *dashboardUsecase) getDefaultLayout(ctx context.Context) string {
+	if u.onboardingRepo != nil {
+		state, err := u.onboardingRepo.Get(ctx)
+		if err == nil && state != nil && state.BusinessType == "fnb" {
+			return DefaultFNBLayoutJSON
+		}
+	}
+	return DefaultERPLayoutJSON
+}
+
+// GetLayout fetches the saved dashboard layout for a user. Returns a default layout if none has been saved yet.
 func (u *dashboardUsecase) GetLayout(ctx context.Context, userID, dashboardType string) (*dto.DashboardLayoutResponse, error) {
 	layoutJSON, err := u.layoutRepo.GetLayout(ctx, userID, dashboardType)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
+			return &dto.DashboardLayoutResponse{
+				DashboardType: dashboardType,
+				LayoutJSON:    u.getDefaultLayout(ctx),
+			}, nil
 		}
 		return nil, err
 	}

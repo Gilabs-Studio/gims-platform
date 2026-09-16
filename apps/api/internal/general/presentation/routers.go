@@ -23,14 +23,14 @@ func RegisterRoutes(r *gin.Engine, api *gin.RouterGroup, db *gorm.DB, jwtManager
 	onboardingRepo := repositories.NewOnboardingRepository(db)
 
 	// Initialize usecases
-	dashboardUC := usecase.NewDashboardUsecase(dashboardRepo, layoutRepo)
+	dashboardUC := usecase.NewDashboardUsecase(dashboardRepo, layoutRepo, onboardingRepo)
 	onboardingUC := usecase.NewOnboardingUsecase(onboardingRepo)
 	onboardingHub := generalWS.DefaultOnboardingHub()
 	onboardingUC = usecase.WithOnboardingPublisher(onboardingUC, onboardingHub)
 
 	// Initialize handlers
 	dashboardHandler := handler.NewDashboardHandler(dashboardUC)
-	onboardingHandler := handler.NewOnboardingHandler(onboardingUC)
+	onboardingHandler := handler.NewOnboardingHandler(onboardingUC, layoutRepo)
 	onboardingWSHandler := handler.NewOnboardingWSHandler(onboardingHub)
 
 	// Create group with auth middleware

@@ -21,7 +21,7 @@ interface DashboardState {
   resizeWidget: (widgetId: string, size: WidgetConfig["size"]) => void;
   resizeWidgetCol: (widgetId: string, colSpan: WidgetColSpan) => void;
   resizeWidgetRow: (widgetId: string, rowSpan: WidgetRowSpan) => void;
-  resetLayout: () => void;
+  resetLayout: (fallbackWidgets?: WidgetConfig[]) => void;
   toggleEditMode: () => void;
   setDateFilter: (filter: Partial<DashboardDateFilter>) => void;
 }
@@ -103,10 +103,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     set({ widgets: updated });
   },
 
-  resetLayout: () => {
+  resetLayout: (fallbackWidgets?: WidgetConfig[]) => {
     const { preEditSnapshot } = get();
-    // Restore to the snapshot taken before entering edit mode, stay in edit mode
-    set({ widgets: preEditSnapshot ?? DEFAULT_WIDGETS });
+    // Restore to the snapshot taken before entering edit mode, or fallback to default widgets
+    set({ widgets: preEditSnapshot ?? fallbackWidgets ?? DEFAULT_WIDGETS });
   },
 
   toggleEditMode: () => {

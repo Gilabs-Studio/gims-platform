@@ -9,15 +9,13 @@ import type { WidgetConfig } from "../types";
 // ─── Template definitions ────────────────────────────────────────────────────
 
 const ERP_WIDGETS: WidgetConfig[] = [
-  { id: "t-1", type: "total_orders",          title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
+  { id: "t-1", type: "revenue_bar_chart",     title: "", size: "md", colSpan: 2, rowSpan: 2, order: 0, visible: true },
   { id: "t-2", type: "total_revenue",         title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
-  { id: "t-3", type: "total_customers",       title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
-  { id: "t-4", type: "total_products",        title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
-  { id: "t-5", type: "revenue_bar_chart",     title: "", size: "md", colSpan: 2, rowSpan: 2, order: 4, visible: true },
-  { id: "t-6", type: "track_orders",          title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
-  { id: "t-7", type: "track_purchase_orders", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
-  { id: "t-8", type: "pending_approvals_sales",    title: "", size: "md", colSpan: 2, rowSpan: 2, order: 7, visible: true },
-  { id: "t-9", type: "pending_approvals_purchase",  title: "", size: "md", colSpan: 2, rowSpan: 2, order: 8, visible: true },
+  { id: "t-3", type: "total_orders",          title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
+  { id: "t-4", type: "total_customers",       title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
+  { id: "t-5", type: "total_products",        title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 4, visible: true },
+  { id: "t-6", type: "best_selling",          title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
+  { id: "t-7", type: "track_orders",          title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
 ];
 
 const CRM_WIDGETS: WidgetConfig[] = [
@@ -31,12 +29,14 @@ const CRM_WIDGETS: WidgetConfig[] = [
 ];
 
 const POS_WIDGETS: WidgetConfig[] = [
-  { id: "t-1", type: "pos_outlet_sales",         title: "", size: "lg", colSpan: 3, rowSpan: 2, order: 0, visible: true },
-  { id: "t-2", type: "total_revenue",            title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
-  { id: "t-3", type: "total_orders",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
-  { id: "t-4", type: "pos_live_table_overview",  title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 3, visible: true },
-  { id: "t-5", type: "pos_cash_control",         title: "", size: "lg", colSpan: 2, rowSpan: 2, order: 4, visible: true },
-  { id: "t-6", type: "best_selling",             title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
+  { id: "t-1", type: "total_revenue",            title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
+  { id: "t-2", type: "total_orders",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
+  { id: "t-3", type: "total_products",           title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
+  { id: "t-4", type: "total_customers",          title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
+  { id: "t-5", type: "revenue_bar_chart",        title: "", size: "md", colSpan: 2, rowSpan: 2, order: 4, visible: true },
+  { id: "t-6", type: "pos_outlet_sales",         title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
+  { id: "t-7", type: "pos_live_table_overview",  title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
+  { id: "t-8", type: "best_selling",             title: "", size: "md", colSpan: 2, rowSpan: 2, order: 7, visible: true },
 ];
 
 const HR_WIDGETS: WidgetConfig[] = [
@@ -61,7 +61,7 @@ const TEMPLATES: Template[] = [
     descriptionKey: "templatePicker.templates.erp.description",
     icon: ShoppingCart,
     widgets: ERP_WIDGETS,
-    previewBlocks: [{ cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 2 }, { cols: 2 }],
+    previewBlocks: [{ cols: 2 }, { cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 2 }, { cols: 2 }],
   },
   {
     id: "crm",
@@ -77,7 +77,7 @@ const TEMPLATES: Template[] = [
     descriptionKey: "templatePicker.templates.pos.description",
     icon: Store,
     widgets: POS_WIDGETS,
-    previewBlocks: [{ cols: 3 }, { cols: 1 }, { cols: 4 }, { cols: 2 }, { cols: 2 }],
+    previewBlocks: [{ cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 1 }, { cols: 2 }, { cols: 2 }, { cols: 2 }, { cols: 2 }],
   },
   {
     id: "hr",

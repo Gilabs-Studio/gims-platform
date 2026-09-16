@@ -49,7 +49,12 @@ export function collectAccessibleMenuUrls(menus: AccessibleMenuNode[]): Set<stri
   const accessibleMenuUrls = new Set<string>();
 
   const visit = (menu: AccessibleMenuNode): boolean => {
-    const childAccessible = (menu.children ?? []).some(visit);
+    let childAccessible = false;
+    for (const child of menu.children ?? []) {
+      if (visit(child)) {
+        childAccessible = true;
+      }
+    }
     const ownAccessible = (menu.actions ?? []).some((action) => action.access);
     const isAccessible = ownAccessible || childAccessible;
 
@@ -94,19 +99,85 @@ export function isWidgetVisibleByAccessibleMenus(
   return false;
 }
 
-export function buildAccessibleDefaultWidgets(accessibleMenuUrls: Set<string>): WidgetConfig[] {
-  return Object.values(WIDGET_REGISTRY)
-    .filter((entry) => isWidgetVisibleByAccessibleMenus(entry.type, accessibleMenuUrls))
-    .map((entry, index) => ({
+/**
+ * Essential default layout for general ERP users (7 widgets, 4-col grid, zero gaps)
+ * Row 0:     Revenue Bar Chart (2 col) + 4 Core KPIs
+ * Row 1-2:   Best Selling (2 col) + Track Orders (2 col)
+ */
+export const DEFAULT_ERP_WIDGETS: WidgetConfig[] = [
+  { id: "w-1", type: "revenue_bar_chart", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 0, visible: true },
+  { id: "w-2", type: "total_revenue", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
+  { id: "w-3", type: "total_orders", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
+  { id: "w-4", type: "total_customers", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
+  { id: "w-5", type: "total_products", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 4, visible: true },
+  { id: "w-6", type: "best_selling", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
+  { id: "w-7", type: "track_orders", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
+];
+
+/**
+ * Essential default layout for F&B users (8 widgets: 2 POS widgets, best selling, revenue, and 4 metrics)
+ * Row 1:   4 Core KPIs (total_revenue, total_orders, total_products, total_customers)
+ * Row 2-3: Revenue Bar Chart (2x2) + POS Outlet Sales (2x2)
+ * Row 4-5: POS Live Table Overview (2x2) + Best Selling Products (2x2)
+ */
+export const DEFAULT_FNB_WIDGETS: WidgetConfig[] = [
+  { id: "w-1", type: "total_revenue", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 0, visible: true },
+  { id: "w-2", type: "total_orders", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1, visible: true },
+  { id: "w-3", type: "total_products", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2, visible: true },
+  { id: "w-4", type: "total_customers", title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3, visible: true },
+  { id: "w-5", type: "revenue_bar_chart", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 4, visible: true },
+  { id: "w-6", type: "pos_outlet_sales", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 5, visible: true },
+  { id: "w-7", type: "pos_live_table_overview", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 6, visible: true },
+  { id: "w-8", type: "best_selling", title: "", size: "md", colSpan: 2, rowSpan: 2, order: 7, visible: true },
+];
+
+export const DEFAULT_WIDGETS: WidgetConfig[] = DEFAULT_ERP_WIDGETS;
+
+export function buildAccessibleDefaultWidgets(
+  accessibleMenuUrls: Set<string>,
+  businessType?: string,
+): WidgetConfig[] {
+  const baseList = businessType === "fnb" ? DEFAULT_FNB_WIDGETS : DEFAULT_ERP_WIDGETS;
+  const filtered = baseList.filter((item) =>
+    isWidgetVisibleByAccessibleMenus(item.type, accessibleMenuUrls),
+  );
+
+  if (filtered.length > 0) {
+    return filtered.map((item, index) => ({
+      ...item,
       id: `w-${index + 1}`,
-      type: entry.type,
-      title: "",
-      size: entry.defaultSize,
-      colSpan: entry.defaultColSpan,
-      rowSpan: entry.defaultRowSpan,
       order: index,
-      visible: true,
     }));
+  }
+
+  // Fallback if none of the presets match permissions: take visible ones from registry but avoid duplicates
+  const seenTypes = new Set<string>();
+  const fallbackList: WidgetConfig[] = [];
+  const duplicateAliases: Record<string, string> = {
+    stat_summary_revenue: "total_revenue",
+    stat_summary_orders: "total_orders",
+    stat_summary_balance: "balance_overview",
+  };
+
+  for (const entry of Object.values(WIDGET_REGISTRY)) {
+    const canonical = duplicateAliases[entry.type] ?? entry.type;
+    if (seenTypes.has(canonical)) continue;
+    if (isWidgetVisibleByAccessibleMenus(entry.type, accessibleMenuUrls)) {
+      seenTypes.add(canonical);
+      fallbackList.push({
+        id: `w-${fallbackList.length + 1}`,
+        type: entry.type,
+        title: "",
+        size: entry.defaultSize,
+        colSpan: entry.defaultColSpan,
+        rowSpan: entry.defaultRowSpan,
+        order: fallbackList.length,
+        visible: true,
+      });
+    }
+  }
+
+  return fallbackList;
 }
 
 /**
@@ -119,7 +190,6 @@ export function getWidgetMenuUrl(type: WidgetType): string | null {
     // POS widgets → /pos
     pos_outlet_sales: "/pos",
     pos_live_table_overview: "/pos",
-    pos_cash_control: "/pos",
 
     // Sales widgets → /sales
     total_orders: "/sales",
@@ -259,8 +329,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   revenue_chart: {
     type: "revenue_chart",
     category: "finance",
-    defaultSize: "lg",
-    defaultColSpan: 3,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -272,8 +342,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   costs_chart: {
     type: "costs_chart",
     category: "finance",
-    defaultSize: "lg",
-    defaultColSpan: 3,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -285,8 +355,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   revenue_vs_costs: {
     type: "revenue_vs_costs",
     category: "finance",
-    defaultSize: "lg",
-    defaultColSpan: 3,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -333,8 +403,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   recent_invoices: {
     type: "recent_invoices",
     category: "finance",
-    defaultSize: "lg",
-    defaultColSpan: 3,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -346,8 +416,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   sales_performance: {
     type: "sales_performance",
     category: "erp",
-    defaultSize: "lg",
-    defaultColSpan: 3,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -383,8 +453,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   warehouse_overview: {
     type: "warehouse_overview",
     category: "erp",
-    defaultSize: "lg",
-    defaultColSpan: 3,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -397,8 +467,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   revenue_bar_chart: {
     type: "revenue_bar_chart",
     category: "finance",
-    defaultSize: "xl",
-    defaultColSpan: 4,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -777,8 +847,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   pos_outlet_sales: {
     type: "pos_outlet_sales",
     category: "pos",
-    defaultSize: "lg",
-    defaultColSpan: 3,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -790,8 +860,8 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   pos_live_table_overview: {
     type: "pos_live_table_overview",
     category: "pos",
-    defaultSize: "xl",
-    defaultColSpan: 4,
+    defaultSize: "md",
+    defaultColSpan: 2,
     defaultRowSpan: 2,
     minColSpan: 2,
     minRowSpan: 1,
@@ -799,19 +869,6 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
     descriptionKey: "widgets.pos_live_table_overview.description",
     icon: "LayoutGrid",
     permission: "pos.order.create",
-  },
-  pos_cash_control: {
-    type: "pos_cash_control",
-    category: "pos",
-    defaultSize: "lg",
-    defaultColSpan: 2,
-    defaultRowSpan: 2,
-    minColSpan: 2,
-    minRowSpan: 2,
-    titleKey: "widgets.pos_cash_control.title",
-    descriptionKey: "widgets.pos_cash_control.description",
-    icon: "LayoutGrid",
-    permission: "pos.order.read",
   },
 
   // ════════════════════════════════════════════════════════════════════════
@@ -841,47 +898,7 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetRegistryEntry> = {
   },
 };
 
-/**
- * Default layout for new users — Owner KPI Dashboard
- * 
- * Layout structure (4-col grid):
- * Row 0:     Owner Intelligence (full width)
- * Row 1:     Tier 1 KPIs — CCC, DIO, AR Days, AP Days
- * Row 2:     Tier 2 KPIs — ROE, ROA, NPM, GPM
- * Row 3-4:   Revenue chart (3 col) + Cost structure (2 col, side)
- * Row 5:     Tier 3 — Inventory Turnover, Asset Turnover, cost_per_delivery, OTD Rate
- * Row 6-7:   Track Orders + Track Purchase Orders
- */
-export const DEFAULT_WIDGETS: WidgetConfig[] = [
-  // ── Owner Intelligence (full-width hero) ──
-  { id: "w-1",  type: "owner_intelligence",      title: "", size: "xl", colSpan: 4, rowSpan: 2, order: 0,  visible: true },
 
-  // ── Tier 1 KPIs: Cashflow & Inventory (priority) ──
-  { id: "w-2",  type: "kpi_ccc",                 title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 1,  visible: true },
-  { id: "w-3",  type: "kpi_dio",                 title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 2,  visible: true },
-  { id: "w-4",  type: "kpi_ar_days",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 3,  visible: true },
-  { id: "w-5",  type: "kpi_ap_days",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 4,  visible: true },
-
-  // ── Tier 2 KPIs: Profitability & Asset ──
-  { id: "w-6",  type: "kpi_roe",                 title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 5,  visible: true },
-  { id: "w-7",  type: "kpi_net_profit_margin",   title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 6,  visible: true },
-  { id: "w-8",  type: "kpi_gross_profit_margin",  title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 7,  visible: true },
-  { id: "w-9",  type: "kpi_roa",                 title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 8,  visible: true },
-
-  // ── Revenue chart + OPEX/CAPEX ──
-  { id: "w-10", type: "revenue_bar_chart",        title: "", size: "md", colSpan: 2, rowSpan: 2, order: 9,  visible: true },
-  { id: "w-11", type: "kpi_opex_vs_capex",        title: "", size: "md", colSpan: 2, rowSpan: 2, order: 10, visible: true },
-
-  // ── Tier 3: Remaining KPIs ──
-  { id: "w-12", type: "kpi_inventory_turnover",   title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 11, visible: true },
-  { id: "w-13", type: "kpi_asset_turnover",       title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 12, visible: true },
-  { id: "w-14", type: "kpi_otd_rate",             title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 13, visible: true },
-  { id: "w-15", type: "kpi_utilization_rate",     title: "", size: "sm", colSpan: 1, rowSpan: 1, order: 14, visible: true },
-
-  // ── Operational widgets ──
-  { id: "w-16", type: "track_orders",             title: "", size: "md", colSpan: 2, rowSpan: 2, order: 15, visible: true },
-  { id: "w-17", type: "track_purchase_orders",    title: "", size: "md", colSpan: 2, rowSpan: 2, order: 16, visible: true },
-];
 
 /** Widget types grouped by category for the picker UI */
 export function getWidgetsByCategory() {

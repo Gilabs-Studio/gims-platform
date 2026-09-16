@@ -47,6 +47,7 @@ function useOnboardingOptimisticMutation<TVariables>(params: {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(ONBOARDING_KEY, data);
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "layout"] });
     },
   });
 }

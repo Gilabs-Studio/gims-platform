@@ -13,11 +13,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useOnboardingState,
   useSetBusinessType,
   useMarkOnboardingComplete,
 } from "../hooks/use-onboarding";
+import { useDashboardStore } from "../stores/useDashboardStore";
+import { dashboardService } from "../services/dashboard-service";
+import {
+  DEFAULT_ERP_WIDGETS,
+  DEFAULT_FNB_WIDGETS,
+} from "../config/widget-registry";
 import type { OnboardingSteps } from "../services/onboarding-service";
 
 interface ChecklistStep {
@@ -95,6 +102,18 @@ export function OnboardingWizard() {
     useSetBusinessType();
   const { mutate: markComplete, isPending: isCompleting } =
     useMarkOnboardingComplete();
+  const { setWidgets } = useDashboardStore();
+  const queryClient = useQueryClient();
+
+  const handleSelectType = (type: string) => {
+    const targetWidgets = type === "fnb" ? DEFAULT_FNB_WIDGETS : DEFAULT_ERP_WIDGETS;
+    setWidgets(targetWidgets);
+    setBusinessType(type);
+    void dashboardService.saveLayout(targetWidgets).then(() => {
+      queryClient.setQueryData(["dashboard", "layout"], targetWidgets);
+      void queryClient.invalidateQueries({ queryKey: ["dashboard", "layout"] });
+    });
+  };
 
   if (isLoading) {
     return <OnboardingWizardSkeleton />;
@@ -122,7 +141,7 @@ export function OnboardingWizard() {
           <StepChooseType
             t={t}
             isLoading={isSettingType}
-            onSelect={setBusinessType}
+            onSelect={handleSelectType}
           />
         ) : (
           <StepChecklist

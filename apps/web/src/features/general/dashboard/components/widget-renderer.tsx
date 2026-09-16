@@ -73,7 +73,6 @@ import { collectAccessibleMenuUrls, isWidgetVisibleByAccessibleMenus, WIDGET_REG
 import { CrmKpiWidget } from "./crm-kpi-widget";
 import { PosOutletSalesWidget } from "./pos-outlet-sales-widget";
 import { PosLiveTableWidget } from "./pos-live-table-widget";
-import { PosCashControlWidget } from "./pos-cash-control-widget";
 import { HrWidget } from "./hr-widget";
 import { usePermissionScope } from "@/features/master-data/user-management/hooks/use-has-permission";
 import { useUserPermissions } from "@/features/master-data/user-management/hooks/use-user-permissions";
@@ -427,8 +426,6 @@ export function WidgetRenderer({ widget }: WidgetRendererProps) {
       return <PosOutletSalesWidget widget={widget} />;
     case "pos_live_table_overview":
       return <PosLiveTableWidget widget={widget} />;
-    case "pos_cash_control":
-      return <PosCashControlWidget widget={widget} />;
 
     // ---- HR widgets ----
     case "hr_attendance_today":

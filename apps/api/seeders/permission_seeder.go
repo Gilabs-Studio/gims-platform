@@ -736,7 +736,7 @@ func SeedPermissions() error {
 	// No separate dashboard_widget.*.view permissions are created.
 	//
 	// Widget-to-menu mapping (frontend):
-	// - POS widgets (/pos): pos_outlet_sales, pos_live_table_overview, pos_cash_control
+	// - POS widgets (/pos): pos_outlet_sales, pos_live_table_overview
 	// - Sales widgets (/sales/orders): total_orders, sales_performance, track_orders, best_selling, revenue_bar_chart, stat_summary_orders, stat_summary_revenue
 	// - Finance/Journal widgets (/finance/journals/*): costs_chart, revenue_vs_costs, balance_overview, costs_by_category, revenue_chart, kpi_*, stat_summary_balance, stat_summary_expense
 	// - Inventory widgets (/stock/inventory): warehouse_overview, kpi_dio, kpi_inventory_turnover

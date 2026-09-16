@@ -36,7 +36,7 @@ export function RecentInvoicesWidget({ data }: RecentInvoicesWidgetProps) {
   return (
     <>
       <Card className="h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-4">
         <CardTitle className="text-base font-semibold">
           {t("widgets.recent_invoices.title")}
         </CardTitle>

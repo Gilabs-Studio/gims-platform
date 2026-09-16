@@ -9,6 +9,7 @@ import (
 	"github.com/gilabs/gims/api/internal/core/errors"
 	redisInfra "github.com/gilabs/gims/api/internal/core/infrastructure/redis"
 	"github.com/gilabs/gims/api/internal/core/response"
+	"github.com/gilabs/gims/api/internal/general/data/repositories"
 	"github.com/gilabs/gims/api/internal/general/domain/dto"
 	"github.com/gilabs/gims/api/internal/general/domain/usecase"
 	"github.com/gin-gonic/gin"
@@ -17,11 +18,16 @@ import (
 
 // OnboardingHandler handles tenant onboarding state endpoints.
 type OnboardingHandler struct {
-	uc usecase.OnboardingUsecase
+	uc         usecase.OnboardingUsecase
+	layoutRepo repositories.DashboardLayoutRepository
 }
 
-func NewOnboardingHandler(uc usecase.OnboardingUsecase) *OnboardingHandler {
-	return &OnboardingHandler{uc: uc}
+func NewOnboardingHandler(uc usecase.OnboardingUsecase, layoutRepo ...repositories.DashboardLayoutRepository) *OnboardingHandler {
+	var lr repositories.DashboardLayoutRepository
+	if len(layoutRepo) > 0 {
+		lr = layoutRepo[0]
+	}
+	return &OnboardingHandler{uc: uc, layoutRepo: lr}
 }
 
 // GetState returns the current onboarding state for the active tenant.
@@ -97,6 +103,18 @@ func (h *OnboardingHandler) SetBusinessType(c *gin.Context) {
 	if err != nil {
 		errors.InternalServerErrorResponse(c, err.Error())
 		return
+	}
+
+	if h.layoutRepo != nil {
+		if userID, exists := c.Get("user_id"); exists {
+			if userIDStr, ok := userID.(string); ok && userIDStr != "" {
+				layoutJSON := usecase.DefaultERPLayoutJSON
+				if req.BusinessType == "fnb" {
+					layoutJSON = usecase.DefaultFNBLayoutJSON
+				}
+				_ = h.layoutRepo.SaveLayout(c.Request.Context(), userIDStr, "general", layoutJSON)
+			}
+		}
 	}
 
 	tenantID, _ := c.Get("tenant_id")

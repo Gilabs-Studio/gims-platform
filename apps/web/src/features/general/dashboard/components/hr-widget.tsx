@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { CalendarCheck2, ClipboardList, Users, Clock, AlertCircle } from "lucide-react";
+import { Users, Clock, AlertCircle } from "lucide-react";
 import type { WidgetConfig } from "../types";
 import { useDashboardWidgetOverview } from "../hooks/use-dashboard";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -30,9 +30,8 @@ export function HrWidget({ widget }: HrWidgetProps) {
     <WidgetAsyncState isLoading={isLoading} isError={isError} onRetry={refetch}>
       {widget.type === "hr_attendance_today" && (
         <Card className="h-full">
-          <CardHeader className="space-y-1 pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <CalendarCheck2 className="h-4 w-4" />
+          <CardHeader className="space-y-1 pb-4">
+            <CardDescription>
               {t("widgets.hr_attendance_today.title")}
             </CardDescription>
           </CardHeader>
@@ -73,9 +72,8 @@ export function HrWidget({ widget }: HrWidgetProps) {
 
       {widget.type === "hr_pending_leaves" && (
         <Card className="h-full">
-          <CardHeader className="space-y-1 pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" />
+          <CardHeader className="space-y-1 pb-4">
+            <CardDescription>
               {t("widgets.hr_pending_leaves.title")}
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">{hr?.pending_leaves ?? 0}</CardTitle>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { ContactRound, UserPlus, Users2, GitBranch, CalendarCheck } from "lucide-react";
+import { Users2 } from "lucide-react";
 import type { WidgetConfig } from "../types";
 import { useDashboardWidgetOverview } from "../hooks/use-dashboard";
 import { useUserPermission } from "@/hooks/use-user-permission";
@@ -24,8 +24,8 @@ export function CrmKpiWidget({ widget }: CrmKpiWidgetProps) {
   });
 
   const crm = data?.crm_summary;
-  const recentLeads = (crm?.recent_leads ?? []).slice(0, 5);
-  const pipelineStages = (crm?.pipeline_stages ?? []).slice(0, 5);
+  const recentLeads = crm?.recent_leads ?? [];
+  const pipelineStages = crm?.pipeline_stages ?? [];
 
   if (!canView) {
     return (
@@ -42,9 +42,8 @@ export function CrmKpiWidget({ widget }: CrmKpiWidgetProps) {
     <WidgetAsyncState isLoading={isLoading} isError={isError} onRetry={refetch}>
       {widget.type === "crm_total_contacts" && (
         <Card className="h-full">
-          <CardHeader className="space-y-1 pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <ContactRound className="h-4 w-4" />
+          <CardHeader className="space-y-1 pb-4">
+            <CardDescription>
               {t("widgets.crm_total_contacts.title")}
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">{crm?.total_contacts ?? 0}</CardTitle>
@@ -55,9 +54,8 @@ export function CrmKpiWidget({ widget }: CrmKpiWidgetProps) {
 
       {widget.type === "crm_active_leads" && (
         <Card className="h-full">
-          <CardHeader className="space-y-1 pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
+          <CardHeader className="space-y-1 pb-4">
+            <CardDescription>
               {t("widgets.crm_active_leads.title")}
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">{crm?.active_leads ?? 0}</CardTitle>
@@ -72,9 +70,8 @@ export function CrmKpiWidget({ widget }: CrmKpiWidgetProps) {
 
       {widget.type === "crm_leads_list" && (
         <Card className="h-full">
-          <CardHeader className="space-y-1 pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Users2 className="h-4 w-4" />
+          <CardHeader className="space-y-1 pb-4">
+            <CardDescription>
               {t("widgets.crm_leads_list.title")}
             </CardDescription>
           </CardHeader>
@@ -115,9 +112,8 @@ export function CrmKpiWidget({ widget }: CrmKpiWidgetProps) {
 
       {widget.type === "crm_pipeline_summary" && (
         <Card className="h-full">
-          <CardHeader className="space-y-1 pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <GitBranch className="h-4 w-4" />
+          <CardHeader className="space-y-1 pb-4">
+            <CardDescription>
               {t("widgets.crm_pipeline_summary.title")}
             </CardDescription>
           </CardHeader>
@@ -146,9 +142,8 @@ export function CrmKpiWidget({ widget }: CrmKpiWidgetProps) {
 
       {widget.type === "crm_activity_summary" && (
         <Card className="h-full">
-          <CardHeader className="space-y-1 pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <CalendarCheck className="h-4 w-4" />
+          <CardHeader className="space-y-1 pb-4">
+            <CardDescription>
               {t("widgets.crm_activity_summary.title")}
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl">{crm?.activities_today ?? 0}</CardTitle>

@@ -5,9 +5,12 @@ import (
 	"testing"
 	"time"
 
+	generalModels "github.com/gilabs/gims/api/internal/general/data/models"
+	"github.com/gilabs/gims/api/internal/general/data/repositories"
 	"github.com/gilabs/gims/api/internal/general/domain/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 type mockDashboardRepo struct {
@@ -135,4 +138,84 @@ func TestDashboardUsecase_GetOverviewByScope_KPI(t *testing.T) {
 	assert.True(t, repo.kpiCalled)
 	require.NotNil(t, resp.KPI)
 	assert.Equal(t, 1000000.0, resp.KPI.TotalRevenue.Value)
+}
+
+type mockLayoutRepo struct {
+	layoutJSON string
+	err        error
+}
+
+func (m *mockLayoutRepo) GetLayout(ctx context.Context, userID, dashboardType string) (string, error) {
+	return m.layoutJSON, m.err
+}
+
+func (m *mockLayoutRepo) SaveLayout(ctx context.Context, userID, dashboardType, layoutJSON string) error {
+	m.layoutJSON = layoutJSON
+	return m.err
+}
+
+type mockOnboardingRepo struct {
+	businessType string
+	err          error
+}
+
+func (m *mockOnboardingRepo) Get(ctx context.Context) (*generalModels.TenantOnboarding, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &generalModels.TenantOnboarding{BusinessType: m.businessType}, nil
+}
+
+func (m *mockOnboardingRepo) Save(ctx context.Context, state *generalModels.TenantOnboarding) error {
+	return m.err
+}
+
+func (m *mockOnboardingRepo) CheckSteps(ctx context.Context) (*repositories.OnboardingStepsData, error) {
+	return nil, m.err
+}
+
+func TestDashboardUsecase_GetLayout_DefaultERP(t *testing.T) {
+	t.Parallel()
+
+	layoutRepo := &mockLayoutRepo{err: gorm.ErrRecordNotFound}
+	onboardingRepo := &mockOnboardingRepo{businessType: "other"}
+	uc := NewDashboardUsecase(nil, layoutRepo, onboardingRepo)
+
+	resp, err := uc.GetLayout(context.Background(), "user-1", "general")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "general", resp.DashboardType)
+	assert.Contains(t, resp.LayoutJSON, "revenue_bar_chart")
+	assert.NotContains(t, resp.LayoutJSON, "pos_live_table_overview")
+}
+
+func TestDashboardUsecase_GetLayout_DefaultFNB(t *testing.T) {
+	t.Parallel()
+
+	layoutRepo := &mockLayoutRepo{err: gorm.ErrRecordNotFound}
+	onboardingRepo := &mockOnboardingRepo{businessType: "fnb"}
+	uc := NewDashboardUsecase(nil, layoutRepo, onboardingRepo)
+
+	resp, err := uc.GetLayout(context.Background(), "user-1", "general")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "general", resp.DashboardType)
+	assert.Contains(t, resp.LayoutJSON, "revenue_bar_chart")
+	assert.Contains(t, resp.LayoutJSON, "pos_outlet_sales")
+	assert.Contains(t, resp.LayoutJSON, "pos_live_table_overview")
+	assert.Contains(t, resp.LayoutJSON, "best_selling")
+	assert.NotContains(t, resp.LayoutJSON, "track_orders")
+}
+
+func TestDashboardUsecase_GetLayout_Custom(t *testing.T) {
+	t.Parallel()
+
+	customJSON := `{"widgets":[{"id":"custom-1","type":"total_revenue"}]}`
+	layoutRepo := &mockLayoutRepo{layoutJSON: customJSON}
+	uc := NewDashboardUsecase(nil, layoutRepo)
+
+	resp, err := uc.GetLayout(context.Background(), "user-1", "general")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, customJSON, resp.LayoutJSON)
 }

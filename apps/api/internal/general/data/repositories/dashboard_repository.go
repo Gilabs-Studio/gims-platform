@@ -688,6 +688,7 @@ func (r *dashboardRepository) GetTopProducts(ctx context.Context, start, end tim
 		ProductID    string
 		Name         string
 		SKU          string
+		Image        string
 		QuantitySold float64
 		Revenue      float64
 	}
@@ -703,14 +704,16 @@ func (r *dashboardRepository) GetTopProducts(ctx context.Context, start, end tim
 		}
 		query = r.scoped(ctx, "pos_order_items").Table("pos_order_items").
 			Joins("JOIN pos_orders ON pos_orders.id = pos_order_items.pos_order_id AND pos_orders.deleted_at IS NULL").
-			Select("pos_order_items.product_id::text as product_id, pos_order_items.product_name as name, COALESCE(pos_order_items.product_code, '') as sku, COALESCE(SUM(pos_order_items.quantity), 0) as quantity_sold, COALESCE(SUM(pos_order_items.subtotal), 0) as revenue").
+			Joins("LEFT JOIN products ON products.id = pos_order_items.product_id AND products.deleted_at IS NULL").
+			Select("pos_order_items.product_id::text as product_id, pos_order_items.product_name as name, COALESCE(pos_order_items.product_code, '') as sku, COALESCE(products.image_url, '') as image, COALESCE(SUM(pos_order_items.quantity), 0) as quantity_sold, COALESCE(SUM(pos_order_items.subtotal), 0) as revenue").
 			Where("pos_orders.created_at BETWEEN ? AND ?", start, end).
-			Where("pos_orders.outlet_id IN ?", outletIDs)
+			Where("pos_orders.outlet_id IN ?", outletIDs).
+			Group("pos_order_items.product_id, pos_order_items.product_name, pos_order_items.product_code, products.image_url")
 	} else {
 		query = r.scoped(ctx, "sales_order_items").Table("sales_order_items").
 			Joins("JOIN sales_orders ON sales_orders.id = sales_order_items.sales_order_id").
 			Joins("JOIN products ON products.id = sales_order_items.product_id").
-			Select("products.id::text as product_id, products.name as name, COALESCE(products.sku, '') as sku, COALESCE(SUM(sales_order_items.quantity), 0) as quantity_sold, COALESCE(SUM(sales_order_items.subtotal), 0) as revenue").
+			Select("products.id::text as product_id, products.name as name, COALESCE(products.sku, '') as sku, COALESCE(products.image_url, '') as image, COALESCE(SUM(sales_order_items.quantity), 0) as quantity_sold, COALESCE(SUM(sales_order_items.subtotal), 0) as revenue").
 			Where(salesOrderWhere, approvedStatuses, start, end)
 
 		// Apply scope-based filtering
@@ -718,9 +721,10 @@ func (r *dashboardRepository) GetTopProducts(ctx context.Context, start, end tim
 		if scopeWhere != "" {
 			query = query.Where(scopeWhere, scopeParams...)
 		}
+		query = query.Group("products.id, products.name, products.sku, products.image_url")
 	}
 
-	if err := query.Group("products.id, products.name, products.sku").Order("revenue DESC").Limit(limit).Scan(&rows).Error; err != nil {
+	if err := query.Order("revenue DESC").Limit(limit).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	products := make([]dto.TopProductRow, 0, len(rows))
@@ -729,6 +733,7 @@ func (r *dashboardRepository) GetTopProducts(ctx context.Context, start, end tim
 			ID:           row.ProductID,
 			Name:         row.Name,
 			SKU:          row.SKU,
+			Image:        row.Image,
 			QuantitySold: row.QuantitySold,
 			Revenue:      row.Revenue,
 		})

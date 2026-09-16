@@ -202,6 +202,7 @@ type TopProductRow struct {
 	QuantitySold     float64 `json:"quantity_sold"`
 	Revenue          float64 `json:"revenue"`
 	RevenueFormatted string  `json:"revenue_formatted"`
+	Image            string  `json:"image"`
 }
 
 // DeliveryStatusData contains delivery status breakdown.

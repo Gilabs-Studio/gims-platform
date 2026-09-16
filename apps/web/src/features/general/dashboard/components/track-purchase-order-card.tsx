@@ -102,12 +102,14 @@ export function TrackPurchaseOrderCard() {
 
   return (
     <>
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle>{t("trackPurchaseOrders.title")}</CardTitle>
-          <CardDescription>{t("trackPurchaseOrders.subtitle")}</CardDescription>
+      <Card className="flex h-full flex-col">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+          <div>
+            <CardTitle className="text-base font-semibold leading-normal">{t("trackPurchaseOrders.title")}</CardTitle>
+            <CardDescription className="mt-1.5 text-xs text-muted-foreground leading-normal">{t("trackPurchaseOrders.subtitle")}</CardDescription>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col px-6">
           <div className="rounded-md border">
             <Table>
               <TableHeader>

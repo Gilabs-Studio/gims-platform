@@ -28,7 +28,7 @@ export function BalanceWidget({ data }: BalanceWidgetProps) {
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
             {t("widgets.balance_overview.title")}
@@ -78,8 +78,8 @@ export function BalanceWidget({ data }: BalanceWidgetProps) {
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke="hsl(var(--blue))"
-                fill="hsl(var(--blue))"
+                stroke="hsl(var(--chart-1))"
+                fill="hsl(var(--chart-1))"
                 fillOpacity={0.15}
                 strokeWidth={2}
               />

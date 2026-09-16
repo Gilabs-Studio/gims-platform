@@ -124,7 +124,10 @@ export function DashboardGrid() {
       return;
     }
 
-    const defaultWidgets = buildAccessibleDefaultWidgets(accessibleMenuUrls);
+    const defaultWidgets = buildAccessibleDefaultWidgets(
+      accessibleMenuUrls,
+      onboarding?.business_type,
+    );
     if (defaultWidgets.length > 0) {
       setWidgets(defaultWidgets);
     }
@@ -172,9 +175,13 @@ export function DashboardGrid() {
   }, [saveLayout, widgets, toggleEditMode]);
 
   const handleReset = useCallback(() => {
-    // Restore pre-edit snapshot, stay in edit mode (no DB save)
-    resetLayout();
-  }, [resetLayout]);
+    const defaultWidgets = buildAccessibleDefaultWidgets(
+      accessibleMenuUrls,
+      onboarding?.business_type,
+    );
+    // Restore pre-edit snapshot, or fallback to role/business-type defaults, stay in edit mode (no DB save)
+    resetLayout(defaultWidgets);
+  }, [accessibleMenuUrls, onboarding?.business_type, resetLayout]);
 
   const handleAddWidget = useCallback(async (type: WidgetType) => {
     const registry = WIDGET_REGISTRY[type];
@@ -280,7 +287,7 @@ export function DashboardGrid() {
             items={visibleWidgets.map((w) => w.id)}
             strategy={rectSortingStrategy}
           >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 grid-flow-dense">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 grid-flow-dense auto-rows-[minmax(130px,auto)] items-stretch">
               {visibleWidgets.map((widget) => (
                 <SortableWidget
                   key={widget.id}

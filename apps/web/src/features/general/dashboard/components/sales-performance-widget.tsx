@@ -16,7 +16,7 @@ export function SalesPerformanceWidget({ data }: SalesPerformanceWidgetProps) {
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-4">
         <CardTitle className="text-base font-semibold">
           {t("widgets.sales_performance.title")}
         </CardTitle>

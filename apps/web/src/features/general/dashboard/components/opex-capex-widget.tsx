@@ -1,6 +1,6 @@
 "use client";
 
-import { HelpCircle, TrendingDown } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -76,12 +76,9 @@ export function OpexCapexWidget({ data }: OpexCapexWidgetProps) {
     <Card className="h-full">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <TrendingDown className="h-5 w-5 text-primary" />
-            <CardTitle className="text-base font-semibold text-foreground">
-              {t("ownerKpi.opex_vs_capex.title")}
-            </CardTitle>
-          </div>
+          <CardTitle className="text-base font-semibold text-foreground">
+            {t("ownerKpi.opex_vs_capex.title")}
+          </CardTitle>
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>

@@ -2,7 +2,7 @@
 
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Store, Filter, DollarSign, ShoppingCart } from "lucide-react";
+import { Store, Filter, DollarSign, ShoppingCart, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import type { WidgetConfig, POSOutletItem } from "../types";
 import { useUserPermission } from "@/hooks/use-user-permission";
 import { WidgetAsyncState } from "./widget-async-state";
@@ -98,69 +98,125 @@ export function PosOutletSalesWidget({ widget }: PosOutletSalesWidgetProps) {
 
   return (
     <WidgetAsyncState isLoading={isLoading} isError={isError} onRetry={refetch}>
-      <Card className="h-full">
-        <CardHeader className="space-y-1 pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <CardDescription className="flex items-center gap-2">
-              <Store className="h-4 w-4" />
+      <Card className="flex h-full flex-col">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div>
+            <CardTitle className="text-base font-semibold leading-normal">
               {t("widgets.pos_outlet_sales.title")}
+            </CardTitle>
+            <CardDescription className="mt-1.5 text-xs text-muted-foreground leading-normal">
+              {t("widgets.pos_outlet_sales.description")}
             </CardDescription>
-            {hasOutletFilter && (
-              <Select value={selectedOutletId} onValueChange={setSelectedOutletId}>
-                <SelectTrigger className="h-7 w-40 text-xs">
-                  <Filter className="mr-1 h-3 w-3" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {canSelectAllOutlets && (
-                    <SelectItem value="all">{t("widgets.pos_outlet_sales.allOutlets")}</SelectItem>
-                  )}
-                  {visibleOutlets.map((o) => (
-                    <SelectItem key={o.outlet_id} value={o.outlet_id}>
-                      {o.outlet_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
+          {hasOutletFilter && (
+            <Select value={selectedOutletId} onValueChange={setSelectedOutletId}>
+              <SelectTrigger className="h-8 w-40 text-xs cursor-pointer">
+                <Filter className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {canSelectAllOutlets && (
+                  <SelectItem value="all" className="cursor-pointer">
+                    {t("widgets.pos_outlet_sales.allOutlets")}
+                  </SelectItem>
+                )}
+                {visibleOutlets.map((o) => (
+                  <SelectItem key={o.outlet_id} value={o.outlet_id} className="cursor-pointer">
+                    {o.outlet_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </CardHeader>
 
         <CardContent className="flex h-full flex-col gap-3 pt-0">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className="rounded-lg border p-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <DollarSign className="h-3 w-3" />
-                {t("widgets.pos_outlet_sales.todayRevenue")}
+          {/* 5 Solid & Minimalist Stat Cards */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-primary text-primary-foreground"
+                style={{ borderRadius: "9999px" }}
+              >
+                <DollarSign className="size-3.5" />
               </div>
-              <CardTitle className="mt-1 text-lg">{pos?.today_total_revenue_formatted ?? "Rp 0"}</CardTitle>
-            </div>
-            <div className="rounded-lg border p-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <ShoppingCart className="h-3 w-3" />
-                {t("widgets.pos_outlet_sales.todayOrders")}
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_outlet_sales.todayRevenue")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {pos?.today_total_revenue_formatted ?? "Rp 0"}
+                </p>
               </div>
-              <CardTitle className="mt-1 text-lg">{pos?.today_total_orders ?? 0}</CardTitle>
             </div>
-            <div className="rounded-lg border p-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Store className="h-3 w-3" />
-                {t("widgets.pos_outlet_sales.servedOrders")}
-              </div>
-              <CardTitle className="mt-1 text-lg">{pos?.served_orders ?? 0}</CardTitle>
-            </div>
-            <div className="rounded-lg border p-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Filter className="h-3 w-3" />
-                {t("widgets.pos_outlet_sales.waitingOrders")}
-              </div>
-              <CardTitle className="mt-1 text-lg">{pos?.waiting_orders ?? 0}</CardTitle>
-            </div>
-          </div>
 
-          <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            <span>{t("widgets.pos_outlet_sales.warningOrders")}</span>
-            <span className="font-medium text-warning">{pos?.warning_orders ?? 0}</span>
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-primary text-primary-foreground"
+                style={{ borderRadius: "9999px" }}
+              >
+                <ShoppingCart className="size-3.5" />
+              </div>
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_outlet_sales.todayOrders")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {pos?.today_total_orders ?? 0}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-emerald-600 text-white"
+                style={{ borderRadius: "9999px" }}
+              >
+                <CheckCircle2 className="size-3.5" />
+              </div>
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_outlet_sales.servedOrders")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {pos?.served_orders ?? 0}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-amber-500 text-white"
+                style={{ borderRadius: "9999px" }}
+              >
+                <Clock className="size-3.5" />
+              </div>
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_outlet_sales.waitingOrders")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {pos?.waiting_orders ?? 0}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-between rounded-lg border border-border/50 bg-card p-2.5">
+              <div
+                className="flex size-7 shrink-0 items-center justify-center bg-rose-500 text-white"
+                style={{ borderRadius: "9999px" }}
+              >
+                <AlertTriangle className="size-3.5" />
+              </div>
+              <div className="mt-2">
+                <p className="truncate text-[11px] font-normal text-muted-foreground leading-tight">
+                  {t("widgets.pos_outlet_sales.warningOrders")}
+                </p>
+                <p className="mt-0.5 truncate text-sm font-bold tracking-tight text-foreground">
+                  {pos?.warning_orders ?? 0}
+                </p>
+              </div>
+            </div>
           </div>
 
           {isSingleOutletScope && focusedOutlet ? (
@@ -184,14 +240,19 @@ export function PosOutletSalesWidget({ widget }: PosOutletSalesWidgetProps) {
                 </thead>
                 <tbody>
                   {displayedOutlets.map((outlet) => (
-                    <tr key={outlet.outlet_id} className="border-b last:border-0">
-                      <td className="py-2 font-medium">{outlet.outlet_name}</td>
+                    <tr key={outlet.outlet_id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                      <td className="py-2">
+                        <div className="flex items-center gap-2 font-medium">
+                          <Store className="size-3.5 text-primary shrink-0" />
+                          <span className="truncate">{outlet.outlet_name}</span>
+                        </div>
+                      </td>
                       <td className="py-2 text-right">{outlet.today_revenue_formatted}</td>
                       <td className="py-2 text-right">{outlet.order_count}</td>
                       <td className="py-2 text-right">
                         <span
                           className={cn(
-                            outlet.tables_occupied > 0 ? "text-primary" : "text-muted-foreground",
+                            outlet.tables_occupied > 0 ? "text-primary font-medium" : "text-muted-foreground",
                           )}
                         >
                           {outlet.tables_occupied}/{outlet.tables_total}

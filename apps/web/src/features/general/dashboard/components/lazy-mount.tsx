@@ -30,5 +30,9 @@ export function LazyMount({ children, rootMargin = "200px" }: LazyMountProps) {
     return () => obs.disconnect();
   }, [mounted, rootMargin]);
 
-  return <div ref={ref}>{mounted ? children : <div className="min-h-40" />}</div>;
+  return (
+    <div ref={ref} className="h-full flex flex-col flex-1">
+      {mounted ? children : <div className="min-h-40 flex-1" />}
+    </div>
+  );
 }

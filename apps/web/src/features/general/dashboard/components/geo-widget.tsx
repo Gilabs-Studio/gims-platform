@@ -41,7 +41,7 @@ export function GeoWidget({ data }: GeoWidgetProps) {
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">
             {t("widgets.geographic_overview.title")}

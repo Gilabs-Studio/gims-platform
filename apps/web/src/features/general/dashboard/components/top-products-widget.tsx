@@ -15,7 +15,7 @@ export function TopProductsWidget({ data }: TopProductsWidgetProps) {
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-4">
         <CardTitle className="text-base font-semibold">
           {t("widgets.top_products.title")}
         </CardTitle>
