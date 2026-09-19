@@ -146,7 +146,7 @@ export const INITIAL_HR_TICKETS: HRTicket[] = [
       name: "Dian Permana",
       code: "EMP-2024-003",
       department: "Marketing",
-      email: "dian@gilabs.id",
+      email: "dian@google.id",
       location: "Lantai 2 - Workspace Marketing",
     },
     assigned_technician: null,

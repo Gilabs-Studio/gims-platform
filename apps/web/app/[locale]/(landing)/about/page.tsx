@@ -23,7 +23,7 @@ export async function generateMetadata({
       ? [
           "profil company software salesview indonesia",
           "pengembang aplikasi erp crm lokal",
-          "sistem operasional bisnis terintegrasi gilabs",
+          "",
           "siapa pendiri salesview id",
           "salesview company",
         ]

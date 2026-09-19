@@ -138,8 +138,8 @@ export default async function PrivacyPage({
             </h2>
             <p className="mt-3">
               {isId
-                ? "Jika Anda memiliki pertanyaan tentang Kebijakan Privasi ini atau ingin mengajukan permohonan hak perlindungan data Anda, silakan hubungi tim keamanan kami di cs@gilabs.id."
-                : "If you have any questions about this Privacy Policy or wish to request your data protection rights, please contact our security team at cs@gilabs.id."}
+                ? ""
+                : ""}
             </p>
           </section>
         </div>

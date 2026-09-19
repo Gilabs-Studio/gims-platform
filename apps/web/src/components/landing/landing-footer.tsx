@@ -100,8 +100,8 @@ export function LandingFooter() {
               <li className="leading-relaxed text-xs text-muted-foreground/80">
                 <span className="font-semibold block text-foreground text-xs uppercase tracking-wider mb-1">{isId ? "Alamat Kantor" : "Office Address"}</span>
                 {isId
-                  ? "Gedung GILABS Studio, Jl. Kemang Raya No. 10, Jakarta Selatan, DKI Jakarta 12730, Indonesia"
-                  : "GILABS Studio Building, Jl. Kemang Raya No. 10, South Jakarta, Jakarta 12730, Indonesia"}
+                  ? ""
+                  : ""}
               </li>
               <li className="text-xs">
                 <span className="font-semibold block text-foreground text-xs uppercase tracking-wider mb-1">{isId ? "Telepon / WhatsApp" : "Phone / WhatsApp"}</span>
@@ -112,7 +112,7 @@ export function LandingFooter() {
               <li className="text-xs">
                 <span className="font-semibold block text-foreground text-xs uppercase tracking-wider mb-1">Email</span>
                 <a href="mailto:support@salesview.id" className="hover:text-foreground transition-colors cursor-pointer font-medium text-primary">
-                  support@salesview.id
+                  
                 </a>
               </li>
             </ul>
@@ -122,7 +122,7 @@ export function LandingFooter() {
         {/* Bottom Section */}
         <div className="mt-16 border-t border-border/50 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <p className="text-muted-foreground/75">
-            &copy; {currentYear} GILABS. {isId ? "Hak cipta dilindungi undang-undang." : "All rights reserved."}
+            &copy; {currentYear} {isId ? "Hak cipta dilindungi undang-undang." : "All rights reserved."}
           </p>
           <div className="flex items-center gap-6">
             <span className="flex items-center gap-1.5 text-muted-foreground/75">

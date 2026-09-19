@@ -168,7 +168,7 @@ export function PayrollDetailPage({ runId }: PayrollDetailPageProps) {
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <Building2 className="h-3.5 w-3.5" />
-                  PT GILABS DIGITAL NUSANTARA
+                  PT DIGITAL NUSANTARA
                 </span>
               </div>
             </div>

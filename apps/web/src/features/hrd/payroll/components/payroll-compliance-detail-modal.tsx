@@ -96,7 +96,7 @@ export function PayrollComplianceDetailModal({
               <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
               <div>
                 <span className="text-muted-foreground block text-[11px]">Entitas Pemotong / Pembayar</span>
-                <span className="font-semibold text-foreground">PT GILABS DIGITAL NUSANTARA</span>
+                <span className="font-semibold text-foreground">PT DIGITAL NUSANTARA</span>
               </div>
             </div>
 

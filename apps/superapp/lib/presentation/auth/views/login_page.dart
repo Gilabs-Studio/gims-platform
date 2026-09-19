@@ -186,7 +186,7 @@ class LoginPage extends StatelessWidget {
 
                 // Muted Minimal Footer
                 const Text(
-                  "SuperApp Meccaya • GiLabs",
+                  "SuperApp Meccaya",
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textMuted,

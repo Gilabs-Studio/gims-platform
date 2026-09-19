@@ -69,8 +69,8 @@ export default async function TermsPage({
             </h2>
             <p className="mt-3">
               {isId
-                ? "Dengan mendaftar, mengakses, atau menggunakan platform SalesView (layanan SaaS yang dikembangkan oleh GILABS), Anda menyatakan setuju untuk terikat oleh Ketentuan Layanan ini. Jika Anda bertindak atas nama badan hukum, Anda menjamin memiliki wewenang untuk mengikat badan hukum tersebut pada ketentuan ini."
-                : "By registering for, accessing, or using the SalesView platform (a SaaS service developed by GILABS), you agree to be bound by these Terms of Service. If you are acting on behalf of a legal entity, you warrant that you have the authority to bind that entity to these terms."}
+                ? ""
+                : ""}
             </p>
           </section>
 
@@ -144,8 +144,8 @@ export default async function TermsPage({
             </h2>
             <p className="mt-3">
               {isId
-                ? "Sejauh yang diizinkan oleh hukum yang berlaku, GILABS tidak bertanggung jawab atas kerugian tidak langsung, insidental, atau konsekuensial, termasuk namun tidak terbatas pada hilangnya keuntungan, reputasi, atau data yang timbul dari penggunaan atau ketidakmampuan menggunakan layanan kami."
-                : "To the maximum extent permitted by applicable law, GILABS shall not be liable for any indirect, incidental, or consequential damages, including but not limited to loss of profits, goodwill, or data arising out of the use or inability to use our services."}
+                ? ""
+                : ""}
             </p>
           </section>
         </div>

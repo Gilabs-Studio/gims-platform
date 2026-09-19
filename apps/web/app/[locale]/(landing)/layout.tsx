@@ -51,12 +51,12 @@ export default function MarketingLayout({
       {
         "@type": "Organization",
         "@id": "https://salesview.id/#organization",
-        "name": "GILABS",
+        "name": "",
         "url": "https://salesview.id",
         "logo": "https://salesview.id/LOGO%20APPS%20MECCAYA.webp",
         "description": "Provider of SalesView: All-in-One Enterprise Platform ERP, CRM, HRIS, POS, and Finance.",
         "sameAs": [
-          "https://www.linkedin.com/company/gilabs"
+          ""
         ]
       },
       {
