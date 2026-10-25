@@ -12,7 +12,7 @@ export const landingEn = {
     },
     hero: {
       titlePrefix: "One Unified System for",
-      titleSuffix: "All Your Business Operations.",
+      titleSuffix: "All Your Business Operations",
       rotatingWords: [
         "Retail & F&B Outlets",
         "Wholesale & Distribution",
@@ -26,35 +26,50 @@ export const landingEn = {
       ctaWhatsapp: "Custom Software",
     },
     superiority: {
-      tag: "WHY SALESVIEW",
-      headingTitle: "Engineered Superior.",
-      headingSubtitle: "Zero Fragmented Fees, Zero Complexity.",
+      headingTitle: "Enterprise-Grade Unified System.",
+      headingSubtitle: "Ready-to-Deploy & Bespoke Custom ERP",
       subtitle:
-        "Many growing businesses get trapped between expensive piecemeal apps or overly complex legacy ERPs. SalesView delivers the best of both worlds.",
+        "Manage your entire business ecosystem on one high-performance modern platform, from daily workflow automation to large-scale custom enterprise architectures.",
       items: {
         allInOne: {
-          badge: "VS. PIECEMEAL APPS",
-          title: "One Connected Ecosystem, Single Invoice",
+          number: "01",
+          badge: "UNIFIED ECOSYSTEM",
+          title: "Zero Software Fragmentation",
           description:
-            "No need to pay separate subscriptions for POS, HRIS, and accounting that drain budgets. In SalesView, all operations sync natively without costly third-party API connectors.",
-        },
-        noConsultant: {
-          badge: "VS. ODOO & LEGACY ERPS",
-          title: "Instant Go-Live Without Costly Consultants",
-          description:
-            "Skip hundreds of millions in implementation fees and endless setup months. Your team can master the intuitive interface and run live operations within days.",
+            "All POS checkout data, workforce records, multi-warehouse stock, and financial ledgers synchronize natively in one connected platform without costly third-party integrations.",
+          feature: "Natively Connected Database",
         },
         customFlow: {
-          badge: "BESPOKE FLEXIBILITY",
-          title: "Software Tailored to Your Workflows",
+          number: "02",
+          badge: "CUSTOM ERP & WORKFLOW",
+          title: "Tailored Architecture Built for Your Workflows",
           description:
-            "Rigid SaaS tools force you to alter your business processes. SalesView engineers can build tailored custom flows specifically designed around your unique operational model.",
+            "Engineered to adapt to your enterprise processes, from multi-tier approval chains and manufacturing pipelines to custom hardware integrations beyond rigid SaaS limitations.",
+          feature: "Bespoke Enterprise Engineering",
+        },
+        fastAdoption: {
+          number: "03",
+          badge: "SWIFT ADOPTION",
+          title: "Structured Implementation & Rapid Go-Live",
+          description:
+            "Clean, modern UI drastically shortens the learning curve for both field and office teams. Operations launch smoothly without protracted onboarding disruptions.",
+          feature: "Intuitive High-Adoption UI",
         },
         fieldReliability: {
+          number: "04",
           badge: "FIELD RESILIENCE",
-          title: "Offline-Ready & Verified Geofencing",
+          title: "Offline-Ready & Strict Field Validation",
           description:
-            "Cashiers keep transacting and printing receipts even when offline. Field sales check-ins are validated through strict anti-mock GPS geofencing and on-site photos.",
+            "Branch POS terminals keep transacting and printing receipts during network downtime. Field visits and attendance check-ins are strictly verified through precise geofencing.",
+          feature: "Offline POS & Anti-Mock GPS",
+        },
+        scalability: {
+          number: "05",
+          badge: "HIGH SCALABILITY",
+          title: "High-Throughput Multi-Entity Architecture",
+          description:
+            "Powered by a low-latency Go backend designed for rapid expansion across dozens of branches, multi-company setups, and massive transaction volumes.",
+          feature: "Low-Latency Go Engine",
         },
       },
     },

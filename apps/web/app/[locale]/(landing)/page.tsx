@@ -138,6 +138,127 @@ function ParallaxImageCard({
   );
 }
 
+const SUPERIORITY_KEYS = [
+  "allInOne",
+  "customFlow",
+  "fastAdoption",
+  "fieldReliability",
+  "scalability",
+] as const;
+
+function ScrollHorizontalSuperiority({
+  t,
+}: {
+  t: (key: string) => string;
+}) {
+  const targetRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [maxScroll, setMaxScroll] = useState(0);
+
+  const { scrollYProgress } = useScroll({
+    target: targetRef,
+    offset: ["start start", "end end"],
+  });
+
+  useEffect(() => {
+    const calculateScroll = () => {
+      if (trackRef.current) {
+        const trackWidth = trackRef.current.scrollWidth;
+        const windowWidth = window.innerWidth;
+        const padding = window.innerWidth >= 1024 ? 96 : 32;
+        const range = Math.max(0, trackWidth - windowWidth + padding);
+        setMaxScroll(range);
+      }
+    };
+
+    calculateScroll();
+    window.addEventListener("resize", calculateScroll);
+    return () => window.removeEventListener("resize", calculateScroll);
+  }, []);
+
+  const x = useTransform(scrollYProgress, (pos) => -pos * maxScroll);
+
+  return (
+    <section
+      id="superiority"
+      ref={targetRef}
+      className="relative h-[250vh] sm:h-[280vh] lg:h-[320vh] bg-background"
+    >
+      <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden py-6 sm:py-10">
+        {/* Section Header */}
+        <div className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 mb-8 sm:mb-12 shrink-0">
+
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <h2 className="text-3xl sm:text-5xl font-medium leading-[1.08] tracking-tight text-foreground text-balance">
+              {t("superiority.headingTitle")}{" "}
+              <span className="text-muted-foreground block sm:inline">
+                {t("superiority.headingSubtitle")}
+              </span>
+            </h2>
+
+            {/* Live Scroll Progress Indicator */}
+            <div className="flex items-center gap-3 shrink-0 self-start md:self-end">
+              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+              </div>
+              <div className="w-24 sm:w-36 h-1 rounded-full bg-border overflow-hidden">
+                <motion.div
+                  style={{ scaleX: scrollYProgress, transformOrigin: "left" }}
+                  className="h-full bg-primary rounded-full"
+                />
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-3 text-base sm:text-lg leading-relaxed text-muted-foreground max-w-3xl text-balance">
+            {t("superiority.subtitle")}
+          </p>
+        </div>
+
+        {/* Horizontal Moving Cards Track (Overflow Visible, gliding across viewport) */}
+        <div className="w-full overflow-visible">
+          <motion.div
+            ref={trackRef}
+            style={{ x }}
+            className="flex gap-6 sm:gap-8 pl-6 sm:pl-10 lg:pl-[max(4rem,calc((100vw-80rem)/2+4rem))] pr-16 w-max"
+          >
+            {SUPERIORITY_KEYS.map((itemKey) => (
+              <div
+                key={itemKey}
+                className="w-[300px] sm:w-[380px] lg:w-[420px] shrink-0 rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs hover:border-primary/40 hover:shadow-lg transition-all flex flex-col justify-between select-none"
+              >
+                <div>
+                  {/* <div className="flex items-center justify-between gap-3 mb-4">
+                    <span className="text-xs font-mono font-medium text-muted-foreground/80">
+                      {t(`superiority.items.${itemKey}.number`)}
+                    </span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                      {t(`superiority.items.${itemKey}.badge`)}
+                    </span>
+                  </div> */}
+
+                  <h3 className="text-xl sm:text-2xl font-medium text-foreground tracking-tight mb-3">
+                    {t(`superiority.items.${itemKey}.title`)}
+                  </h3>
+
+                  <p className="text-sm sm:text-base leading-relaxed text-muted-foreground">
+                    {t(`superiority.items.${itemKey}.description`)}
+                  </p>
+                </div>
+
+                <div className="mt-8 pt-4 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-mono text-muted-foreground/90">
+                    {t(`superiority.items.${itemKey}.feature`)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // 5 Core Pillars with Curated Visuals
 const PILLARS = [
   {
@@ -308,53 +429,12 @@ export default function LandingPage() {
         </section>
 
         {/* ════════════════════════════════════════════════════════
-            SUPERIORITY SECTION (Persuasive Marketing vs Competitors)
-            - Why SalesView is superior to Odoo, Mekari, Accurate, SAP
-            - Clean minimal grid 2 layout, no cheesy gradients
-            - Semantic tokens: bg-background, bg-card, border-border, text-primary
+            SUPERIORITY SECTION (Scroll-Driven Horizontal Animation)
+            - Sticky pinned viewport driven by page scroll Y
+            - True horizontal gliding cards overflowing across screen
+            - Enterprise-grade copywriting without naming competitor brands
         ════════════════════════════════════════════════════════ */}
-        <section className="w-full py-20 lg:py-28 bg-background px-6 sm:px-10 lg:px-16">
-          <div className="max-w-7xl mx-auto">
-            <div className="max-w-3xl mb-12 sm:mb-16">
-              <div className="inline-flex items-center gap-2 mb-4">
-                <span className="w-2 h-2 rounded-xs bg-primary inline-block flex-shrink-0" />
-                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  {t("superiority.tag")}
-                </span>
-              </div>
-
-              <h2 className="text-3xl sm:text-5xl font-medium leading-[1.08] tracking-tight text-foreground text-balance">
-                {t("superiority.headingTitle")} <br />
-                <span className="text-muted-foreground">{t("superiority.headingSubtitle")}</span>
-              </h2>
-
-              <p className="mt-5 text-base sm:text-lg leading-relaxed text-muted-foreground text-balance">
-                {t("superiority.subtitle")}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-              {(["allInOne", "noConsultant", "customFlow", "fieldReliability"] as const).map((itemKey) => (
-                <div
-                  key={itemKey}
-                  className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs hover:border-primary/40 transition-colors flex flex-col justify-between"
-                >
-                  <div>
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-primary mb-3 inline-block">
-                      {t(`superiority.items.${itemKey}.badge`)}
-                    </span>
-                    <h3 className="text-xl sm:text-2xl font-medium text-foreground tracking-tight mb-3">
-                      {t(`superiority.items.${itemKey}.title`)}
-                    </h3>
-                    <p className="text-sm sm:text-base leading-relaxed text-muted-foreground">
-                      {t(`superiority.items.${itemKey}.description`)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <ScrollHorizontalSuperiority t={t} />
 
         {/* ════════════════════════════════════════════════════════
             2. 5 CORE PILLARS (Matching sipepeg 2-Column Grid Layout)

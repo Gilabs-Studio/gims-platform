@@ -98,7 +98,7 @@
     --secondary-foreground: 220 10% 20%;
     
     --muted: 220 14% 92%;
-    --muted-foreground: 220 10% 45%; /* Softer muted text */
+    --muted-foreground: 220 10% 35%; /* Darker for crisp visibility & readability */
     
     --accent: 220 14% 92%;        /* Purple accent (light theme) */
     --accent-foreground: 220 10% 20%;

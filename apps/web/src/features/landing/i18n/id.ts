@@ -26,35 +26,50 @@ export const landingId = {
       ctaWhatsapp: "Software Khusus",
     },
     superiority: {
-      tag: "KENAPA SALESVIEW",
-      headingTitle: "Dibangun Lebih Unggul.",
-      headingSubtitle: "Tanpa Biaya Terpecah, Tanpa Kerumitan.",
+      headingTitle: "Sistem Terpadu Skala Enterprise",
+      headingSubtitle: "Standar Siap Pakai Maupun Custom ERP",
       subtitle:
-        "Banyak bisnis terjebak antara software parsial yang mahal atau ERP lama yang rumit. SalesView hadir memberikan ekosistem lengkap yang siap jalan.",
+        "Kelola seluruh rantai operasional bisnis dalam satu platform modern berkecepatan tinggi, mulai dari otomasi harian hingga pengembangan arsitektur kustom skala besar.",
       items: {
         allInOne: {
-          badge: "VS. MEKARI & APLIKASI PARSIAL",
-          title: "Satu Ekosistem, Tanpa Tagihan Tercecer",
+          number: "01",
+          badge: "EKOSISTEM TERPADU",
+          title: "Satu Sistem Tanpa Fragmentasi Aplikasi",
           description:
-            "Tidak perlu membayar kasir (Moka), HRIS (Talenta), dan pembukuan (Jurnal) secara terpisah yang menguras budget. Di SalesView, seluruh modul terhubung langsung tanpa biaya integrasi API.",
-        },
-        noConsultant: {
-          badge: "VS. ODOO & LEGACY ERP",
-          title: "Langsung Siap Pakai Tanpa Konsultan Mahal",
-          description:
-            "Hindari biaya implementasi ratusan juta dan konfigurasi berbulan-bulan. Tim Anda bisa langsung mahir mengoperasikan sistem dalam hitungan hari dengan antarmuka yang intuitif.",
+            "Seluruh data kasir POS, presensi tim, logistik multi-gudang, hingga akuntansi tersinkronisasi otomatis dalam satu platform terhubung tanpa biaya integrasi tambahan.",
+          feature: "Natively Connected Database",
         },
         customFlow: {
-          badge: "FLEKSIBILITAS KUSTOM",
-          title: "Software yang Mengikuti Alur Bisnis Anda",
+          number: "02",
+          badge: "CUSTOM ERP & WORKFLOW",
+          title: "Arsitektur Fleksibel Sesuai Proses Bisnis Anda",
           description:
-            "Software SaaS lain bersifat kaku dan memaksa Anda mengubah proses kerja. Di SalesView, tim engineer kami siap membangun alur kerja khusus (Custom Flow) sesuai keunikan operasional Anda.",
+            "Siap merancang dan mengintegrasikan alur kerja spesifik industri, mulai dari otomasi approval multi-level, integrasi manufaktur, hingga integrasi hardware tanpa batasan SaaS yang kaku.",
+          feature: "Bespoke Enterprise Engineering",
+        },
+        fastAdoption: {
+          number: "03",
+          badge: "EFISIENSI ADOPSI",
+          title: "Implementasi Terstruktur dengan Go-Live Cepat",
+          description:
+            "Antarmuka modern yang bersih memangkas kurva belajar staf lapangan dan kantor. Bisnis dapat langsung aktif beroperasi tanpa hambatan adaptasi sistem yang berlarut-larut.",
+          feature: "Intuitive High-Adoption UI",
         },
         fieldReliability: {
-          badge: "RELIABILITAS LAPANGAN",
-          title: "Tahan Offline & Proteksi Geofencing Nyata",
+          number: "04",
+          badge: "RELIABILITAS TINGGI",
+          title: "Ketahanan Mode Offline & Validasi Lapangan Presisi",
           description:
-            "Kasir tetap dapat mencetak struk dan memproses transaksi saat internet mati. Presensi sales lapangan diverifikasi lewat koordinat GPS anti-fake GPS dan foto toko pelanggan.",
+            "Transaksi kasir tetap lancar memproses penjualan saat internet terputus. Presensi dan kunjungan sales lapangan terlindungi dari manipulasi lokasi dengan geofencing akurat.",
+          feature: "Offline POS & Anti-Mock GPS",
+        },
+        scalability: {
+          number: "05",
+          badge: "PERFORMA TINGGI",
+          title: "Infrastruktur Modern Siap Ekspansi Multi-Cabang",
+          description:
+            "Ditenagai arsitektur Go backend dengan latensi rendah. Tangguh menangani ekspansi puluhan cabang, multi-entitas perusahaan, dan lonjakan volume data transaksi tinggi.",
+          feature: "Low-Latency Go Engine",
         },
       },
     },
