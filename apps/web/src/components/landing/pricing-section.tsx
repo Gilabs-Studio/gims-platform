@@ -225,7 +225,7 @@ export function PricingSection() {
 
   const { data: apiPlans } = useQuery({
     queryKey: ["landing-subscription-plans"],
-    queryFn: () => authService.getSubscriptionPlans(),
+    queryFn: () => authService.getSubscriptionPlans({ silent: true }),
     staleTime: 5 * 60 * 1000,
     retry: false,
   });

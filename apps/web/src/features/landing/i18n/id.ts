@@ -1,141 +1,141 @@
 export const landingId = {
   landing: {
     nav: {
-      features: "Fitur",
       modules: "Modul",
+      features: "Fitur",
+      customFlow: "Custom Flow",
+      pricing: "Harga",
+      about: "Tentang",
       faq: "FAQ",
-      pricing: "Pricing",
       signIn: "Masuk",
-      getStarted: "Mulai Sekarang",
+      getStarted: "Uji Coba Gratis",
     },
     hero: {
-      badge: "Mesin Bisnis End-to-End Anda",
-      title1: "Skalakan Bisnis Anda",
-      title2: "Tanpa Kompleksitas",
+      titlePrefix: "Satu Sistem untuk",
+      titleSuffix: "Operasional Bisnis Anda",
+      rotatingWords: [
+        "Bisnis Ritel & F&B",
+        "Distributor & Grosir",
+        "Tim Sales Lapangan",
+        "Operasional Multi-Gudang",
+        "Bisnis Multi-Cabang",
+      ],
       subtitle:
-        "Gantikan sistem yang terfragmentasi dengan satu platform cerdas. Kelola seluruh operasional Anda dari penjualan dan keuangan hingga SDM dan inventaris dengan insight AI real-time.",
-      cta: "Mulai Uji Coba Gratis",
-      trackPlaceholder: "Masukkan ID pesanan untuk melacak status",
+        "Kelola kasir ritel, sales lapangan, absensi karyawan, stok gudang, dan laporan keuangan dalam satu platform terhubung tanpa spreadsheet manual.",
+      ctaPrimary: "Coba Gratis",
+      ctaWhatsapp: "Software Khusus",
     },
-    benefits: {
-      eyebrow: "Mengapa Memilih SalesView",
-      title: "Satu Platform. Kendali Mutlak.",
+    superiority: {
+      tag: "KENAPA SALESVIEW",
+      headingTitle: "Dibangun Lebih Unggul.",
+      headingSubtitle: "Tanpa Biaya Terpecah, Tanpa Kerumitan.",
       subtitle:
-        "Sistem terpecah membunuh produktivitas. SalesView memberikan Anda satu 'sumber kebenaran'—sehingga setiap tim, dari gudang hingga direksi, selalu sejalan tanpa rekap manual.",
+        "Banyak bisnis terjebak antara software parsial yang mahal atau ERP lama yang rumit. SalesView hadir memberikan ekosistem lengkap yang siap jalan.",
       items: {
-        singleSource: {
-          title: "Hilangkan Silo Data",
+        allInOne: {
+          badge: "VS. MEKARI & APLIKASI PARSIAL",
+          title: "Satu Ekosistem, Tanpa Tagihan Tercecer",
           description:
-            "Semua modul (CRM, Sales, HRD, Finance) saling berbicara real-time. Tidak ada lagi input manual yang berulang.",
+            "Tidak perlu membayar kasir (Moka), HRIS (Talenta), dan pembukuan (Jurnal) secara terpisah yang menguras budget. Di SalesView, seluruh modul terhubung langsung tanpa biaya integrasi API.",
         },
-        operationalControl: {
-          title: "Operasional Tanpa Bocor",
+        noConsultant: {
+          badge: "VS. ODOO & LEGACY ERP",
+          title: "Langsung Siap Pakai Tanpa Konsultan Mahal",
           description:
-            "Lacak setiap pergerakan barang dari PO hingga Goods Receipt. Transparansi total, nol selisih stok.",
+            "Hindari biaya implementasi ratusan juta dan konfigurasi berbulan-bulan. Tim Anda bisa langsung mahir mengoperasikan sistem dalam hitungan hari dengan antarmuka yang intuitif.",
         },
-        financeAudit: {
-          title: "Keuangan Siap Audit",
+        customFlow: {
+          badge: "FLEKSIBILITAS KUSTOM",
+          title: "Software yang Mengikuti Alur Bisnis Anda",
           description:
-            "Jurnal otomatis, rekonsiliasi instan. Tutup buku harian tanpa rasa cemas dan selalu siap hadapi auditor.",
+            "Software SaaS lain bersifat kaku dan memaksa Anda mengubah proses kerja. Di SalesView, tim engineer kami siap membangun alur kerja khusus (Custom Flow) sesuai keunikan operasional Anda.",
         },
-        hrdDiscipline: {
-          title: "SDM Berjalan Sendiri",
+        fieldReliability: {
+          badge: "RELIABILITAS LAPANGAN",
+          title: "Tahan Offline & Proteksi Geofencing Nyata",
           description:
-            "Otomatisasi absensi, cuti, hingga rekrutmen. Biarkan sistem mengurus administrasi, Anda fokus membangun tim.",
-        },
-        insightFast: {
-          title: "Keputusan Berbasis Fakta",
-          description:
-            "Akses wawasan bisnis dalam hitungan detik. Dari performa sales area hingga tren pembelian pelanggan.",
-        },
-        automation: {
-          title: "AI sebagai Co-Pilot",
-          description:
-            "Bukan sekadar mencatat, tapi memandu. Alur kerja cerdas dan notifikasi proaktif mencegah masalah sebelum terjadi.",
+            "Kasir tetap dapat mencetak struk dan memproses transaksi saat internet mati. Presensi sales lapangan diverifikasi lewat koordinat GPS anti-fake GPS dan foto toko pelanggan.",
         },
       },
     },
-    screenshots: {
-      title: "Dirancang Untuk Kecepatan & Kejernihan",
-      items: {
-        pipeline: {
-          title: "CRM Pipeline",
-          caption: "Alur sales dengan visual kanban yang mudah dipahami (drag & drop deal).",
-        },
-        dashboard: {
-          title: "Dashboard",
-          caption: "Overview revenue, tren, dan metrik penting untuk keputusan strategis.",
-        },
-        salesOrder: {
-          title: "Sales Order",
-          caption: "Pantau pesanan masuk secara real-time dari pemesanan hingga pengiriman.",
-        },
-        stockInventory: {
-          title: "Stock Inventory",
-          caption: "Monitor dan bandingkan kesediaan barang secara langsung multi-gudang.",
-        },
-        profitLoss: {
-          title: "Profit & Loss",
-          caption: "Laporan keuangan komprehensif mengukur performa pengeluaran dan pemasukan.",
-        },
-        customer: {
-          title: "Customer",
-          caption: "Master data informasi riwayat pelanggan dan relasinya (Single Source of Truth).",
-        },
-        geoPerformance: {
-          title: "Geo Performance",
-          caption: "Lihat kinerja area penjualan hingga cakupan provinsi dan kota lewat peta interaktif.",
-        },
-        salary: {
-          title: "Salary",
-          caption: "Proses penggajian terotomatisasi yang terhubung dengan absensi dan data HRD.",
-        },
-      },
-    },
-    turningPoint: {
-      title1: "Berhenti Merekap Data.",
-      title2: "Mulai Mengarahkan",
-      title3: "Bisnis Anda.",
+    pillars: {
+      tag: "5 PILAR ERP",
+      headingTitle: "Sistem Terpadu,",
+      headingSubtitle: "Kendali Penuh.",
       subtitle:
-        "SalesView mengakhiri era spreadsheet manual. Transaksi yang dimasukkan staf gudang otomatis memperbarui laporan laba rugi di meja direktur—seketika itu juga.",
-    },
-    map: {
-      title1: "Visibilitas Distribusi",
-      title2: "Secara Presisi",
-      subtitle:
-        "Pantau kesehatan supply chain Anda dari Sabang sampai Merauke dalam satu layar interaktif.",
-      detail:
-        "Ketahui secara pasti di mana stok menipis dan di mana titik distribusi Anda paling menguntungkan.",
-      legend: {
-        mainWarehouse: "Gudang utama",
-        distributionPoint: "Titik distribusi",
+        "Seluruh transaksi kasir, sales lapangan, mutasi barang, hingga jurnal akuntansi terhubung langsung tanpa rekap manual.",
+      pos: {
+        tag: "01 POINT OF SALE",
+        title: "Kasir Cepat & Multi-Cabang",
+        description:
+          "Sistem POS modern untuk ritel dan F&B dengan dukungan offline mode saat internet terputus, cetak struk bluetooth, manajemen meja, dan otomatis potong stok.",
+        cta: "Lihat Fitur Kasir",
       },
-      badge: "13 hub aktif — Indonesia",
-    },
-    ai: {
-      title1: "Punya Pertanyaan Bisnis?",
-      title2: "Tanyakan pada AI Kami.",
-      subtitle:
-        "Dapatkan jawaban instan tanpa harus menguasai rumus Excel yang rumit. Tanyakan stok, tren penjualan, atau buat PO dengan bahasa sehari-hari.",
-      detail:
-        "SalesView AI bukan sekadar chatbot; ia adalah asisten eksekutif pribadi Anda yang tahu segalanya tentang bisnis Anda.",
-      chat: {
-        user1: "Berapa stok SKU-201 di gudang Bandung?",
-        ai1: "Stok SKU-201 di Gudang Bandung: {count} unit. Terakhir diperbarui 14 menit lalu. Reorder point: 200 unit.",
-        user2: "Buat PO ke supplier untuk 500 unit.",
-        ai2: "Purchase Order {po} berhasil dibuat — 500 unit SKU-201 ke CV Maju Sejahtera. Menunggu persetujuan.",
-        labelUser: "Anda",
-        labelAi: "SalesView AI",
+      crm: {
+        tag: "02 CRM & FIELD SALES",
+        title: "Monitoring Tim Sales Lapangan",
+        description:
+          "Pantau rute kunjungan sales lewat verifikasi GPS geofence dan foto di toko pelanggan. Kelola penawaran dan pipeline closing deal secara transparan.",
+        cta: "Lihat Fitur CRM",
       },
+      hris: {
+        tag: "03 HRIS & PAYROLL",
+        title: "Absensi GPS & Gaji Otomatis",
+        description:
+          "Catat kehadiran karyawan dengan verifikasi wajah mobile. Kelola jadwal shift kerja, cuti, lembur, dan slip gaji terhitung otomatis dalam 1-klik.",
+        cta: "Lihat Fitur HRIS",
+      },
+      inventory: {
+        tag: "04 INVENTORY & GUDANG",
+        title: "Kontrol Stok Multi-Gudang",
+        description:
+          "Lacak persediaan barang di berbagai cabang secara real-time. Kelola transfer antar gudang, batch expired, dan notifikasi otomatis sebelum stok habis.",
+        cta: "Lihat Fitur Gudang",
+      },
+      finance: {
+        tag: "05 FINANCE & AKUNTANSI",
+        title: "Jurnal & Laba Rugi Otomatis",
+        description:
+          "Setiap transaksi penjualan dan pembelian langsung tercatat ke jurnal akuntansi. Buat invoice instan, rekonsiliasi mutasi bank, dan laporan keuangan siap audit.",
+        cta: "Lihat Fitur Keuangan",
+      },
+    },
+    distribution: {
+      tag: "DISTRIBUSI WILAYAH",
+      headingTitle: "Jangkauan Operasional",
+      headingSubtitle: "Tanpa Batas.",
+      description:
+        "Koordinasikan seluruh tim logistik, armada pengiriman, dan titik gudang di berbagai kota secara serentak dengan visibilitas data terpusat.",
+      point1: "Koordinasi multi-cabang terintegrasi",
+      point2: "Pemantauan stok dan armada per wilayah",
+      point3: "Sinkronisasi pesanan dari seluruh kanal",
+    },
+    aiOps: {
+      tag: "ANALITIK OPERASIONAL",
+      headingTitle: "Keputusan Berbasis Data",
+      headingSubtitle: "Seketika.",
+      description:
+        "Hilangkan tebak-tebakan dalam mengelola bisnis. Dapatkan ringkasan performa penjualan harian, tren permintaan produk, dan peringatan dini pengeluaran dalam bahasa sehari-hari.",
+      point1: "Analisis tren omzet dan margin produk",
+      point2: "Peringatan dini stok menipis dan piutang jatuh tempo",
+      point3: "Rekomendasi reorder point berbasis riwayat transaksi",
+    },
+    customFlow: {
+      tag: "CUSTOM FLOW & DEVELOPMENT",
+      headingTitle: "Punya Alur Kerja Unik?",
+      headingSubtitle: "Kami Siap Bangunkan.",
+      description:
+        "Setiap industri memiliki SOP khusus. Tim analis dan software engineer kami siap merancang alur kustom, modul tambahan, serta integrasi sistem eksisting sesuai kebutuhan operasional Anda.",
+      ctaWhatsapp: "Konsultasi Alur Khusus via WhatsApp",
     },
     pricing: {
-      eyebrow: "Investasi Terukur",
-      title1: "Harga Transparan Tanpa",
+      eyebrow: "INVESTASI TERUKUR",
+      title1: "Paket Transparan Tanpa",
       title2: "Biaya Tersembunyi",
       subtitle:
-        "Bayar hanya untuk nilai yang Anda dapatkan. Pilih paket Bundle untuk transformasi total, atau Modular untuk memecahkan masalah spesifik terlebih dahulu.",
+        "Pilih paket lengkap untuk seluruh tim Anda, atau mulai dari modul spesifik sesuai skala bisnis.",
       tabs: {
-        bundle: "Bundle",
+        bundle: "Bundle Lengkap",
         modular: "Modular",
       },
       monthly: "Bulanan",
@@ -144,111 +144,46 @@ export const landingId = {
       perMonthSeat: "bln per seat",
       totalInvoice: "Total invoice",
       selectBundle: "Pilih {name}",
-      selectModular: "Pilih modular",
-      modularCtaHint: "Untuk rollout satu tim",
-      comparisonTitle: "Perbandingan bundle",
-      guarantee: "Garansi uang kembali 30 hari. Bisa batal kapan saja.",
-      modularTitle: "Paket modular",
-      modularSubtitle: "Mulai dari satu modul dan ekspansi saat dibutuhkan.",
-      contactSalesHint: "Untuk setup Enterprise dan SLA kustom",
-      originalPrice: "Sebelumnya {price}",
-      nowPrice: "Sekarang {price}",
-    },
-    modules: {
-      eyebrow: "Menu utama SalesView",
-      title1: "Semua modul inti",
-      title2: "dalam satu platform",
-      subtitle:
-        "Menu ini mengikuti struktur dokumentasi produk. Starter berisi menu inti, sedangkan Full Standard mencakup seluruh modul standar.",
-      items: {
-        dashboard: {
-          title: "Dashboard",
-          description: "Ringkasan operasional, widget cepat, dan akses ke indikator utama bisnis.",
-        },
-        masterData: {
-          title: "Master Data",
-          description:
-            "Geographic, organization, employee, supplier, customer, product, warehouse, dan user master.",
-        },
-        sales: {
-          title: "Sales",
-          description: "Quotation, sales order, delivery, invoice, pembayaran, dan recap piutang.",
-        },
-        purchase: {
-          title: "Purchase",
-          description:
-            "Requisition, purchase order, goods receipt, supplier invoice, pembayaran, dan recap hutang.",
-        },
-        stock: {
-          title: "Stock",
-          description: "Inventory, stock movement, dan stock opname untuk kontrol persediaan.",
-        },
-        finance: {
-          title: "Finance",
-          description: "Accounting, banking, payables, budgeting, asset management, dan financial statements.",
-        },
-        hrd: {
-          title: "HRD",
-          description: "Attendance, leave request, evaluation, recruitment, work schedule, dan holidays.",
-        },
-        hr: {
-          title: "HRIS",
-          description: "Sistem Informasi SDM: data karyawan, kontrak, penggajian, dan alur HR.",
-        },
-        crm: {
-          title: "CRM",
-          description: "Leads, pipeline, tasks, visit reports, area mapping, sales targets, dan settings.",
-        },
-        reports: {
-          title: "Reports",
-          description:
-            "Sales overview, top product, geo performance, customer research, dan supplier research.",
-        },
-        aiAssistant: {
-          title: "AI Assistant",
-          description: "Chatbot dan settings untuk pertanyaan operasional dan bantuan kerja cepat.",
-        },
-      },
+      selectModular: "Pilih Modular",
+      modularSubtitle: "Mulai dari modul yang paling Anda butuhkan dan tambah saat bisnis bertumbuh.",
+      guarantee: "Garansi 30 hari. Bebas batalkan kapan saja tanpa komitmen panjang.",
+      contactSalesHint: "Untuk konfigurasi Enterprise dan SLA kustom",
     },
     faq: {
-      eyebrow: "Pertanyaan umum",
-      title1: "Hal yang sering",
-      title2: "ditanyakan",
-      subtitle:
-        "Tidak menemukan jawaban yang dicari? Hubungi tim kami — kami biasanya membalas dalam hitungan jam.",
-      contactCta: "Hubungi tim",
+      tag: "PUSAT BANTUAN",
+      headingTitle: "Pertanyaan",
+      headingSubtitle: "yang Sering Diajukan",
+      subtitle: "Informasi penting seputar implementasi dan fitur SalesView ERP.",
       items: {
-        q1: "Apakah SalesView cocok untuk distribusi multi-gudang?",
-        a1: "Ya. SalesView dirancang sejak awal untuk skenario multi-gudang — stok di tiap lokasi tercatat secara real-time, transfer antar gudang terotomatisasi, dan laporan konsolidasi tersedia tanpa rekap manual.",
-        q2: "Berapa lama proses onboarding?",
-        a2: "Sebagian besar perusahaan sudah bisa beroperasi penuh dalam 1–2 hari kerja. Tim kami memandu migrasi data masterdata, konfigurasi awal, dan sesi pelatihan singkat untuk setiap departemen.",
-        q3: "Bisakah diintegrasikan dengan sistem yang sudah ada?",
-        a3: "SalesView menggunakan REST API terbuka. Integrasi dengan timbangan digital, barcode scanner, sistem akuntansi existing, atau marketplace bisa dilakukan tanpa menyentuh kode inti platform.",
-        q4: "Bagaimana keamanan data kami dijaga?",
-        a4: "Data tersimpan di infrastruktur cloud dengan enkripsi at-rest dan in-transit. Akses dikontrol per role dan per entitas — staf gudang Surabaya hanya melihat data gudang mereka sendiri.",
-        q5: "Apakah tersedia versi mobile untuk tim lapangan?",
-        a5: "Antarmuka SalesView berjalan di browser modern termasuk di smartphone Android dan iOS. Tim sales bisa input order, cek stok, dan catat kunjungan pelanggan langsung dari ponsel mereka.",
-        q6: "Apa yang membedakan SalesView dari ERP generik?",
-        a6: "SalesView dibangun khusus untuk pola operasional distribusi di Indonesia — termasuk surat jalan, retur barang, multi-PPN, dan wilayah pengiriman berdasarkan peta administratif Indonesia hingga tingkat kelurahan.",
+        q1: "Apakah semua modul (POS, CRM, HRIS, Inventory, Finance) langsung terhubung?",
+        a1: "Ya, keunggulan utama SalesView adalah seluruh modul saling terhubung langsung ke satu basis data terpusat tanpa integrasi pihak ketiga. Penjualan kasir langsung memotong stok dan mencatat penerimaan ke jurnal keuangan.",
+        q2: "Bagaimana jika bisnis kami memiliki alur kerja atau form khusus?",
+        a2: "Kami menyediakan layanan Custom Flow. Tim engineer kami dapat menyesuaikan form, alur persetujuan, atau membuat modul khusus sesuai SOP perusahaan Anda melalui WhatsApp di +62 813-6795-4062.",
+        q3: "Apakah kasir POS tetap bisa transaksi saat internet mati?",
+        a3: "Bisa. Modul POS dilengkapi arsitektur offline-first sehingga kasir dapat terus melayani pelanggan dan mencetak struk, lalu data akan tersinkron otomatis saat internet pulih.",
+        q4: "Berapa lama proses migrasi data dari sistem lama atau Excel?",
+        a4: "Implementasi standar selesai dalam 1–2 hari kerja. Tim kami mendampingi migrasi data master (produk, harga, stok, pelanggan, supplier, dan karyawan) tanpa biaya tambahan.",
+        q5: "Apakah tim sales lapangan bisa dipantau rute kunjungannya?",
+        a5: "Ya. Sales lapangan dapat melakukan check-in dan submit pesanan dengan validasi radius lokasi GPS dan foto di toko pelanggan.",
+        q6: "Bagaimana keamanan dan kepemilikan data bisnis kami?",
+        a6: "Data Anda dienkripsi penuh di infrastruktur cloud berstandar enterprise, dengan isolasi tenant dan pencadangan harian otomatis. Kepemilikan data 100% milik Anda.",
       },
     },
     cta: {
-      title1: "Berhenti Membuang Waktu.",
-      title2: "Mulai Transformasi Anda.",
+      tag: "MEMULAI",
+      headingTitle: "Siap Mengintegrasikan",
+      headingSubtitle: "Operasional Bisnis Anda?",
       subtitle:
-        "Bergabunglah dengan ratusan perusahaan yang telah mengotomatisasi operasional mereka. Setup dalam hitungan hari, bukan bulan.",
-      seeFeatures: "Mulai Uji Coba Gratis",
-      signIn: "Pelajari Lebih Lanjut",
-    },
-    contactSales: {
-      eyebrow: "Hubungi sales",
-      title: "Diskusikan kebutuhan operasional Anda dengan tim kami.",
-      subtitle:
-        "Butuh harga, detail onboarding, atau demo terpandu? Chat dengan sales SalesView melalui WhatsApp dan dapatkan respons cepat.",
-      whatsappCta: "Chat via WhatsApp",
+        "Tinggalkan kerumitan spreadsheet dan nikmati kejelasan visibilitas bisnis dalam satu sistem terpadu.",
+      ctaPrimary: "Mulai Uji Coba Gratis",
+      ctaWhatsapp: "Hubungi Sales (WhatsApp)",
     },
     footer: {
-      tagline: "All-in-One ERP · CRM · POS · Finance · HR",
+      desc: "Platform ERP terintegrasi untuk distributor, retail, dan F&B: POS, CRM, HRIS, Inventory, dan Finance.",
+      address: "Gedung GILABS Studio, Jl. Kemang Raya No. 10, Jakarta Selatan 12730",
+      hotline: "+62 813-6795-4062",
+      madeBy: "Made by gilabs.id",
+      copyright: "© 2026 GILABS. Hak cipta dilindungi undang-undang.",
     },
   },
 };

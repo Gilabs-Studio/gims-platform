@@ -452,6 +452,16 @@ apiClient.interceptors.response.use(
       requestUrl.includes("/auth/login") ||
       requestUrl.includes("/auth/logout");
 
+    // Explicitly silent requests (e.g. landing page public queries like /auth/plans)
+    const isExplicitlySilent =
+      originalRequest?.headers?.["X-Skip-Global-Toast"] === "true" ||
+      originalRequest?.headers?.["x-skip-global-toast"] === "true" ||
+      requestUrl.includes("/auth/plans");
+
+    if (isExplicitlySilent) {
+      return Promise.reject(error);
+    }
+
     // Mutations usually show contextual toasts at feature level.
     // Suppress generic global toasts for mutation failures to avoid duplicate notifications.
     const shouldSuppressGlobalToast =

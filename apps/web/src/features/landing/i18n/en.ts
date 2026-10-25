@@ -1,141 +1,141 @@
 export const landingEn = {
   landing: {
     nav: {
-      features: "Features",
       modules: "Modules",
-      faq: "FAQ",
+      features: "Features",
+      customFlow: "Custom Flow",
       pricing: "Pricing",
+      about: "About",
+      faq: "FAQ",
       signIn: "Sign In",
-      getStarted: "Get Started",
+      getStarted: "Free Trial",
     },
     hero: {
-      badge: "Your End-to-End Business Engine",
-      title1: "Scale Your Business",
-      title2: "Without the Complexity",
+      titlePrefix: "One Unified System for",
+      titleSuffix: "All Your Business Operations.",
+      rotatingWords: [
+        "Retail & F&B Outlets",
+        "Wholesale & Distribution",
+        "Field Sales Teams",
+        "Multi-Warehouse Operations",
+        "Multi-Branch Enterprises",
+      ],
       subtitle:
-        "Replace fragmented systems with one intelligent platform. Manage your entire operation from sales and finance to HR and inventory with real-time AI insights.",
-      cta: "Start Free Trial",
-      trackPlaceholder: "Enter order ID to track status",
+        "Manage retail POS, field sales, workforce attendance, warehouse stock, and financial statements in one connected platform without manual spreadsheets.",
+      ctaPrimary: "Try Free",
+      ctaWhatsapp: "Custom Software",
     },
-    benefits: {
-      eyebrow: "Why Choose SalesView",
-      title: "One Platform. Absolute Control.",
+    superiority: {
+      tag: "WHY SALESVIEW",
+      headingTitle: "Engineered Superior.",
+      headingSubtitle: "Zero Fragmented Fees, Zero Complexity.",
       subtitle:
-        "Fragmented systems kill productivity. SalesView gives you a single 'source of truth'—so every team, from the warehouse to the boardroom, is always aligned without manual reconciliation.",
+        "Many growing businesses get trapped between expensive piecemeal apps or overly complex legacy ERPs. SalesView delivers the best of both worlds.",
       items: {
-        singleSource: {
-          title: "Eliminate Data Silos",
+        allInOne: {
+          badge: "VS. PIECEMEAL APPS",
+          title: "One Connected Ecosystem, Single Invoice",
           description:
-            "All modules (CRM, Sales, HRD, Finance) talk to each other in real-time. No more redundant manual input.",
+            "No need to pay separate subscriptions for POS, HRIS, and accounting that drain budgets. In SalesView, all operations sync natively without costly third-party API connectors.",
         },
-        operationalControl: {
-          title: "Leak-Proof Operations",
+        noConsultant: {
+          badge: "VS. ODOO & LEGACY ERPS",
+          title: "Instant Go-Live Without Costly Consultants",
           description:
-            "Track every item movement from PO to Goods Receipt. Total transparency, zero stock discrepancies.",
+            "Skip hundreds of millions in implementation fees and endless setup months. Your team can master the intuitive interface and run live operations within days.",
         },
-        financeAudit: {
-          title: "Audit-Ready Finance",
+        customFlow: {
+          badge: "BESPOKE FLEXIBILITY",
+          title: "Software Tailored to Your Workflows",
           description:
-            "Automated journals, instant reconciliation. Close your daily books stress-free and always be ready for auditors.",
+            "Rigid SaaS tools force you to alter your business processes. SalesView engineers can build tailored custom flows specifically designed around your unique operational model.",
         },
-        hrdDiscipline: {
-          title: "Self-Driving HR",
+        fieldReliability: {
+          badge: "FIELD RESILIENCE",
+          title: "Offline-Ready & Verified Geofencing",
           description:
-            "Automate attendance, leave, and recruitment. Let the system handle administration while you focus on building your team.",
-        },
-        insightFast: {
-          title: "Fact-Based Decisions",
-          description:
-            "Access business insights in seconds. From area sales performance to customer purchasing trends.",
-        },
-        automation: {
-          title: "AI as Your Co-Pilot",
-          description:
-            "Not just recording, but guiding. Smart workflows and proactive notifications prevent issues before they happen.",
+            "Cashiers keep transacting and printing receipts even when offline. Field sales check-ins are validated through strict anti-mock GPS geofencing and on-site photos.",
         },
       },
     },
-    screenshots: {
-      title: "Designed For Speed & Clarity",
-      items: {
-        pipeline: {
-          title: "CRM Pipeline",
-          caption: "Visual kanban sales flow that is easy to understand (drag & drop deals).",
-        },
-        dashboard: {
-          title: "Dashboard",
-          caption: "Revenue overview, trends, and key metrics for strategic decisions.",
-        },
-        salesOrder: {
-          title: "Sales Order",
-          caption: "Monitor incoming orders in real-time from order to delivery.",
-        },
-        stockInventory: {
-          title: "Stock Inventory",
-          caption: "Monitor and compare stock availability across multiple warehouses.",
-        },
-        profitLoss: {
-          title: "Profit & Loss",
-          caption: "Comprehensive financial report measuring income and expense performance.",
-        },
-        customer: {
-          title: "Customer",
-          caption: "Master data with customer history and relationships (Single Source of Truth).",
-        },
-        geoPerformance: {
-          title: "Geo Performance",
-          caption: "View sales performance down to provinces and cities via interactive map.",
-        },
-        salary: {
-          title: "Salary",
-          caption: "Automated payroll connected with attendance and HRD data.",
-        },
-      },
-    },
-    turningPoint: {
-      title1: "Stop Reconciling Data.",
-      title2: "Start Steering",
-      title3: "Your Business.",
+    pillars: {
+      tag: "5 ERP PILLARS",
+      headingTitle: "Unified System,",
+      headingSubtitle: "Total Control.",
       subtitle:
-        "SalesView ends the era of manual spreadsheets. A transaction entered by warehouse staff automatically updates the P&L on the director's desk—instantly.",
-    },
-    map: {
-      title1: "Distribution Visibility",
-      title2: "With Precision",
-      subtitle:
-        "Monitor the health of your supply chain from coast to coast on a single interactive screen.",
-      detail:
-        "Know exactly where stock is running low and where your distribution points are most profitable.",
-      legend: {
-        mainWarehouse: "Main warehouse",
-        distributionPoint: "Distribution point",
+        "All cashier sales, field reps, inventory transfers, and accounting journals sync in real-time without manual reconciliation.",
+      pos: {
+        tag: "01 POINT OF SALE",
+        title: "Fast & Multi-Outlet POS",
+        description:
+          "Modern checkout system for retail and F&B with offline mode support, Bluetooth receipt printing, table layout, and automatic recipe/ingredient inventory deduction.",
+        cta: "Explore POS",
       },
-      badge: "13 active hubs — Indonesia",
-    },
-    ai: {
-      title1: "Have a Business Question?",
-      title2: "Ask Our AI.",
-      subtitle:
-        "Get instant answers without mastering complex Excel formulas. Ask about stock, sales trends, or create a PO using everyday language.",
-      detail:
-        "SalesView AI isn't just a chatbot; it's your personal executive assistant that knows everything about your business.",
-      chat: {
-        user1: "How much stock is SKU-201 at the Bandung warehouse?",
-        ai1: "SKU-201 stock at Bandung Warehouse: {count} units. Last updated 14 minutes ago. Reorder point: 200 units.",
-        user2: "Create a PO to the supplier for 500 units.",
-        ai2: "Purchase Order {po} successfully created — 500 units SKU-201 to CV Maju Sejahtera. Awaiting approval.",
-        labelUser: "You",
-        labelAi: "SalesView AI",
+      crm: {
+        tag: "02 CRM & FIELD SALES",
+        title: "Field Sales Route Tracking",
+        description:
+          "Track sales rep visits with GPS geofence verification and on-site client photos. Manage deals and quotations through clear visual pipeline stages.",
+        cta: "Explore CRM",
       },
+      hris: {
+        tag: "03 HRIS & PAYROLL",
+        title: "GPS Attendance & Auto Payroll",
+        description:
+          "Capture employee check-ins via mobile biometric verification. Manage multi-shifts, leave requests, and calculate salaries, overtime, and taxes in 1 click.",
+        cta: "Explore HRIS",
+      },
+      inventory: {
+        tag: "04 INVENTORY & WAREHOUSE",
+        title: "Multi-Warehouse Stock Control",
+        description:
+          "Track live stock across multiple warehouses and outlets. Manage inter-branch transfers, batch/serial tracking, and automated reorder point alerts.",
+        cta: "Explore Inventory",
+      },
+      finance: {
+        tag: "05 FINANCE & ACCOUNTING",
+        title: "Automated Ledgers & P&L",
+        description:
+          "Every sales order and purchase automatically generates double-entry journals. Issue invoices, reconcile bank statements, and access audit-ready balance sheets.",
+        cta: "Explore Finance",
+      },
+    },
+    distribution: {
+      tag: "REGIONAL DISTRIBUTION",
+      headingTitle: "Operational Reach",
+      headingSubtitle: "Without Limits.",
+      description:
+        "Synchronize your logistics workforce, delivery fleet, and regional warehouses simultaneously with centralized data visibility.",
+      point1: "Integrated multi-hub dispatch coordination",
+      point2: "Territory fleet and inventory tracking",
+      point3: "Real-time order synchronization from all channels",
+    },
+    aiOps: {
+      tag: "OPERATIONAL ANALYTICS",
+      headingTitle: "Data-Driven Decisions",
+      headingSubtitle: "In Real Time.",
+      description:
+        "Eliminate guesswork from executive management. Access daily revenue breakdowns, demand trends, and proactive cashflow warnings in plain language.",
+      point1: "Revenue trends and product margin analytics",
+      point2: "Proactive low-stock and overdue AR alerts",
+      point3: "Historical reorder point suggestions",
+    },
+    customFlow: {
+      tag: "CUSTOM FLOW & DEVELOPMENT",
+      headingTitle: "Have Unique Workflows?",
+      headingSubtitle: "We Build Them for You.",
+      description:
+        "Every industry runs on distinct SOPs. Our software engineers build custom modules, specialized approval flows, and hardware integrations tailored to your business.",
+      ctaWhatsapp: "Discuss Custom Flow on WhatsApp",
     },
     pricing: {
-      eyebrow: "Measurable Investment",
-      title1: "Transparent Pricing With",
-      title2: "No Hidden Fees",
+      eyebrow: "TRANSPARENT VALUE",
+      title1: "Clear Pricing Without",
+      title2: "Hidden Charges",
       subtitle:
-        "Pay only for the value you receive. Choose a Bundle for total transformation, or Modular to solve specific bottlenecks first.",
+        "Choose an all-inclusive bundle for your team, or start with specific modular packages.",
       tabs: {
-        bundle: "Bundle",
+        bundle: "Full Bundle",
         modular: "Modular",
       },
       monthly: "Monthly",
@@ -144,111 +144,46 @@ export const landingEn = {
       perMonthSeat: "mo per seat",
       totalInvoice: "Total invoice",
       selectBundle: "Select {name}",
-      selectModular: "Select modular",
-      modularCtaHint: "For single-team rollout",
-      comparisonTitle: "Bundle comparison",
-      guarantee: "30-day money-back guarantee. Cancel anytime.",
-      modularTitle: "Modular plans",
-      modularSubtitle: "Start with one module and expand later when needed.",
-      contactSalesHint: "For Enterprise setup and custom SLA",
-      originalPrice: "Was {price}",
-      nowPrice: "Now {price}",
-    },
-    modules: {
-      eyebrow: "SalesView core modules",
-      title1: "All core modules",
-      title2: "in one platform",
-      subtitle:
-        "This menu follows the product documentation structure. Starter includes core modules, while Full Standard covers all standard modules.",
-      items: {
-        dashboard: {
-          title: "Dashboard",
-          description: "Operational summary, quick widgets, and access to key business indicators.",
-        },
-        masterData: {
-          title: "Master Data",
-          description:
-            "Geographic, organization, employee, supplier, customer, product, warehouse, and user master.",
-        },
-        sales: {
-          title: "Sales",
-          description: "Quotation, sales order, delivery, invoice, payments, and receivables recap.",
-        },
-        purchase: {
-          title: "Purchase",
-          description:
-            "Requisition, purchase order, goods receipt, supplier invoice, payments, and payables recap.",
-        },
-        stock: {
-          title: "Stock",
-          description: "Inventory, stock movement, and stock opname for inventory control.",
-        },
-        finance: {
-          title: "Finance",
-          description: "Accounting, banking, payables, budgeting, asset management, and financial statements.",
-        },
-        hrd: {
-          title: "HRD",
-          description: "Attendance, leave request, evaluation, recruitment, work schedule, and holidays.",
-        },
-        hr: {
-          title: "HRIS",
-          description: "Human Resource Information System: employee data, contracts, payroll, and HR workflows.",
-        },
-        crm: {
-          title: "CRM",
-          description: "Leads, pipeline, tasks, visit reports, area mapping, sales targets, and settings.",
-        },
-        reports: {
-          title: "Reports",
-          description:
-            "Sales overview, top product, geo performance, customer research, and supplier research.",
-        },
-        aiAssistant: {
-          title: "AI Assistant",
-          description: "Chatbot and settings for operational queries and fast work assistance.",
-        },
-      },
+      selectModular: "Select Modular",
+      modularSubtitle: "Start with what your business needs now, and add modules as you grow.",
+      guarantee: "30-day money-back guarantee. Cancel anytime without long-term lock-ins.",
+      contactSalesHint: "For Enterprise setups and custom SLA agreements",
     },
     faq: {
-      eyebrow: "Common questions",
-      title1: "Things that are",
-      title2: "often asked",
-      subtitle:
-        "Can't find the answer you're looking for? Contact our team — we usually reply within hours.",
-      contactCta: "Contact team",
+      tag: "HELP CENTER",
+      headingTitle: "Frequently",
+      headingSubtitle: "Asked Questions",
+      subtitle: "Important information regarding SalesView ERP deployment and features.",
       items: {
-        q1: "Is SalesView suitable for multi-warehouse distribution?",
-        a1: "Yes. SalesView is designed from the ground up for multi-warehouse scenarios — stock at each location is recorded in real-time, inter-warehouse transfers are automated, and consolidated reports are available without manual reconciliation.",
-        q2: "How long does the onboarding process take?",
-        a2: "Most companies are fully operational within 1–2 business days. Our team guides data migration, initial configuration, and brief training sessions for each department.",
-        q3: "Can it be integrated with existing systems?",
-        a3: "SalesView uses an open REST API. Integration with digital scales, barcode scanners, existing accounting systems, or marketplaces can be done without touching the platform's core code.",
-        q4: "How is our data security maintained?",
-        a4: "Data is stored in cloud infrastructure with at-rest and in-transit encryption. Access is controlled per role and per entity — warehouse staff in Surabaya only see their own warehouse data.",
-        q5: "Is there a mobile version for field teams?",
-        a5: "SalesView interface runs in modern browsers including on Android and iOS smartphones. Sales teams can enter orders, check stock, and log customer visits directly from their phones.",
-        q6: "What makes SalesView different from generic ERP?",
-        a6: "SalesView is built specifically for Indonesia's distribution operational patterns — including surat jalan, goods returns, multi-VAT, and delivery areas based on Indonesian administrative maps down to kelurahan level.",
+        q1: "Are all modules (POS, CRM, HRIS, Inventory, Finance) natively connected?",
+        a1: "Yes. All five modules share a single unified data core without third-party plugins. POS transactions instantly deduct inventory stock and record cash inflows in finance ledgers automatically.",
+        q2: "What if our business requires unique workflows or custom forms?",
+        a2: "We provide dedicated Custom Flow services. Our engineers adapt multi-level approvals, add custom fields, or engineer new modules by reaching out to our WhatsApp at +62 813-6795-4062.",
+        q3: "Can the POS cashier work when the internet is down?",
+        a3: "Yes. The POS module is designed offline-first. Cashiers can continue processing sales and printing receipts; all data syncs automatically once connectivity resumes.",
+        q4: "How long does data onboarding take from Excel or legacy systems?",
+        a4: "Standard deployment takes 1–2 business days. Our team assists with master data migration (products, prices, stock, customers, and employees) at no extra cost.",
+        q5: "Can field sales visit routes be monitored with GPS?",
+        a5: "Yes. Field reps log check-ins and submit orders with GPS geofence radius verification and on-site client photos.",
+        q6: "How is our business data secured and backed up?",
+        a6: "Your data is encrypted at-rest and in-transit in enterprise cloud infrastructure, with strict tenant isolation and automated daily offsite backups. Data ownership is 100% yours.",
       },
     },
     cta: {
-      title1: "Stop Wasting Time.",
-      title2: "Start Your Transformation.",
+      tag: "GET STARTED",
+      headingTitle: "Ready to Unify Your",
+      headingSubtitle: "Business Operations?",
       subtitle:
-        "Join hundreds of companies that have automated their operations. Setup in days, not months.",
-      seeFeatures: "Start Free Trial",
-      signIn: "Learn More",
-    },
-    contactSales: {
-      eyebrow: "Contact sales",
-      title: "Talk to our team about your operation.",
-      subtitle:
-        "Need pricing, onboarding details, or a guided demo? Chat with SalesView sales on WhatsApp and get a fast response.",
-      whatsappCta: "Chat on WhatsApp",
+        "Leave complex spreadsheets behind and experience clear operational visibility in one integrated platform.",
+      ctaPrimary: "Start Free Trial",
+      ctaWhatsapp: "Contact Sales (WhatsApp)",
     },
     footer: {
-      tagline: "All-in-One ERP · CRM · POS · Finance · HR",
+      desc: "Integrated ERP platform for distribution, retail, and F&B: POS, CRM, HRIS, Inventory, and Finance.",
+      address: "GILABS Studio Building, Jl. Kemang Raya No. 10, South Jakarta 12730",
+      hotline: "+62 813-6795-4062",
+      madeBy: "Made by gilabs.id",
+      copyright: "© 2026 GILABS. All rights reserved.",
     },
   },
 };

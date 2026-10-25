@@ -329,9 +329,18 @@ export const authService = {
   /**
    * Returns all active subscription plan configs for the registration form.
    */
-  async getSubscriptionPlans(): Promise<SubscriptionPlanConfig[]> {
-    const response = await apiClient.get("/auth/plans");
-    return response.data?.data ?? [];
+  async getSubscriptionPlans(options?: { silent?: boolean }): Promise<SubscriptionPlanConfig[]> {
+    try {
+      const response = await apiClient.get("/auth/plans", {
+        headers: options?.silent ? { "X-Skip-Global-Toast": "true" } : undefined,
+      });
+      return response.data?.data ?? [];
+    } catch (err) {
+      if (options?.silent) {
+        return [];
+      }
+      throw err;
+    }
   },
 
   /**

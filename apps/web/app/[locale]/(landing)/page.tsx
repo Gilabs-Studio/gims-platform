@@ -1,117 +1,188 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { Link } from "@/i18n/routing";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import dynamic from "next/dynamic";
-import { useTranslations } from "next-intl";
-import { ThemeAwareImage } from "@/components/landing/theme-aware-image";
-import {
-  LANDING_THEME_IMAGES_BY_FEATURE,
-  type LandingScreenshotKey,
-} from "@/lib/landing-theme-images";
-import {
-  LayoutDashboard,
-  Database,
-  Package,
-  CreditCard,
-  Users,
-  BarChart3,
-  ArrowUpRight,
-  Truck,
-  PhoneCall,
-  ChevronDown,
-  LineChart,
-  Sparkles,
-  UserCheck,
-} from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { LazyMount } from "@/features/general/dashboard/components/lazy-mount";
-
-// WebGL background — single instance, fixed behind entire page
-import type { LightRaysProps } from "@/components/landing/light-rays";
-const LightRays = dynamic(
-  () => import("@/components/landing/light-rays").then((m) => m.default as React.ComponentType<LightRaysProps>),
-  { ssr: false }
-);
-
-// Leaflet map — requires browser environment
-const MarketingMapDemo = dynamic(
-  () =>
-    import("@/components/landing/marketing-map-demo").then(
-      (m) => m.MarketingMapDemo
-    ),
-  { ssr: false }
-);
 
 const PricingSection = dynamic(
   () => import("@/components/landing/pricing-section").then((m) => m.PricingSection),
   {
     ssr: false,
-    loading: () => <div className="min-h-[600px] w-full" aria-hidden="true" />,
+    loading: () => <div className="min-h-[500px] w-full" aria-hidden="true" />,
   }
 );
 
-const PRIMARY_HEX = "#FFFFFF";
+const ROTATING_SEGMENTS = {
+  id: [
+    "Bisnis Ritel & F&B",
+    "Distributor & Grosir",
+    "Tim Sales Lapangan",
+    "Operasional Multi-Gudang",
+    "Bisnis Multi-Cabang",
+  ],
+  en: [
+    "Retail & F&B Outlets",
+    "Wholesale & Distribution",
+    "Field Sales Teams",
+    "Multi-Warehouse Operations",
+    "Multi-Branch Enterprises",
+  ],
+} as const;
 
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 32 },
-  visible: (delay = 0) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.8, ease: "easeOut", delay },
-  }),
-};
+function HeroRotatingTitle({
+  prefix,
+  suffix,
+  words,
+}: {
+  prefix: string;
+  suffix: string;
+  words: readonly string[];
+}) {
+  const [index, setIndex] = useState(0);
 
-// Common content width constraint
-const W = "relative z-10 mx-auto w-full max-w-6xl px-6 lg:px-12";
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % words.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, [words.length]);
 
-const MODULE_ICONS = [
-  LayoutDashboard,
-  Database,
-  BarChart3,
-  Truck,
-  Package,
-  CreditCard,
-  Users,
-  PhoneCall,
-  LineChart,
-  Sparkles,
-  UserCheck,
+  return (
+    <h1 className="text-4xl sm:text-6xl lg:text-7xl text-white font-medium mb-4 sm:mb-5 leading-[1.14] tracking-tight text-balance">
+      <span className="block">{prefix}</span>
+      <span className="relative inline-flex items-center overflow-hidden h-[1.25em] align-middle py-0.5 my-0.5">
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={index}
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: "0%", opacity: 1 }}
+            exit={{ y: "-100%", opacity: 0 }}
+            transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+            className="text-primary font-medium inline-block"
+          >
+            {words[index]}
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      <span className="text-white/80 block">{suffix}</span>
+    </h1>
+  );
+}
+
+function WhatsAppIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.999-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.456 5.711 1.457h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
+function ParallaxImageCard({
+  src,
+  alt,
+  href,
+}: {
+  src: string;
+  alt: string;
+  href: string;
+}) {
+  const containerRef = useRef<HTMLAnchorElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"],
+  });
+
+  // Pure vertical Y translation only (no zoom or scaling)
+  const y = useTransform(scrollYProgress, [0, 1], ["-20%", "12%"]);
+
+  return (
+    <Link
+      ref={containerRef}
+      href={href}
+      className="group relative block cursor-pointer select-none"
+    >
+      <div className="relative overflow-hidden rounded-xl aspect-[16/10] bg-muted shadow-sm border border-border/70">
+        <motion.div
+          style={{ y }}
+          className="absolute inset-x-0 -top-[14%] -bottom-[14%] w-full h-[128%]"
+        >
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes="(max-width: 1024px) 100vw, 700px"
+            className="w-full h-full object-cover transition-opacity duration-300"
+            loading="lazy"
+          />
+        </motion.div>
+
+        {/* Subtle hover gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none" />
+
+        {/* Circular Corner Arrow Button */}
+        <div className="absolute bottom-4 right-4 z-20 w-10 h-10 rounded-full bg-primary flex items-center justify-center transition-all duration-300 transform translate-y-1 opacity-90 group-hover:translate-y-0 group-hover:opacity-100 group-hover:scale-110 shadow-sm">
+          <ArrowRight className="h-4 w-4 text-primary-foreground -rotate-45 group-hover:rotate-0 transition-transform duration-300" />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// 5 Core Pillars with Curated Visuals
+const PILLARS = [
+  {
+    key: "pos" as const,
+    image: "/video-bg-thumb.webp",
+    href: "/pos",
+  },
+  {
+    key: "crm" as const,
+    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80",
+    href: "/crm",
+  },
+  {
+    key: "hris" as const,
+    image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
+    href: "/attendance",
+  },
+  {
+    key: "inventory" as const,
+    image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
+    href: "/stock",
+  },
+  {
+    key: "finance" as const,
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80",
+    href: "/accounting",
+  },
 ];
 
-const BENEFIT_ICONS = [LayoutDashboard, Package, CreditCard, Users, LineChart, Sparkles];
-
-function FaqItem({
-  q,
-  a,
-  index,
-}: {
-  q: string;
-  a: string;
-  index: number;
-}) {
+function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <motion.div
-      variants={fadeUp}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: "-20px" }}
-      custom={index * 0.07}
-      className="border-b border-border last:border-0"
-    >
+    <div className="border-b border-border/80 last:border-0">
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full cursor-pointer items-start justify-between gap-4 py-6 text-left"
+        className="flex w-full cursor-pointer items-start justify-between gap-4 py-5 text-left transition-colors hover:text-foreground"
         aria-expanded={open}
       >
-        <span className="text-sm font-medium text-foreground sm:text-base">
+        <span className="text-base sm:text-lg font-medium text-foreground">
           {q}
         </span>
         <ChevronDown
-          className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300 ${
-            open ? "rotate-180" : ""
+          className={`mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 ${
+            open ? "rotate-180 text-foreground" : ""
           }`}
         />
       </button>
@@ -122,625 +193,499 @@ function FaqItem({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <p className="pb-6 text-sm leading-relaxed text-muted-foreground">
+            <p className="pb-6 text-sm sm:text-base leading-relaxed text-muted-foreground">
               {a}
             </p>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
 export default function LandingPage() {
-  const [activeScreenshot, setActiveScreenshot] = useState(0);
-  const [showBackgroundFx, setShowBackgroundFx] = useState(false);
-  const [followBeamPointer, setFollowBeamPointer] = useState(false);
-
   const t = useTranslations("landing");
+  const locale = useLocale();
+  const isId = locale === "id";
+  const [videoFailed, setVideoFailed] = useState(false);
 
-  useEffect(() => {
-    // Defer WebGL background rendering to allow hero section to paint first
-    // This improves LCP by avoiding GPU initialization blocking main thread
-    const timerId = window.setTimeout(() => {
-      setShowBackgroundFx(true);
-    }, 1200);
-
-    return () => window.clearTimeout(timerId);
-  }, []);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(pointer: fine) and (min-width: 1024px)");
-
-    const updatePointerBehavior = () => {
-      setFollowBeamPointer(mediaQuery.matches);
-    };
-
-    updatePointerBehavior();
-    mediaQuery.addEventListener("change", updatePointerBehavior);
-
-    return () => mediaQuery.removeEventListener("change", updatePointerBehavior);
-  }, []);
-
-  const MODULE_KEYS = [
-    "dashboard",
-    "masterData",
-    "sales",
-    "purchase",
-    "stock",
-    "finance",
-    "hrd",
-    "hr",
-    "crm",
-    "reports",
-    "aiAssistant",
-  ] as const;
-
-  const BENEFIT_KEYS = [
-    "singleSource",
-    "operationalControl",
-    "financeAudit",
-    "hrdDiscipline",
-    "insightFast",
-    "automation",
-  ] as const;
-
-  const SCREENSHOT_KEYS: readonly LandingScreenshotKey[] = [
-    "pipeline",
-    "dashboard",
-    "salesOrder",
-    "stockInventory",
-    "profitLoss",
-    "customer",
-    "geoPerformance",
-    "salary",
-  ] as const;
+  const whatsappUrl = `https://wa.me/6281367954062?text=${encodeURIComponent(
+    isId
+      ? "Halo SalesView, saya tertarik berdiskusi tentang Custom Flow dan solusi pengembangan ERP untuk bisnis saya."
+      : "Hello SalesView, I'd like to discuss Custom Flow and tailored ERP development for my business."
+  )}`;
 
   const FAQ_KEYS = ["q1", "q2", "q3", "q4", "q5", "q6"] as const;
 
   return (
-    <>
-      {/* ── Single global WebGL background (fixed, below everything) ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
-        {showBackgroundFx ? (
-          <LightRays
-            raysOrigin="top-center"
-            raysColor={PRIMARY_HEX}
-            raysSpeed={0.35}
-            lightSpread={2.0}
-            rayLength={2.8}
-            fadeDistance={0.92}
-            saturation={0.5}
-            pulsating
-            followMouse={followBeamPointer}
-            mouseInfluence={0.07}
-          />
-        ) : null}
-      </div>
-
-      <main className="relative z-10 overflow-x-hidden" id="main-content">
+    <div className="min-h-screen bg-background text-foreground">
+      <main id="main-content">
 
         {/* ════════════════════════════════════════════════════════
-            1. HERO — with dashboard screenshot below
+            1. HERO SECTION (Matching sipepeg Hero.astro layout)
+            - Full video background with dark gradient scrim
+            - Bottom-aligned flush left layout
+            - Simple punchy copywriting & signature arrow button
         ════════════════════════════════════════════════════════ */}
-        <section className="flex flex-col items-center pt-32 pb-0 text-center">
-          <div className={W}>
-            <motion.p
-              variants={fadeUp}
-              initial={false}
-              animate="visible"
-              custom={0}
-              className="mb-6 text-xs font-semibold uppercase tracking-[0.22em] text-primary"
-            >
-              {t("hero.badge")}
-            </motion.p>
-
-            <motion.h1
-              variants={fadeUp}
-              initial={false}
-              animate="visible"
-              custom={0.1}
-              style={{ opacity: 1, transform: "none" }}
-              className="mx-auto max-w-5xl text-center text-balance text-5xl font-light leading-[1.06] tracking-tight text-foreground sm:text-6xl lg:text-[5.5rem]"
-            >
-              {t("hero.title1")}
-              <br />
-              <span className="inline-block text-[3.5rem] font-medium leading-[1.1] tracking-normal text-primary italic font-accent sm:text-[4.5rem] lg:text-[5.5rem]">
-                {t("hero.title2")}
-              </span>
-            </motion.h1>
-
-            <motion.p
-              variants={fadeUp}
-              initial={false}
-              animate="visible"
-              custom={0.2}
-              className="mx-auto mt-8 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg"
-            >
-              {t("hero.subtitle")}
-            </motion.p>
-
-            {/* Minimal hero — no tracking input for a clean Apple-like look */}
-            <motion.div
-              variants={fadeUp}
-              initial="hidden"
-              animate="visible"
-              custom={0.3}
-              className="mx-auto mt-8 w-full max-w-2xl"
-            />
-
-            {/* Clean screenshot — simplified frame for minimalist aesthetic */}
-            <motion.div
-              variants={fadeUp}
-              initial={false}
-              animate="visible"
-              custom={0.45}
-              className="relative mt-12 w-full overflow-hidden rounded-2xl bg-card/60 shadow-lg"
-            >
-              <div className="relative aspect-video w-full">
-                <ThemeAwareImage
-                  lightSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.light}
-                  darkSrc={LANDING_THEME_IMAGES_BY_FEATURE.dashboard.dark}
-                  alt="SalesView Dashboard"
-                  fill
-                  className="object-cover object-top"
-                  sizes="(max-width: 1200px) 100vw, 1200px"
-                  priority
-                  fetchPriority="high"
-                />
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* ════════════════════════════════════════════════════════
-            2. BENEFITS GRID
-        ════════════════════════════════════════════════════════ */}
-        <section id="features" className="flex min-h-screen flex-col items-center justify-center py-24">
-          <div className={W}>
-            <motion.div
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-              className="mx-auto max-w-3xl text-center"
-            >
-              <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                {t("benefits.eyebrow")}
-              </p>
-              <h2 className="text-4xl font-light leading-tight tracking-tight text-foreground sm:text-5xl">
-                {t("benefits.title")}
-              </h2>
-              <p className="mt-6 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                {t("benefits.subtitle")}
-              </p>
-            </motion.div>
-
-            <div className="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {BENEFIT_KEYS.map((key, index) => {
-                const Icon = BENEFIT_ICONS[index];
-                return (
-                  <motion.div
-                    key={key}
-                    variants={fadeUp}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: "-40px" }}
-                    custom={index * 0.1}
-                    className="overflow-hidden rounded-3xl border border-border bg-card/40 p-8 shadow-sm backdrop-blur-sm"
-                  >
-                    <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Icon className="h-6 w-6" />
-                    </div>
-                    <h3 className="mb-3 text-lg font-medium text-foreground">
-                      {t(`benefits.items.${key}.title`)}
-                    </h3>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {t(`benefits.items.${key}.description`)}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* ════════════════════════════════════════════════════════
-            2.5. SCREENSHOT SHOWCASE TABS
-        ════════════════════════════════════════════════════════ */}
-        <section className="flex flex-col items-center justify-center py-24 relative">
-          <div className="absolute inset-0 bg-muted/10 -z-10" />
-          <div className={`${W} max-w-7xl`}>
-            <motion.div
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-              className="mb-12 text-center"
-            >
-              <h2 className="text-3xl font-light tracking-tight text-foreground sm:text-4xl">
-                {t("screenshots.title")}
-              </h2>
-            </motion.div>
-
-            {/* TAB BUTTONS */}
-            <div className="mb-8 flex overflow-x-auto pb-4 scrollbar-hide justify-start lg:justify-center">
-              <div className="flex gap-2 px-4 lg:px-0">
-                {SCREENSHOT_KEYS.map((key, index) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveScreenshot(index)}
-                    className={`whitespace-nowrap rounded-full px-5 py-2.5 text-sm cursor-pointer ${
-                      activeScreenshot === index
-                        ? "bg-primary text-primary-foreground font-medium"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {t(`screenshots.items.${key}.title`)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* TAB CONTENT */}
-            <motion.div
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-40px" }}
-              className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm mx-auto"
-            >
-              <div className="p-4 sm:p-6 border-b border-border/50 bg-card/80 backdrop-blur-sm">
-                <h3 className="text-lg font-semibold text-foreground">
-                  {t(`screenshots.items.${SCREENSHOT_KEYS[activeScreenshot]}.title`)}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {t(`screenshots.items.${SCREENSHOT_KEYS[activeScreenshot]}.caption`)}
-                </p>
-              </div>
-              <div className="relative aspect-video w-full overflow-hidden bg-muted/20">
-                <ThemeAwareImage
-                  lightSrc={LANDING_THEME_IMAGES_BY_FEATURE[SCREENSHOT_KEYS[activeScreenshot]].light}
-                  darkSrc={LANDING_THEME_IMAGES_BY_FEATURE[SCREENSHOT_KEYS[activeScreenshot]].dark}
-                  alt={t(`screenshots.items.${SCREENSHOT_KEYS[activeScreenshot]}.title`)}
-                  fill
-                  className="object-contain p-2 sm:p-4"
-                  sizes="(max-width: 1200px) 100vw, 1200px"
-                  loading="lazy"
-                />
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* ════════════════════════════════════════════════════════
-            3. TURNING POINT
-        ════════════════════════════════════════════════════════ */}
-        <section className="flex min-h-screen flex-col items-center justify-center py-24 text-center">
-          <div className={W}>
-            <motion.div
-              variants={fadeUp} initial="hidden"
-              whileInView="visible" viewport={{ once: true, margin: "-120px" }}
-              className="mx-auto max-w-4xl"
-            >
-              <h2 className="text-4xl font-light leading-[1.1] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                {t("turningPoint.title1")}
-                <br />
-                {t("turningPoint.title2")}
-                <br />
-                <span className="text-primary font-accent font-medium italic text-4xl sm:text-5xl lg:text-6xl inline-block mt-1 tracking-normal">{t("turningPoint.title3")}</span>
-              </h2>
-              <p className="mt-8 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                {t("turningPoint.subtitle")}
-              </p>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* ════════════════════════════════════════════════════════
-            4. FEATURE: MAP (real Leaflet)
-        ════════════════════════════════════════════════════════ */}
-        <section id="features" className="flex min-h-screen flex-col items-center justify-center py-24">
-          <div className={W}>
-            <div className="grid gap-14 lg:grid-cols-2 lg:gap-20 items-center">
-              <motion.div
-                variants={fadeUp} initial="hidden"
-                whileInView="visible" viewport={{ once: true, margin: "-80px" }}
+        <section
+          id="home-hero"
+          className="relative w-full min-h-[92vh] sm:min-h-screen flex items-end overflow-hidden pb-16 sm:pb-24 lg:pb-28 px-6 sm:px-10 lg:px-16 bg-black"
+        >
+          {/* Background Video Media with Fallback */}
+          <div className="absolute inset-0 z-0">
+            {!videoFailed ? (
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                poster="/video-bg-thumb.webp"
+                onError={() => setVideoFailed(true)}
+                className="w-full h-full object-cover object-center scale-102 transition-transform duration-1000 ease-out brightness-[0.70] contrast-[1.10]"
               >
-                <h2 className="mb-5 text-3xl font-light leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                  {t("map.title1")}
-                  <br />
-                  {t("map.title2")}
-                </h2>
-                <p className="mb-5 text-base leading-relaxed text-muted-foreground">
-                  {t("map.subtitle")}
-                </p>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {t("map.detail")}
-                </p>
-              </motion.div>
+                <source src="/video-bg.webm" type="video/webm" />
+              </video>
+            ) : (
+              <Image
+                src="/video-bg-thumb.webp"
+                alt="SalesView Platform Overview"
+                fill
+                priority
+                className="w-full h-full object-cover object-center brightness-[0.70]"
+              />
+            )}
 
-              <motion.div
-                variants={fadeUp} initial="hidden"
-                whileInView="visible" viewport={{ once: true, margin: "-60px" }}
-                custom={0.1}
-                className="relative h-80 lg:h-[420px] overflow-hidden rounded-2xl border border-border bg-card/60 backdrop-blur-sm shadow-sm"
-              >
-                {/* useRemote=false: never call protected APIs from the public landing page */}
-                <LazyMount rootMargin="280px">
-                  <MarketingMapDemo useRemote={false} />
-                </LazyMount>
-
-                {/* Legend overlay */}
-                <div className="pointer-events-none absolute top-3 right-3 z-500 flex flex-col gap-1.5 rounded-xl border border-border bg-card/90 px-3 py-2.5 backdrop-blur-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 rounded-full bg-primary opacity-90" />
-                    <span className="text-xs text-muted-foreground">{t("map.legend.mainWarehouse")}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-primary opacity-50" />
-                    <span className="text-xs text-muted-foreground">{t("map.legend.distributionPoint")}</span>
-                  </div>
-                </div>
-
-                <div className="pointer-events-none absolute bottom-3 left-3 z-500">
-                  <span className="rounded-lg border border-primary/25 bg-card/90 px-3 py-1.5 text-xs font-medium text-primary backdrop-blur-sm">
-                    {t("map.badge")}
-                  </span>
-                </div>
-              </motion.div>
-            </div>
+            {/* Dark Vignette & Gradient Overlays Matching sipepeg Aesthetic */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-black/80" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30" />
           </div>
-        </section>
 
-        {/* ════════════════════════════════════════════════════════
-            5. FEATURE: AI
-        ════════════════════════════════════════════════════════ */}
-        <section className="flex min-h-screen flex-col items-center justify-center py-24">
-          <div className={W}>
-            <div className="grid gap-14 lg:grid-cols-2 lg:gap-20 items-center">
-              <motion.div
-                variants={fadeUp} initial="hidden"
-                whileInView="visible" viewport={{ once: true, margin: "-60px" }}
-                className="order-2 lg:order-1 overflow-hidden rounded-2xl border border-border bg-card/60 backdrop-blur-sm shadow-sm"
-              >
-                <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-5 py-3.5">
-                  <div className="h-3 w-3 rounded-full bg-destructive/50" />
-                  <div className="h-3 w-3 rounded-full bg-chart-3/50" />
-                  <div className="h-3 w-3 rounded-full bg-chart-2/50" />
-                  <span className="ml-3 font-mono text-xs text-muted-foreground">SalesView AI Assistant</span>
-                </div>
-                <div className="space-y-5 p-6 font-mono text-sm">
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground">{t("ai.chat.labelUser")}</p>
-                    <p className="rounded-lg bg-primary/8 px-4 py-2.5 text-sm text-foreground">
-                      {t("ai.chat.user1")}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-primary">{t("ai.chat.labelAi")}</p>
-                    <p className="rounded-lg border border-border bg-card/50 px-4 py-2.5 text-sm leading-relaxed text-muted-foreground">
-                      {t("ai.chat.ai1", { count: 342 })}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground">{t("ai.chat.labelUser")}</p>
-                    <p className="rounded-lg bg-primary/8 px-4 py-2.5 text-sm text-foreground">
-                      {t("ai.chat.user2")}
-                    </p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-primary">{t("ai.chat.labelAi")}</p>
-                    <p className="rounded-lg border border-border bg-card/50 px-4 py-2.5 text-sm leading-relaxed text-muted-foreground">
-                      {t("ai.chat.ai2", { po: "PO-2026-0847" })}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
+          {/* Hero Content Container (Flush left-aligned) */}
+          <div className="relative z-10 w-full max-w-7xl mx-auto">
+            <div className="max-w-5xl flex flex-col items-start">
+              {/* Display Headline with Animated Rotating Segment (Bibit-style) */}
+              <HeroRotatingTitle
+                prefix={t("hero.titlePrefix")}
+                suffix={t("hero.titleSuffix")}
+                words={ROTATING_SEGMENTS[isId ? "id" : "en"]}
+              />
 
-              <motion.div
-                variants={fadeUp} initial="hidden"
-                whileInView="visible" viewport={{ once: true, margin: "-80px" }}
-                custom={0.1}
-                className="order-1 lg:order-2"
-              >
-                <h2 className="mb-5 text-3xl font-light leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                  {t("ai.title1")}
-                  <br />
-                  {t("ai.title2")}
-                </h2>
-                <p className="mb-5 text-base leading-relaxed text-muted-foreground">
-                  {t("ai.subtitle")}
-                </p>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {t("ai.detail")}
-                </p>
-              </motion.div>
-            </div>
-          </div>
-        </section>
-
-        <LazyMount rootMargin="320px">
-          <PricingSection />
-        </LazyMount>
-
-        {/* ════════════════════════════════════════════════════════
-            7. MODULES
-        ════════════════════════════════════════════════════════ */}
-        <section id="modules" className="flex min-h-screen flex-col items-center justify-center py-24">
-          <div className={W}>
-            <motion.div
-              variants={fadeUp} initial="hidden"
-              whileInView="visible" viewport={{ once: true, margin: "-80px" }}
-              className="mx-auto mb-14 max-w-2xl text-center"
-            >
-              <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                {t("modules.eyebrow")}
+              {/* Simple & To-the-Point Subtitle */}
+              <p className="text-white/80 text-base sm:text-lg leading-relaxed max-w-2xl mb-8">
+                {t("hero.subtitle")}
               </p>
-              <h2 className="text-4xl font-light tracking-tight text-foreground sm:text-5xl">
-                {t("modules.title1")}
-                <br />
-                {t("modules.title2")}
-              </h2>
-              <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-                {t("modules.subtitle")}
-              </p>
-            </motion.div>
 
-            <div className="grid gap-px bg-border/50 rounded-2xl overflow-hidden sm:grid-cols-2 lg:grid-cols-3">
-              {MODULE_KEYS.map((key, i) => {
-                const Icon = MODULE_ICONS[i];
-                return (
-                  <motion.div
-                    key={key}
-                    variants={fadeUp} initial="hidden"
-                    whileInView="visible" viewport={{ once: true, margin: "-30px" }}
-                    custom={i * 0.07}
-                    className="group flex flex-col gap-4 bg-card/60 p-8 backdrop-blur-sm transition-colors hover:bg-card/80"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background/60 transition-colors group-hover:border-primary/30 group-hover:bg-primary/5">
-                      <Icon className="h-[18px] w-[18px] text-muted-foreground transition-colors group-hover:text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-sm font-semibold text-foreground">
-                        {t(`modules.items.${key}.title`)}
-                      </h3>
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {t(`modules.items.${key}.description`)}
-                      </p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
+              {/* Action Buttons (Simple, To The Point, Green WhatsApp Icon) */}
+              <div className="flex flex-wrap items-center gap-3.5 pt-2">
+                <Link
+                  href="/register"
+                  prefetch={false}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-sm sm:text-base px-6 py-3.5 rounded-lg inline-flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer select-none"
+                  aria-label={t("hero.ctaPrimary")}
+                >
+                  <span>{t("hero.ctaPrimary")}</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
 
-        {/* ════════════════════════════════════════════════════════
-          8. FAQ
-        ════════════════════════════════════════════════════════ */}
-        <section id="faq" className="flex min-h-screen flex-col items-center justify-center py-24">
-          <div className={W}>
-            <div className="grid gap-16 lg:grid-cols-[1fr_1.5fr] lg:gap-24 items-start">
-              <motion.div
-                variants={fadeUp} initial="hidden"
-                whileInView="visible" viewport={{ once: true, margin: "-80px" }}
-                className="lg:sticky lg:top-24"
-              >
-                <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  {t("faq.eyebrow")}
-                </p>
-                <h2 className="text-4xl font-light leading-tight tracking-tight text-foreground sm:text-5xl">
-                  {t("faq.title1")}
-                  <br />
-                  {t("faq.title2")}
-                </h2>
-                <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-                  {t("faq.subtitle")}
-                </p>
-                <div className="mt-8">
-                  <Link href="/login">
-                    <Button variant="outline" className="cursor-pointer bg-card/60 backdrop-blur-sm">
-                      {t("faq.contactCta")}
-                      <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
-                    </Button>
-                  </Link>
-                </div>
-              </motion.div>
-
-              <div className="divide-y divide-border rounded-2xl border border-border bg-card/50 px-6 backdrop-blur-sm">
-                {FAQ_KEYS.map((key, i) => (
-                  <FaqItem
-                    key={key}
-                    q={t(`faq.items.${key}`)}
-                    a={t(`faq.items.${key.replace("q", "a")}`)}
-                    index={i}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ════════════════════════════════════════════════════════
-          9. CONTACT SALES
-        ════════════════════════════════════════════════════════ */}
-        <section id="contact-sales" className="flex flex-col items-center justify-center py-24 text-center">
-          <div className={W}>
-            <motion.div
-              variants={fadeUp} initial="hidden"
-              whileInView="visible" viewport={{ once: true, margin: "-80px" }}
-              className="mx-auto overflow-hidden rounded-3xl border border-border bg-card/60 p-8 shadow-sm backdrop-blur-sm sm:p-12"
-            >
-              <p className="mb-5 text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-                {t("contactSales.eyebrow")}
-              </p>
-              <h2 className="mx-auto max-w-3xl text-4xl font-light leading-tight tracking-tight text-foreground sm:text-5xl">
-                {t("contactSales.title")}
-              </h2>
-              <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                {t("contactSales.subtitle")}
-              </p>
-              <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
                 <a
-                  href="https://wa.me/6289526770703"
+                  href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="bg-white/10 hover:bg-white/20 active:bg-white/15 text-white border border-white/25 backdrop-blur-sm font-medium text-sm sm:text-base px-5 py-3.5 rounded-lg inline-flex items-center justify-center gap-2.5 hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer select-none"
                 >
-                  <Button size="lg" className="cursor-pointer px-10 text-base shadow-md">
-                    <PhoneCall className="mr-2 h-4 w-4" />
-                    {t("contactSales.whatsappCta")}
-                  </Button>
+                  <span className="w-5 h-5 rounded-full bg-[#25D366] text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                    <WhatsAppIcon className="w-3 h-3 text-white fill-current" />
+                  </span>
+                  <span>{t("hero.ctaWhatsapp")}</span>
                 </a>
-                <p className="text-sm text-muted-foreground">+62 895-2677-0703</p>
               </div>
-            </motion.div>
+            </div>
           </div>
         </section>
 
         {/* ════════════════════════════════════════════════════════
-          10. CTA
+            SUPERIORITY SECTION (Persuasive Marketing vs Competitors)
+            - Why SalesView is superior to Odoo, Mekari, Accurate, SAP
+            - Clean minimal grid 2 layout, no cheesy gradients
+            - Semantic tokens: bg-background, bg-card, border-border, text-primary
         ════════════════════════════════════════════════════════ */}
-        <section className="flex min-h-screen flex-col items-center justify-center py-24 text-center">
-          <div className={W}>
-            <motion.div
-              variants={fadeUp} initial="hidden"
-              whileInView="visible" viewport={{ once: true, margin: "-80px" }}
-              className="mx-auto max-w-2xl"
-            >
-              <h2 className="mb-5 text-4xl font-light leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                {t("cta.title1")}
-                <br />
-                {t("cta.title2")}
-              </h2>
-              <p className="mb-10 text-base leading-relaxed text-muted-foreground">
-                {t("cta.subtitle")}
-              </p>
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-                <Link href="#features">
-                  <Button size="lg" className="cursor-pointer px-10 text-base shadow-md">
-                    {t("cta.seeFeatures")}
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="cursor-pointer px-8 text-base bg-card/60 backdrop-blur-sm"
-                  >
-                    {t("cta.signIn")}
-                    <ArrowUpRight className="ml-1.5 h-4 w-4" />
-                  </Button>
-                </Link>
+        <section className="w-full py-20 lg:py-28 bg-background px-6 sm:px-10 lg:px-16">
+          <div className="max-w-7xl mx-auto">
+            <div className="max-w-3xl mb-12 sm:mb-16">
+              <div className="inline-flex items-center gap-2 mb-4">
+                <span className="w-2 h-2 rounded-xs bg-primary inline-block flex-shrink-0" />
+                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  {t("superiority.tag")}
+                </span>
               </div>
-            </motion.div>
+
+              <h2 className="text-3xl sm:text-5xl font-medium leading-[1.08] tracking-tight text-foreground text-balance">
+                {t("superiority.headingTitle")} <br />
+                <span className="text-muted-foreground">{t("superiority.headingSubtitle")}</span>
+              </h2>
+
+              <p className="mt-5 text-base sm:text-lg leading-relaxed text-muted-foreground text-balance">
+                {t("superiority.subtitle")}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
+              {(["allInOne", "noConsultant", "customFlow", "fieldReliability"] as const).map((itemKey) => (
+                <div
+                  key={itemKey}
+                  className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs hover:border-primary/40 transition-colors flex flex-col justify-between"
+                >
+                  <div>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-primary mb-3 inline-block">
+                      {t(`superiority.items.${itemKey}.badge`)}
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-medium text-foreground tracking-tight mb-3">
+                      {t(`superiority.items.${itemKey}.title`)}
+                    </h3>
+                    <p className="text-sm sm:text-base leading-relaxed text-muted-foreground">
+                      {t(`superiority.items.${itemKey}.description`)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+            2. 5 CORE PILLARS (Matching sipepeg 2-Column Grid Layout)
+            - NO borders between sections!
+            - Left Column: Sticky Anchor with 8x8px square tag + Two-Tone Display Title
+            - Right Column: Narrative + Clean aspect-ratio Card with hover arrow
+        ════════════════════════════════════════════════════════ */}
+        <section id="pillars" className="w-full py-20 lg:py-28 bg-background px-6 sm:px-10 lg:px-16">
+          <div className="max-w-7xl mx-auto space-y-28 lg:space-y-36">
+            {PILLARS.map((pillar) => (
+              <div
+                key={pillar.key}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start"
+              >
+                {/* Left Column: Sticky Anchor */}
+                <div className="lg:col-span-5 lg:sticky lg:top-28 self-start">
+                  {/* Tag: 8x8px square + label (Simple, no '/') */}
+                  <div className="inline-flex items-center gap-2 mb-6">
+                    <span className="w-2 h-2 rounded-xs bg-primary inline-block flex-shrink-0" />
+                    <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      {t(`pillars.${pillar.key}.tag`)}
+                    </span>
+                  </div>
+
+                  {/* Display Title */}
+                  <h2 className="text-3xl sm:text-5xl font-medium leading-[1.05] tracking-tight text-foreground">
+                    {t(`pillars.${pillar.key}.title`)}
+                  </h2>
+
+                  <div className="mt-6 hidden lg:block">
+                    <Link
+                      href={pillar.href}
+                      className="group inline-flex items-center gap-2.5 text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <div className="w-6 h-6 rounded-sm bg-muted flex items-center justify-center transition-transform group-hover:scale-105">
+                        <ArrowRight className="h-3.5 w-3.5 text-foreground" />
+                      </div>
+                      <span>{t(`pillars.${pillar.key}.cta`)}</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Right Column: Narrative Body + Parallax Image Card */}
+                <div className="lg:col-span-7 flex flex-col">
+                  <p className="text-base sm:text-lg leading-relaxed text-muted-foreground mb-8 max-w-2xl">
+                    {t(`pillars.${pillar.key}.description`)}
+                  </p>
+
+                  {/* Parallax Image Card inside normal placeholder */}
+                  <ParallaxImageCard
+                    src={pillar.image}
+                    alt={t(`pillars.${pillar.key}.title`)}
+                    href={pillar.href}
+                  />
+
+                  <div className="mt-4 lg:hidden">
+                    <Link
+                      href={pillar.href}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary"
+                    >
+                      <span>{t(`pillars.${pillar.key}.cta`)}</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+            3. REGIONAL DISTRIBUTION (Solid Background - Reverse Layout)
+            - Transparent Background Vector Line Art on Left
+            - Narrative & Structured Metric Cards on Right
+        ════════════════════════════════════════════════════════ */}
+        <section className="w-full py-20 lg:py-28 bg-background px-6 sm:px-10 lg:px-16">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+              {/* Left Column: Transparent Vector Line Art Illustration */}
+              <div className="lg:col-span-6 flex items-center justify-center order-2 lg:order-1">
+                <div className="relative w-full max-w-lg aspect-square">
+                  <Image
+                    src="/line-art-distribution.webp"
+                    alt="SalesView Distribution Team Illustration"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 600px"
+                    className="object-contain"
+                  />
+                </div>
+              </div>
+
+              {/* Right Column: Narrative & Metrics Cards */}
+              <div className="lg:col-span-6 flex flex-col items-start order-1 lg:order-2">
+                <div className="inline-flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-xs bg-primary inline-block flex-shrink-0" />
+                  <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    {t("distribution.tag")}
+                  </span>
+                </div>
+
+                <h2 className="text-3xl sm:text-5xl font-medium leading-[1.08] tracking-tight text-foreground">
+                  {t("distribution.headingTitle")} <br />
+                  <span className="text-muted-foreground">{t("distribution.headingSubtitle")}</span>
+                </h2>
+
+                <p className="mt-6 text-base sm:text-lg leading-relaxed text-muted-foreground max-w-lg">
+                  {t("distribution.description")}
+                </p>
+
+                <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+                  <div className="p-4 rounded-xl bg-card border border-border shadow-xs">
+                    <p className="text-xs font-medium text-foreground leading-snug">
+                      {t("distribution.point1")}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-card border border-border shadow-xs">
+                    <p className="text-xs font-medium text-foreground leading-snug">
+                      {t("distribution.point2")}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-card border border-border shadow-xs">
+                    <p className="text-xs font-medium text-foreground leading-snug">
+                      {t("distribution.point3")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+            4. OPERATIONAL AI & ANALYTICS (Solid Background - Bento Container Card)
+            - Enclosed Card Layout with Insight Pills
+        ════════════════════════════════════════════════════════ */}
+        <section className="w-full py-20 lg:py-28 bg-background px-6 sm:px-10 lg:px-16">
+          <div className="max-w-7xl mx-auto">
+            <div className="rounded-2xl border border-border bg-card p-8 sm:p-12 lg:p-16 shadow-xs">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+                {/* Left Column: Narrative & Action Highlights */}
+                <div className="lg:col-span-6 flex flex-col items-start">
+                  <div className="inline-flex items-center gap-2 mb-4">
+                    <span className="w-2 h-2 rounded-xs bg-primary inline-block flex-shrink-0" />
+                    <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                      {t("aiOps.tag")}
+                    </span>
+                  </div>
+
+                  <h2 className="text-3xl sm:text-5xl font-medium leading-[1.08] tracking-tight text-foreground">
+                    {t("aiOps.headingTitle")} <br />
+                    <span className="text-muted-foreground">{t("aiOps.headingSubtitle")}</span>
+                  </h2>
+
+                  <p className="mt-6 text-base sm:text-lg leading-relaxed text-muted-foreground max-w-lg">
+                    {t("aiOps.description")}
+                  </p>
+
+                  <ul className="mt-8 space-y-3 w-full">
+                    <li className="flex items-center gap-3 p-3.5 rounded-lg bg-muted/40 border border-border/60 text-sm font-medium text-foreground">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                      <span>{t("aiOps.point1")}</span>
+                    </li>
+                    <li className="flex items-center gap-3 p-3.5 rounded-lg bg-muted/40 border border-border/60 text-sm font-medium text-foreground">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                      <span>{t("aiOps.point2")}</span>
+                    </li>
+                    <li className="flex items-center gap-3 p-3.5 rounded-lg bg-muted/40 border border-border/60 text-sm font-medium text-foreground">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                      <span>{t("aiOps.point3")}</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Right Column: Transparent Vector Line Art Illustration */}
+                <div className="lg:col-span-6 flex items-center justify-center">
+                  <div className="relative w-full max-w-md aspect-square">
+                    <Image
+                      src="/line-art-ai.webp"
+                      alt="SalesView AI & Analytics Illustration"
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 500px"
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+            5. CUSTOM FLOW & BESPOKE DEVELOPMENT SECTION
+            (Unified 2-Column Grid with WhatsApp Action)
+        ════════════════════════════════════════════════════════ */}
+        <section id="custom-flow" className="relative w-full py-20 lg:py-28 bg-muted/20 px-6 sm:px-10 lg:px-16 overflow-hidden">
+          {/* Subtle Parametric Wave Pattern Texture in Background */}
+          <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-15">
+            <Image
+              src="/wave-pattern.webp"
+              alt="Parametric Wave Texture"
+              fill
+              className="object-cover object-center"
+            />
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+              <div className="lg:col-span-5">
+                <div className="inline-flex items-center gap-2 mb-6">
+                  <span className="w-2 h-2 rounded-xs bg-foreground inline-block flex-shrink-0" />
+                  <span className="text-xs font-medium tracking-normal text-muted-foreground uppercase">
+                    {t("customFlow.tag")}
+                  </span>
+                </div>
+
+                <h2 className="text-3xl sm:text-5xl font-medium leading-[1.05] tracking-tight text-foreground">
+                  {t("customFlow.headingTitle")} <br />
+                  <span className="text-muted-foreground">{t("customFlow.headingSubtitle")}</span>
+                </h2>
+              </div>
+
+              <div className="lg:col-span-7 flex flex-col items-start justify-center space-y-6">
+                <p className="text-base sm:text-lg leading-relaxed text-muted-foreground max-w-2xl">
+                  {t("customFlow.description")}
+                </p>
+
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-3 cursor-pointer select-none"
+                >
+                  <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-105">
+                    <ArrowRight className="h-4 w-4 text-primary-foreground" />
+                  </div>
+                  <span className="text-foreground text-sm sm:text-base font-medium tracking-normal hover:text-primary transition-colors">
+                    {t("customFlow.ctaWhatsapp")} (+62 813-6795-4062)
+                  </span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+            6. PRICING SECTION (Clean with silent error handling)
+        ════════════════════════════════════════════════════════ */}
+        <section id="pricing" className="w-full py-20 lg:py-28 bg-background px-6 sm:px-10 lg:px-16">
+          <LazyMount rootMargin="320px">
+            <PricingSection />
+          </LazyMount>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+            7. FAQ SECTION (Align Center & Grid 1 Single Column)
+        ════════════════════════════════════════════════════════ */}
+        <section id="faq" className="w-full py-20 lg:py-28 bg-background px-6 sm:px-10 lg:px-16">
+          <div className="max-w-3xl mx-auto">
+            {/* Header: Align Center */}
+            <div className="text-center mb-12 sm:mb-16">
+              <div className="inline-flex items-center gap-2 mb-4">
+                <span className="w-2 h-2 rounded-xs bg-primary inline-block flex-shrink-0" />
+                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  {t("faq.tag")}
+                </span>
+              </div>
+
+              <h2 className="text-3xl sm:text-5xl font-medium leading-[1.1] tracking-tight text-foreground text-balance">
+                {t("faq.headingTitle")} {t("faq.headingSubtitle")}
+              </h2>
+
+              <p className="mt-4 text-base sm:text-lg text-muted-foreground max-w-xl mx-auto text-balance">
+                {t("faq.subtitle")}
+              </p>
+            </div>
+
+            {/* Grid 1 Centered Accordion */}
+            <div className="w-full divide-y divide-border border-y border-border">
+              {FAQ_KEYS.map((key) => (
+                <FaqItem
+                  key={key}
+                  q={t(`faq.items.${key}`)}
+                  a={t(`faq.items.${key.replace("q", "a")}`)}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════════
+            8. FINAL CTA FLOATING CONTAINER CARD (Bespoke UI, No 'Memulai', Khusus Buttons)
+        ════════════════════════════════════════════════════════ */}
+        <section className="relative z-20 w-full max-w-5xl mx-auto px-6 sm:px-10 -mb-20 sm:-mb-24 lg:-mb-28">
+          <div className="relative overflow-hidden rounded-2xl bg-card text-card-foreground border border-border shadow-2xl p-8 sm:p-14 lg:p-16 text-center flex flex-col items-center">
+            {/* Title without 'Memulai' */}
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-medium leading-[1.15] tracking-tight text-foreground max-w-3xl text-balance">
+              {t("cta.headingTitle")} <br />
+              <span className="text-muted-foreground">{t("cta.headingSubtitle")}</span>
+            </h2>
+
+            <p className="mt-5 text-base sm:text-lg leading-relaxed text-muted-foreground max-w-xl text-balance">
+              {t("cta.subtitle")}
+            </p>
+
+            {/* Specialized Action Buttons */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link
+                href="/register"
+                prefetch={false}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-base px-8 py-4 rounded-xl inline-flex items-center justify-center gap-3 shadow-xl shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer select-none"
+              >
+                <span>{t("cta.ctaPrimary")}</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-muted hover:bg-muted/80 text-foreground font-medium text-base px-7 py-4 rounded-xl inline-flex items-center justify-center gap-3 border border-border hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer select-none"
+              >
+                <span className="w-5 h-5 rounded-full bg-[#25D366] text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                  <WhatsAppIcon className="w-3 h-3 text-white fill-current" />
+                </span>
+                <span>{t("cta.ctaWhatsapp")}</span>
+              </a>
+            </div>
           </div>
         </section>
 
       </main>
-    </>
+    </div>
   );
 }
