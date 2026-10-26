@@ -55,49 +55,64 @@ export default async function FinancialReportsLandingPage({ params }: { params: 
       <FeatureLandingPage
         locale={locale}
         label="SalesView Financial Reports"
-        heroTitle={isId ? "Ubah Tebakan Buta" : "Turn Blind Guessing"}
-        heroAccent={isId ? "Menjadi Strategi Berbasis Data" : "Into Data-Driven Strategy"}
+        heroTitle={isId ? "Laporan Keuangan &" : "Financial Statements &"}
+        heroAccent={isId ? "Analisis Kinerja Bisnis Eksekutif" : "Executive Business Analytics"}
         heroDescription={
           isId
-            ? "Lupakan kompilasi manual yang melelahkan. Dapatkan laporan keuangan real-time agar Anda selalu tahu persis ke mana arah bisnis Anda."
-            : "Forget exhausting manual compilations. Get real-time financial reports so you always know exactly where your business is heading."
+            ? "Dapatkan laporan laba rugi, posisi neraca, dan arus kas secara real-time tanpa menunggu akhir bulan."
+            : "Generate profit and loss, balance sheets, and cash flow reports in real time without waiting for month-end."
         }
         heroImageAlt={isId ? "Tampilan laporan keuangan SalesView" : "SalesView financial reports interface"}
         heroImageKey="financialReportsHero"
-        introTitle={isId ? "Temukan wawasan berharga dari data harian Anda" : "Uncover valuable insights from your daily data"}
+        introTitle={isId ? "Wawasan finansial akurat untuk keputusan strategis" : "Accurate financial insights for strategic leadership decisions"}
         introDescription={
           isId
-            ? "Laporan Anda disajikan dengan visual yang jernih, memberdayakan tim Anda untuk mengambil tindakan tepat di saat yang tepat."
-            : "Your reports are presented with crystal-clear visuals, empowering your team to take the right action at the exact right moment."
+            ? "Pantau profitabilitas cabang, margin kotor per lini produk, dan likuiditas kas operasional dari satu layar eksekutif."
+            : "Track branch profitabilities, gross margins by product line, and operational liquidity from a single executive dashboard."
         }
         featureBlocks={[
           {
-            title: isId ? "Ringkasan performa keuangan" : "Financial performance summary",
+            title: isId ? "Laporan laba rugi multi-cabang instan" : "Instant multi-branch profit and loss",
             description: isId
-              ? "Lihat ringkasan metrik utama agar keputusan strategis lebih cepat diambil."
-              : "View key metric summaries to speed up strategic decisions.",
+              ? "Lihat pendapatan kotor, beban pokok penjualan (HPP), dan biaya operasional per entitas bisnis atau per outlet."
+              : "Inspect gross revenues, cost of goods sold (COGS), and operational expenses broken down by branch or legal entity.",
             screenshotKey: "financialReportsSummary",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Laporan laba rugi" : "Profit and loss reporting",
+            title: isId ? "Posisi neraca dan likuiditas kas berjalan" : "Balance sheet position and cash liquidity",
             description: isId
-              ? "Pantau tren laba rugi dengan data yang konsisten dari operasional harian."
-              : "Track P&L trends using data that stays consistent from daily operations.",
+              ? "Ketahui posisi aset lancar, liabilitas jangka pendek, dan ekuitas modal kerja perusahaan kapan pun dibutuhkan."
+              : "View current assets, short-term liabilities, and working capital equity whenever management decisions require.",
             screenshotKey: "financialReportsProfitLoss",
             placeholder: "terminalFlow",
           },
           {
-            title: isId ? "Data siap evaluasi" : "Data ready for review",
+            title: isId ? "Ekspor format standar audit dan pajak" : "Standardized audit and tax export formats",
             description: isId
-              ? "Gunakan laporan untuk review bulanan tanpa menyiapkan ulang data dari nol."
-              : "Use reports for monthly reviews without rebuilding data from scratch.",
+              ? "Unduh laporan keuangan berstandar akuntansi dalam format Excel atau PDF siap presentasi ke dewan direksi dan investor."
+              : "Download GAAP-compliant statements in Excel or PDF formats ready for board meetings and investor presentations.",
             screenshotKey: "financialReportsReview",
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Jelajahi potensi keuntungan bisnis Anda sekarang" : "Discover your business profit potential now"}
-        finalCtaLabel={isId ? "Mulai Analisis Gratis" : "Start My Free Trial"}
+        finalTitle={isId ? "Kendalikan kesehatan finansial bisnis Anda sekarang" : "Take command of your business financial health today"}
+        finalPoints={[
+          {
+            title: isId ? "Data selalu real-time" : "Continuous real-time sync",
+            description: isId
+              ? "Setiap transaksi yang terjadi seketika merefleksikan angka laba rugi terkini."
+              : "Posted transactions immediately reflect on live gross margin and net income tallies.",
+          },
+          {
+            title: isId ? "Komparasi antar periode" : "Period-over-period comparisons",
+            description: isId
+              ? "Bandingkan pertumbuhan omzet bulan ini dengan bulan lalu atau tahun lalu."
+              : "Benchmark month-on-month and year-on-year revenue growth seamlessly.",
+          },
+        ]}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

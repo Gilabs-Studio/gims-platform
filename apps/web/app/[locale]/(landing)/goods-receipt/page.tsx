@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Goods Receipt System | Linked to PO & Supplier Invoice | SalesView",
     description:
       locale === "id"
-        ? "Catat penerimaan barang per purchase order, validasi kuantitas, lacak audit trail, dan teruskan ke faktur supplier — semua dalam satu alur goods receipt yang akurat dan siap diaudit."
-        : "Record goods receipt per purchase order, validate quantities, track audit trails, and pass to supplier invoice — all in one accurate, audit-ready goods receipt workflow.",
+        ? "Catat penerimaan barang per purchase order, validasi kuantitas, lacak audit trail, dan teruskan ke faktur supplier dalam satu alur goods receipt yang akurat dan siap diaudit."
+        : "Record goods receipt per purchase order, validate quantities, track audit trails, and pass to supplier invoice in one accurate, audit-ready goods receipt workflow.",
     keywords:
       locale === "id"
         ? [
@@ -60,66 +60,67 @@ export default async function GoodsReceiptLandingPage({ params }: { params: Prom
       <FeatureLandingPage
         locale={locale}
         label="SalesView Goods Receipt"
-        heroTitle={isId ? "Ubah Penerimaan Kacau" : "Turn Chaotic Receiving"}
-        heroAccent={isId ? "Menjadi Pencatatan Presisi" : "Into Precise Records"}
+        heroTitle={isId ? "Penerimaan Barang &" : "Goods Receipt &"}
+        heroAccent={isId ? "Verifikasi Surat Jalan Gudang" : "Warehouse Inbound Verification"}
         heroDescription={
           isId
-            ? "Jangan biarkan barang hilang saat kedatangan. Validasi kuantitas secara akurat dan cocokkan dengan purchase order secara instan untuk mencegah kebocoran."
-            : "Never let items slip through the cracks upon arrival. Validate quantities accurately and match them to purchase orders instantly to prevent leakage."
+            ? "Catat kedatangan barang per purchase order, verifikasi kuantitas fisik, dan teruskan ke faktur supplier tanpa selisih."
+            : "Record inbound shipments per PO, verify physical quantities, and bridge to supplier invoices without discrepancies."
         }
         heroImageAlt={isId ? "Tampilan penerimaan barang SalesView" : "SalesView goods receipt interface"}
         heroImageKey="goodsReceiptHero"
-        introTitle={isId ? "Kunci akurasi stok Anda sejak pintu depan" : "Lock in your stock accuracy from the front door"}
+        introTitle={isId ? "Verifikasi barang masuk langsung di pintu gudang" : "Verify incoming goods right at the receiving dock"}
         introDescription={
           isId
-            ? "Beri tim gudang Anda alat yang tepat untuk memproses penerimaan barang tanpa kesalahan, mempercepat pembayaran ke pemasok yang benar."
-            : "Give your warehouse team the right tools to process inbound goods flawlessly, speeding up correct payments to suppliers."
+            ? "Pastikan kuantitas dan kualitas barang yang diterima sesuai dengan pesanan pembelian sebelum masuk ke inventaris aktif."
+            : "Ensure received quantities and item conditions match purchase orders before items enter active stock."
         }
         featureBlocks={[
           {
-            title: isId ? "Catat barang per purchase order" : "Record items per purchase order",
+            title: isId ? "Pencocokan presisi dengan purchase order" : "Precise purchase order matching",
             description: isId
-              ? "Hubungkan setiap penerimaan barang ke purchase order — pilih PO yang sudah approved, isi kuantitas per item, dan simpan dalam satu langkah."
-              : "Link every goods receipt to a purchase order — select an approved PO, fill in quantities per item, and save in one step.",
+              ? "Pilih nomor PO yang telah disetujui, input jumlah fisik yang diterima, dan simpan berita acara penerimaan barang."
+              : "Select approved PO numbers, record physical received quantities, and generate formal receiving reports.",
             descriptionSecondary: isId
-              ? "Setiap item divalidasi agar quantity received > 0 sebelum bisa disimpan."
-              : "Each item is validated so quantity received > 0 before saving.",
+              ? "Sistem memvalidasi setiap baris agar tidak terjadi penerimaan melebihi kuantitas yang dipesan."
+              : "System validates item quantities to prevent unauthorized over-receiving beyond original PO limits.",
             screenshotKey: "goodsReceiptPO",
             placeholder: "warehouseFlow",
           },
           {
-            title: isId ? "Jejak audit dari draft sampai closed" : "Audit trail from draft to closed",
+            title: isId ? "Jejak audit status penerimaan lengkap" : "Complete status lifecycle audit trail",
             description: isId
-              ? "Setiap status — DRAFT, SUBMITTED, APPROVED, REJECTED, CLOSED — tercatat dengan timestamp dan user yang melakukan aksi."
-              : "Every status — DRAFT, SUBMITTED, APPROVED, REJECTED, CLOSED — is logged with a timestamp and the user who performed the action.",
+              ? "Setiap tahapan status draft, submitted, approved, rejected, dan closed tercatat lengkap beserta identitas staf gudang."
+              : "Every stage from draft, submission, approval, rejection to closure logs precise timestamps and warehouse staff IDs.",
             screenshotKey: "goodsReceiptAudit",
             placeholder: "scorecardFlow",
           },
           {
-            title: isId ? "Teruskan ke faktur supplier" : "Pass to supplier invoice",
+            title: isId ? "Konversi otomatis ke faktur tagihan supplier" : "Direct conversion to supplier invoice",
             description: isId
-              ? "Begitu barang diterima dan disetujui, konversi goods receipt ke supplier invoice dalam satu klik — data quantity dan harga langsung terbawa."
-              : "Once goods are received and approved, convert the goods receipt to a supplier invoice in one click — quantity and cost data carry over automatically.",
+              ? "Setelah penerimaan disetujui, konversi dokumen menjadi faktur supplier dalam satu klik dengan kuantitas yang terverifikasi."
+              : "Once receiving is approved, convert records into vendor invoices with pre-validated quantities and unit costs.",
             screenshotKey: "goodsReceiptToInvoice",
             placeholder: "invoiceFlow",
           },
         ]}
-        finalTitle={isId ? "Tingkatkan standar penerimaan gudang Anda" : "Raise the standard of your warehouse receiving"}
+        finalTitle={isId ? "Kendalikan ketepatan penerimaan logistik gudang Anda" : "Elevate your warehouse receiving accuracy today"}
         finalPoints={[
           {
-            title: isId ? "Akurasi instan" : "Instant accuracy",
+            title: isId ? "Akurasi penerimaan instan" : "Instant receiving precision",
             description: isId
-              ? "Cegah kesalahan sebelum barang masuk ke sistem Anda."
-              : "Prevent errors before items even enter your system.",
+              ? "Cegah selisih barang dan klaim supplier sejak pertama kali kargo tiba di dermaga bongkar."
+              : "Prevent item discrepancies and vendor disputes as soon as shipments arrive at the loading bay.",
           },
           {
-            title: isId ? "Ketelusuran total" : "Total traceability",
+            title: isId ? "Ketelusuran dokumen siap audit" : "Audit-ready traceability",
             description: isId
-              ? "Siap diaudit dengan jejak data yang tak terbantahkan."
-              : "Audit-ready with an undeniable trail of evidence.",
+              ? "Dokumen surat jalan, bukti foto kedatangan, dan persetujuan staf tersimpan rapi selamanya."
+              : "Delivery manifests, inspection photo evidence, and staff approvals stay archived permanently.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

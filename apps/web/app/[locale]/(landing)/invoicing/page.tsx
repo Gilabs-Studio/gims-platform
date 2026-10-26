@@ -57,49 +57,64 @@ export default async function InvoicingLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Invoicing"
-        heroTitle={isId ? "Ubah Penagihan Lambat" : "Turn Slow Billing"}
-        heroAccent={isId ? "Menjadi Arus Kas Lancar" : "Into Instant Cash Flow"}
+        heroTitle={isId ? "Faktur Penjualan &" : "Sales Invoicing &"}
+        heroAccent={isId ? "Manajemen Penagihan Piutang" : "Accounts Receivable Billing"}
         heroDescription={
           isId
-            ? "Buat faktur profesional, lacak status pembayaran Anda, dan jalankan penagihan otomatis agar Anda dibayar lebih cepat."
-            : "Create professional invoices, track your payment status, and run automated follow-ups so you get paid faster."
+            ? "Terbitkan faktur digital profesional, pantau jadwal jatuh tempo piutang, dan otomatiskan rekonsiliasi pembayaran pelanggan."
+            : "Issue professional digital invoices, track receivable aging, and automate customer payment reconciliation."
         }
         heroImageAlt={isId ? "Tampilan invoicing SalesView" : "SalesView invoicing interface"}
         heroImageKey="invoicingHero"
-        introTitle={isId ? "Percepat siklus pendapatan Anda" : "Accelerate your revenue cycle"}
+        introTitle={isId ? "Percepat pelunasan piutang usaha dan jaga likuiditas kas" : "Accelerate receivable collections and protect cash liquidity"}
         introDescription={
           isId
-            ? "Hilangkan gesekan dalam penagihan dan nikmati sistem yang dirancang agar bisnis Anda selalu memiliki kas yang sehat."
-            : "Eliminate billing friction and enjoy a system designed to ensure your business always maintains healthy cash flow."
+            ? "Kelola siklus faktur dari penerbitan, pengiriman otomatis ke WhatsApp/Email, hingga verifikasi bukti transfer masuk."
+            : "Manage invoice lifecycles from issuance, automatic WhatsApp/email delivery, to payment receipt verification."
         }
         featureBlocks={[
           {
-            title: isId ? "Faktur konsisten untuk pelanggan" : "Consistent invoices for customers",
+            title: isId ? "Format faktur penjualan terstandarisasi" : "Standardized commercial invoicing",
             description: isId
-              ? "Gunakan format faktur yang rapi agar komunikasi tagihan lebih profesional."
-              : "Use clean invoice formatting to keep billing communication professional.",
+              ? "Cetak faktur komersial dan faktur pajak lengkap dengan nomor seri, rincian diskon, termin jatuh tempo, dan kode QR pembayaran."
+              : "Generate commercial tax invoices with sequential numbers, line discounts, payment terms, and dynamic payment QRs.",
             screenshotKey: "invoicingConsistentInvoice",
             placeholder: "invoiceFlow",
           },
           {
-            title: isId ? "Status pembayaran selalu terlihat" : "Payment status always visible",
+            title: isId ? "Monitoring status pembayaran dan aging piutang" : "Live payment status and receivables aging",
             description: isId
-              ? "Pantau status tagihan agar tim bisa memprioritaskan follow-up yang tepat waktu."
-              : "Track bill status so teams can prioritize timely follow-ups.",
+              ? "Pantau status faktur lunas, belum dibayar, atau lewat jatuh tempo dengan filter aging 30, 60, hingga 90 hari."
+              : "Track paid, unpaid, and overdue invoices with dynamic aging filters across 30, 60, and 90 day windows.",
             screenshotKey: "invoicingPaymentStatus",
             placeholder: "terminalFlow",
           },
           {
-            title: isId ? "Follow-up lebih terstruktur" : "More structured follow-up flow",
+            title: isId ? "Pengingat penagihan terjadwal" : "Automated scheduled payment reminders",
             description: isId
-              ? "Atur ritme reminder tanpa membuat proses penagihan terasa rumit."
-              : "Set reminder cadence without making collections feel complicated.",
+              ? "Kirimkan notifikasi pengingat pembayaran ke kontak pelanggan sebelum dan sesudah tanggal jatuh tempo tanpa kesan menekan."
+              : "Send friendly automated payment reminders to client contacts before and after invoice due dates.",
             screenshotKey: "invoicingFollowUp",
             placeholder: "timelineFlow",
           },
         ]}
-        finalTitle={isId ? "Penagihan profesional, uang masuk lebih cepat" : "Professional billing, faster payouts"}
-        finalCtaLabel={isId ? "Coba Gratis Sekarang" : "Start My Free Trial"}
+        finalTitle={isId ? "Tingkatkan ketepatan pembayaran faktur pelanggan Anda" : "Speed up customer invoice settlements today"}
+        finalPoints={[
+          {
+            title: isId ? "Pembayaran multi kanal" : "Multi-channel settlement",
+            description: isId
+              ? "Dukung pembayaran lewat transfer bank, virtual account, dan QRIS."
+              : "Accept settlements via bank transfers, virtual accounts, and QRIS.",
+          },
+          {
+            title: isId ? "Rekonsiliasi instan" : "Instant reconciliation",
+            description: isId
+              ? "Pembayaran yang terkonfirmasi otomatis melunasi status faktur dan piutang."
+              : "Confirmed payments immediately update invoice statuses and customer balances.",
+          },
+        ]}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

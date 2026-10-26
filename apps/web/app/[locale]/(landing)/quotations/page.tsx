@@ -55,49 +55,64 @@ export default async function QuotationsLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Quotations"
-        heroTitle={isId ? "Ubah Proses Penawaran" : "Turn Proposal Processes"}
-        heroAccent={isId ? "Menjadi Mesin Closing" : "Into Closing Machines"}
+        heroTitle={isId ? "Penawaran Harga &" : "Sales Quotations &"}
+        heroAccent={isId ? "Estimasi Biaya Prospek B2B" : "B2B Proposal Estimator"}
         heroDescription={
           isId
-            ? "Berhenti membuang waktu dengan dokumen manual. Buat quotation profesional yang memukau klien Anda dan percepat persetujuan sebelum pesanan dibuat."
-            : "Stop wasting time with manual documents. Create professional quotations that wow your clients and accelerate approvals before orders are placed."
+            ? "Buat surat penawaran harga resmi, kelola revisi margin keuntungan, dan konversi ke sales order dalam satu klik."
+            : "Draft formal pricing proposals, manage profit margins across revisions, and convert won deals into sales orders in one click."
         }
         heroImageAlt={isId ? "Tampilan quotation SalesView" : "SalesView quotation interface"}
         heroImageKey="quotationsHero"
-        introTitle={isId ? "Menangkan lebih banyak deal dengan lebih sedikit usaha" : "Win more deals with less effort"}
+        introTitle={isId ? "Kirim penawaran resmi lebih cepat dan profesional" : "Send polished pricing proposals faster to clients"}
         introDescription={
           isId
-            ? "Semua elemen penawaran disusun secara cerdas agar tim penjualan Anda dapat merespons klien lebih cepat dan meningkatkan rasio konversi."
-            : "Every quotation element is smartly organized so your sales team can respond to clients faster and boost conversion rates."
+            ? "Tingkatkan rasio closing sales dengan template penawaran rapi, syarat termin pembayaran jelas, dan persetujuan bertingkat."
+            : "Elevate deal closing ratios with structured proposal templates, explicit payment terms, and manager approvals."
         }
         featureBlocks={[
           {
-            title: isId ? "Buat quotation dengan cepat" : "Create quotations quickly",
+            title: isId ? "Pembuatan surat penawaran instan" : "Instant proposal builder",
             description: isId
-              ? "Isi item, harga, dan ketentuan dalam form terstruktur agar penawaran siap dikirim lebih cepat."
-              : "Fill in items, pricing, and terms in a structured form so proposals are ready to send faster.",
+              ? "Pilih produk dari master katalog, terapkan diskon volume khusus, dan cetak penawaran berformat PDF siap kirim ke klien."
+              : "Select catalog items, apply negotiated volume discounts, and generate client-ready PDF quotations instantly.",
             screenshotKey: "quotationsForm",
             placeholder: "invoiceFlow",
           },
           {
-            title: isId ? "Detail quotation lengkap" : "Complete quotation details",
+            title: isId ? "Riwayat revisi dan status penawaran" : "Proposal revision history and status tracking",
             description: isId
-              ? "Lihat seluruh informasi penawaran—item, harga, status, dan riwayat—dalam satu tampilan detail."
-              : "View all proposal information—items, pricing, status, and history—in one detailed view.",
+              ? "Pantau setiap perubahan harga, catatan negosiasi, dan status persetujuan draft, dikirim, disetujui, atau ditolak."
+              : "Track every price adjustment, negotiation note, and milestone from draft, sent, accepted, to rejected.",
             screenshotKey: "quotationsDetail",
             placeholder: "scorecardFlow",
           },
           {
-            title: isId ? "Konversi ke sales order" : "Convert to sales orders",
+            title: isId ? "Konversi otomatis ke pesanan penjualan" : "Seamless conversion to sales orders",
             description: isId
-              ? "Lanjutkan ke proses order tanpa mengetik ulang detail penawaran."
-              : "Move to order processing without retyping quotation details.",
+              ? "Begitu klien menandatangani penawaran, alihkan status menjadi sales order aktif tanpa entri ulang data."
+              : "Once client signs off, convert the quotation into an active sales order with zero duplicate data entry.",
             screenshotKey: "quotationsToSalesOrder",
             placeholder: "terminalFlow",
           },
         ]}
-        finalTitle={isId ? "Kirim penawaran yang tidak bisa ditolak klien Anda" : "Send proposals your clients can't refuse"}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalTitle={isId ? "Percepat siklus penjualan bisnis Anda sekarang" : "Accelerate your B2B sales cycles today"}
+        finalPoints={[
+          {
+            title: isId ? "Margin profit terlindungi" : "Protected profit margins",
+            description: isId
+              ? "Batas diskon maksimum mencegah sales memberikan harga di bawah batas aman."
+              : "Discount caps prevent sales reps from quoting below approved minimum margins.",
+          },
+          {
+            title: isId ? "Riwayat negosiasi transparan" : "Transparent negotiation trail",
+            description: isId
+              ? "Semua revisi harga terdokumentasi rapi untuk evaluasi tim komersial."
+              : "Every quotation revision is archived cleanly for commercial team reviews.",
+          },
+        ]}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

@@ -17,9 +17,7 @@ export function LandingFooter() {
   )}`;
 
   return (
-    <footer className="w-full bg-sidebar-dark text-sidebar-foreground pt-36 sm:pt-40 lg:pt-48 pb-12 px-6 sm:px-10 lg:px-16 relative overflow-hidden transition-colors duration-200 border-t border-sidebar-border">
-      {/* Subtle Primary Ambient Glow Anchoring the Floating Card */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-32 bg-primary/15 blur-3xl pointer-events-none" />
+    <footer className="w-full bg-sidebar-dark text-sidebar-foreground pt-16 sm:pt-20 lg:pt-24 pb-12 px-6 sm:px-10 lg:px-16 relative overflow-hidden transition-colors duration-200 border-t border-sidebar-border">
 
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Top 12-Column Grid */}
@@ -162,12 +160,6 @@ export function LandingFooter() {
               className="text-sidebar-foreground hover:text-primary font-medium transition-colors cursor-pointer"
             >
               {t("madeBy")}
-            </a>
-            <a
-              href="#main-content"
-              className="hover:text-primary transition-colors font-medium cursor-pointer"
-            >
-              ↑ {isId ? "Ke Atas" : "Back to Top"}
             </a>
           </div>
         </div>

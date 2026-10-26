@@ -59,49 +59,64 @@ export default async function SalesLandingPage({ params }: { params: Promise<{ l
       <FeatureLandingPage
         locale={locale}
         label="SalesView Sales Orders"
-        heroTitle={isId ? "Ubah Proses Order" : "Turn Your Order Flow"}
-        heroAccent={isId ? "Menjadi Eksekusi Tanpa Hambatan" : "Into Seamless Execution"}
+        heroTitle={isId ? "Kelola Pesanan Penjualan," : "Manage Sales Orders,"}
+        heroAccent={isId ? "Dari Penawaran Hingga Pengiriman" : "From Quotation to Delivery"}
         heroDescription={
           isId
-            ? "Otomatiskan perjalanan pesanan Anda dari persetujuan hingga pemenuhan, pastikan setiap pelanggan mendapatkan apa yang mereka harapkan tepat waktu."
-            : "Automate your order journey from approval to fulfillment, ensuring every customer gets exactly what they expect on time."
+            ? "Otomatiskan alur sales order, alokasi stok gudang, dan penerbitan surat jalan dalam satu sistem terpadu."
+            : "Automate sales orders, warehouse stock allocation, and delivery notes in one unified system."
         }
         heroImageAlt={isId ? "Tampilan sales orders SalesView" : "SalesView sales orders interface"}
         heroImageKey="salesOrderHero"
-        introTitle={isId ? "Percepat pengiriman pesanan Anda ke pelanggan" : "Accelerate your order delivery to customers"}
+        introTitle={isId ? "Percepat pemenuhan pesanan pelanggan tanpa kendala" : "Fulfill customer orders faster without bottlenecks"}
         introDescription={
           isId
-            ? "Hilangkan miskomunikasi antar tim. Sinkronkan proses penjualan dan operasi Anda agar pesanan mengalir lancar."
-            : "Eliminate cross-team miscommunication. Sync your sales and operations processes so orders flow smoothly."
+            ? "Hubungkan tim sales, logistik gudang, dan finance agar setiap order diproses tepat waktu dan akurat."
+            : "Connect sales, warehouse logistics, and finance so every order is delivered accurately and on time."
         }
         featureBlocks={[
           {
-            title: isId ? "Order masuk lebih terstruktur" : "Structured order intake",
+            title: isId ? "Order masuk terstruktur dan otomatis" : "Structured, automated order intake",
             description: isId
-              ? "Catat pesanan dengan format yang konsisten untuk mengurangi kesalahan proses."
-              : "Capture orders in a consistent format to reduce execution errors.",
+              ? "Konversi penawaran yang disetujui langsung menjadi sales order lengkap dengan syarat pembayaran dan diskon."
+              : "Convert approved quotations directly into sales orders with payment terms and discounts intact.",
             screenshotKey: "salesOrderEntryFlow",
             placeholder: "terminalFlow",
           },
           {
-            title: isId ? "Koordinasi lintas tim" : "Cross-team coordination",
+            title: isId ? "Alokasi stok dan koordinasi gudang" : "Stock allocation and warehouse dispatch",
             description: isId
-              ? "Hubungkan proses sales dengan tim operasional agar eksekusi order lebih mulus."
-              : "Connect sales flow with operations teams for smoother order fulfillment.",
+              ? "Sistem otomatis mengunci kuantitas stok yang dipesan agar tidak terjadi overselling antar cabang."
+              : "Automated stock reserving prevents overselling across different branches or sales channels.",
             screenshotKey: "salesOrderFulfillment",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Visibilitas performa penjualan" : "Sales performance visibility",
+            title: isId ? "Pemantauan status pengiriman real-time" : "Real-time delivery fulfillment tracking",
             description: isId
-              ? "Pantau progres order dan performa tim dari satu tampilan terpusat."
-              : "Track order progress and team performance from one centralized view.",
+              ? "Pantau status pesanan mulai dari packing, pengiriman ekspedisi, hingga barang diterima pelanggan."
+              : "Track order milestones from packing and courier dispatch to final customer receipt.",
             screenshotKey: "salesOrderBillingCollection",
             placeholder: "timelineFlow",
           },
         ]}
-        finalTitle={isId ? "Skalakan proses pemenuhan pesanan Anda hari ini" : "Scale your order fulfillment process today"}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalTitle={isId ? "Tingkatkan efisiensi penjualan dan distribusi Anda" : "Scale your sales and distribution efficiency today"}
+        finalPoints={[
+          {
+            title: isId ? "Bebas selisih data" : "Zero data discrepancies",
+            description: isId
+              ? "Data harga, kuantitas, dan diskon konsisten dari penawaran sampai faktur tagihan."
+              : "Consistent prices, quantities, and terms from quotation straight through to final invoice.",
+          },
+          {
+            title: isId ? "Otomatisasi pengiriman" : "Automated fulfillment",
+            description: isId
+              ? "Cetak surat jalan dan instruksi picking gudang seketika setelah pesanan disetujui."
+              : "Generate picking lists and delivery notes immediately once orders are approved.",
+          },
+        ]}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

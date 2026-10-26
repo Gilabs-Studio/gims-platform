@@ -55,49 +55,64 @@ export default async function FixedAssetsLandingPage({ params }: { params: Promi
       <FeatureLandingPage
         locale={locale}
         label="SalesView Fixed Assets"
-        heroTitle={isId ? "Ubah Pelacakan Manual" : "Turn Manual Tracking"}
-        heroAccent={isId ? "Menjadi Kendali Aset Penuh" : "Into Total Asset Control"}
+        heroTitle={isId ? "Aset Tetap Perusahaan &" : "Fixed Asset Management &"}
+        heroAccent={isId ? "Kalkulasi Depresiasi Nilai Buku" : "Automated Book Depreciation"}
         heroDescription={
           isId
-            ? "Tinggalkan kerumitan mendata aset Anda. Lacak kepemilikan, nilai, dan penyusutan aset secara real-time untuk keputusan investasi yang lebih cerdas."
-            : "Leave the hassle of tracking your assets behind. Track ownership, value, and depreciation in real-time for smarter investment decisions."
+            ? "Catat register aset inventaris, hitung jadwal penyusutan garis lurus, dan pantau lokasi penanggung jawab aset secara berkala."
+            : "Register enterprise assets, automate straight-line depreciation schedules, and track custodian locations periodically."
         }
         heroImageAlt={isId ? "Tampilan aset tetap SalesView" : "SalesView fixed assets interface"}
         heroImageKey="fixedAssetsHero"
-        introTitle={isId ? "Kuasai data aset Anda dalam satu dasbor" : "Master your asset data in one dashboard"}
+        introTitle={isId ? "Kontrol kepemilikan dan depresiasi aset berharga Anda" : "Track ownership and valuation across enterprise assets"}
         introDescription={
           isId
-            ? "Selamat tinggal pada file pencatatan aset yang tercecer. Sekarang, Anda dapat menelusuri riwayat aset Anda semudah membalik telapak tangan."
-            : "Say goodbye to scattered asset files. Now, you can trace your entire asset history effortlessly."
+            ? "Hindari aset hilang atau pencatatan nilai buku fiktif dengan register barcode aset, histori servis, dan jadwal penyusutan otomatis."
+            : "Eliminate missing equipment and inaccurate book values with asset tags, service logs, and automated monthly depreciation."
         }
         featureBlocks={[
           {
-            title: isId ? "Registrasi aset lebih jelas" : "Clearer asset registration",
+            title: isId ? "Registrasi aset dengan barcode dan kategori" : "Asset register with barcode labeling",
             description: isId
-              ? "Simpan detail aset agar pelacakan kepemilikan dan penggunaan lebih konsisten."
-              : "Store asset details for more consistent ownership and usage tracking.",
+              ? "Catat tanggal perolehan, harga beli, nomor seri pabrikan, dan lokasi penempatan kantor atau cabang untuk setiap unit aset."
+              : "Document acquisition dates, purchase costs, manufacturer serial numbers, and office locations for each asset.",
             screenshotKey: "fixedAssetsRegistration",
             placeholder: "terminalFlow",
           },
           {
-            title: isId ? "Ringkasan nilai aset" : "Asset value summary",
+            title: isId ? "Jadwal kalkulasi penyusutan otomatis" : "Automated depreciation schedule",
             description: isId
-              ? "Pantau nilai aset dalam tampilan yang membantu evaluasi finansial periodik."
-              : "Monitor asset value through views that support periodic financial evaluation.",
+              ? "Sistem menghitung beban depresiasi bulanan secara presisi menggunakan metode garis lurus dan langsung membukukannya ke jurnal."
+              : "System computes monthly straight-line depreciation expenses accurately and generates corresponding accounting journal entries.",
             screenshotKey: "fixedAssetsValueSummary",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Dokumentasi siap audit" : "Audit-ready documentation",
+            title: isId ? "Riwayat pemeliharaan dan siap audit" : "Maintenance history and audit trails",
             description: isId
-              ? "Siapkan data aset yang rapi untuk kebutuhan audit dan rekonsiliasi internal."
-              : "Keep asset records tidy for audits and internal reconciliation.",
+              ? "Simpan riwayat servis perbaikan, pemindahan penanggung jawab karyawan, serta nilai sisa buku yang siap ditinjau auditor."
+              : "Maintain repair logs, custodian reassignments, and salvage book values ready for annual external audits.",
             screenshotKey: "fixedAssetsAuditDocs",
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Amankan masa depan aset berharga Anda" : "Secure the future of your valuable assets"}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalTitle={isId ? "Optimalkan pengelolaan aset investasi perusahaan Anda" : "Maximize your enterprise asset investments today"}
+        finalPoints={[
+          {
+            title: isId ? "Jurnal penyusutan otomatis" : "Automated journal entries",
+            description: isId
+              ? "Nilai beban depresiasi otomatis tercatat ke laporan laba rugi bulanan."
+              : "Depreciation expense posts directly into monthly profit and loss accounts.",
+          },
+          {
+            title: isId ? "Inventarisasi barcode akurat" : "Accurate barcode audit",
+            description: isId
+              ? "Stock opname aset fisik lebih cepat dengan pemindaian barcode unik."
+              : "Faster physical asset stocktaking through unique QR and barcode tags.",
+          },
+        ]}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

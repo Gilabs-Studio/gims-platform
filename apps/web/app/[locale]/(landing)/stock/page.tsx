@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Multi-Warehouse Inventory Software: Batch, Stock Opname & Ledger | SalesView",
     description:
       locale === "id"
-        ? "Pantau stok real-time lintas gudang, lacak batch kadaluarsa, catat pergerakan barang, dan jalankan stock opname dengan pencocokan variance — semua dalam satu sistem inventory yang tersambung ke purchase dan finance."
-        : "Monitor real-time stock across warehouses, track expiry batches, record stock movements, and run stock opname with variance matching — all in one inventory system connected to purchase and finance.",
+        ? "Pantau stok real-time lintas gudang, lacak batch kadaluarsa, catat pergerakan barang, dan jalankan stock opname dengan pencocokan variance dalam satu sistem inventory terintegrasi."
+        : "Monitor real-time stock across warehouses, track expiry batches, record stock movements, and run stock opname with variance matching in one integrated system.",
     keywords:
       locale === "id"
         ? [
@@ -60,69 +60,70 @@ export default async function StockLandingPage({ params }: { params: Promise<{ l
       <FeatureLandingPage
         locale={locale}
         label="SalesView Inventory"
-        heroTitle={isId ? "Ubah Stok Berantakan" : "Turn Messy Inventory"}
-        heroAccent={isId ? "Menjadi Akurasi Sempurna" : "Into Perfect Accuracy"}
+        heroTitle={isId ? "Manajemen Inventaris &" : "Inventory Management &"}
+        heroAccent={isId ? "Multi-Gudang Terintegrasi" : "Integrated Multi-Warehouse"}
         heroDescription={
           isId
-            ? "Akhiri mimpi buruk kehabisan barang. Pantau stok multi-gudang Anda, lacak tanggal kedaluwarsa, dan lakukan opname tanpa pusing."
-            : "End stockout nightmares. Monitor your multi-warehouse inventory, track expiry dates, and perform stock opnames without the headache."
+            ? "Pantau stok real-time lintas cabang, lacak batch kedaluwarsa, dan lakukan stock opname dengan presisi tinggi."
+            : "Track real-time inventory across locations, manage expiry batches, and execute stock opname with high precision."
         }
         heroImageAlt={isId ? "Tampilan inventory SalesView" : "SalesView inventory interface"}
         heroImageKey="stockInventoryList"
-        introTitle={isId ? "Amankan aset terbesar bisnis Anda" : "Secure your business's biggest asset"}
+        introTitle={isId ? "Akurasi persediaan stok di setiap lokasi gudang" : "Accurate inventory tracking across all warehouse locations"}
         introDescription={
           isId
-            ? "Ubah gudang yang kacau menjadi pusat operasi yang rapi dengan pembaruan real-time, sehingga Anda selalu tahu apa yang Anda miliki."
-            : "Transform chaotic warehouses into streamlined hubs with real-time updates, so you always know exactly what you have."
+            ? "Dapatkan visibilitas penuh terhadap perputaran barang masuk, mutasi antar cabang, dan sisa stok siap jual."
+            : "Gain total visibility over inbound receipts, inter-branch transfers, and available-to-promise inventory levels."
         }
         featureBlocks={[
           {
-            title: isId ? "Stok real-time lintas gudang" : "Real-time stock across warehouses",
+            title: isId ? "Stok real-time lintas lokasi" : "Real-time multi-location inventory",
             description: isId
-              ? "Pantau ketersediaan barang di setiap gudang dengan status ok, low stock, overstock, dan out of stock — tanpa rekap manual."
-              : "Track item availability per warehouse with status badges — ok, low stock, overstock, out of stock — without manual recaps.",
+              ? "Pantau kuantitas barang di setiap gudang dengan indikator status stok aman, menipis, atau habis secara otomatis."
+              : "Monitor item quantities across all warehouses with automated badges for healthy, low, or out-of-stock items.",
             descriptionSecondary: isId
-              ? "Filter berdasarkan gudang, kategori, atau status stok untuk fokus pada area yang perlu tindakan."
-              : "Filter by warehouse, category, or stock status to focus on areas needing action.",
+              ? "Filter berdasarkan gudang, kategori produk, atau status stok untuk tindakan cepat pengadaan ulang."
+              : "Filter by warehouse, product category, or status to trigger fast replenishment.",
             screenshotKey: "stockInventoryList",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Lacak batch dan tanggal kadaluarsa" : "Track batches and expiry dates",
+            title: isId ? "Pelacakan nomor batch dan kedaluwarsa" : "Batch tracking and expiry date monitoring",
             description: isId
-              ? "Lihat batch per produk — nomor batch, kuantitas, dan tanggal kadaluarsa — agar barang expired tidak terlewat."
-              : "View batches per product — batch number, quantity, and expiry date — so expired goods never slip through.",
+              ? "Lacak batch produksi, nomor lot, serta tanggal kadaluarsa untuk memastikan metode FIFO atau FEFO berjalan tepat."
+              : "Track production batches, lot numbers, and expiry dates to maintain strict FIFO or FEFO dispatch protocols.",
             screenshotKey: "stockInventoryBatch",
             placeholder: "warehouseFlow",
           },
           {
-            title: isId ? "Stock opname dengan pencocokan variance" : "Stock opname with variance matching",
+            title: isId ? "Stock opname dengan rekonsiliasi varians" : "Stock opname with automated variance matching",
             description: isId
-              ? "Jalankan stock opname terjadwal, bandingkan system quantity vs physical quantity, dan catat variance langsung — semua dalam satu alur audit."
-              : "Run scheduled stock opname, compare system qty vs physical qty, and record variance directly — all in one auditable flow.",
+              ? "Bandingkan hitungan fisik lapangan dengan data sistem secara cepat untuk mencatat selisih dan penyesuaian nilai buku."
+              : "Compare physical warehouse counts against system records quickly to document variances and book value adjustments.",
             descriptionSecondary: isId
-              ? "Hasil opname tersambung ke ledger stok untuk jejak mutasi yang lengkap."
-              : "Opname results connect to stock ledger for a complete mutation trail.",
+              ? "Hasil opname langsung tersinkron ke buku besar mutasi persediaan."
+              : "Opname adjustments post directly into inventory mutation ledgers.",
             screenshotKey: "stockOpnameVariance",
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Skalakan operasi gudang Anda dengan percaya diri" : "Scale your warehouse operations with confidence"}
+        finalTitle={isId ? "Tingkatkan ketepatan persediaan gudang Anda" : "Enhance your warehouse inventory precision"}
         finalPoints={[
           {
-            title: isId ? "Pertumbuhan tanpa batas" : "Limitless growth",
+            title: isId ? "Visibilitas multi cabang" : "Multi-location visibility",
             description: isId
-              ? "Kelola satu atau seratus lokasi tanpa melambat."
-              : "Manage one or a hundred locations without slowing down.",
+              ? "Kelola puluhan gudang dan outlet retail dari satu dashboard manajemen terpusat."
+              : "Oversee dozens of warehouses and retail outlets from a single unified management dashboard.",
           },
           {
-            title: isId ? "Kepercayaan penuh" : "Full confidence",
+            title: isId ? "Audit mutasi lengkap" : "Complete mutation audit trail",
             description: isId
-              ? "Audit trail otomatis menjaga bisnis Anda tetap aman."
-              : "Automated audit trails keep your business secure.",
+              ? "Setiap perpindahan, penjualan, dan penyesuaian barang memiliki riwayat waktu dan operator yang jelas."
+              : "Every movement, sale, and stock adjustment logs exact timestamps and responsible users.",
           },
         ]}
-        finalCtaLabel={isId ? "Coba Inventory Gratis" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

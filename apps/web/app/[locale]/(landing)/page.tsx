@@ -727,7 +727,7 @@ export default function LandingPage() {
         {/* ════════════════════════════════════════════════════════
             8. FINAL CTA FLOATING CONTAINER CARD (Bespoke UI, No 'Memulai', Khusus Buttons)
         ════════════════════════════════════════════════════════ */}
-        <section className="relative z-20 w-full max-w-5xl mx-auto px-6 sm:px-10 -mb-20 sm:-mb-24 lg:-mb-28">
+        <section className="relative z-20 w-full max-w-5xl mx-auto px-6 sm:px-10 pb-16 sm:pb-24 lg:pb-28">
           <div className="relative overflow-hidden rounded-2xl bg-card text-card-foreground border border-border shadow-2xl p-8 sm:p-14 lg:p-16 text-center flex flex-col items-center">
             {/* Title without 'Memulai' */}
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-medium leading-[1.15] tracking-tight text-foreground max-w-3xl text-balance">

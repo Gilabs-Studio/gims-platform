@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Travel Planner: Multi-day Itinerary, Interactive Map & Expenses | SalesView",
     description:
       locale === "id"
-        ? "Rencanakan perjalanan dinas multi-hari dengan itinerary per hari, peta interaktif dengan stop dan optimasi rute, catat expense (transport, accommodation, meal, fuel), dan link ke visit report — semua dalam satu workspace kolaboratif."
-        : "Plan multi-day business trips with daily itineraries, interactive maps with stops and route optimization, record expenses (transport, accommodation, meal, fuel), and link to visit reports — all in one collaborative workspace.",
+        ? "Rencanakan perjalanan dinas multi-hari dengan itinerary per hari, peta interaktif dengan stop dan optimasi rute, catat expense (transport, accommodation, meal, fuel), dan link ke visit report dalam satu workspace kolaboratif."
+        : "Plan multi-day business trips with daily itineraries, interactive maps with stops and route optimization, record expenses (transport, accommodation, meal, fuel), and link to visit reports in one collaborative workspace.",
     keywords:
       locale === "id"
         ? [
@@ -60,66 +60,67 @@ export default async function TravelPlannerLandingPage({ params }: { params: Pro
       <FeatureLandingPage
         locale={locale}
         label="SalesView Travel Planner"
-        heroTitle={isId ? "Ubah Perjalanan Dinas" : "Turn Business Travel"}
-        heroAccent={isId ? "Menjadi Operasi Bebas Hambatan" : "Into Frictionless Operations"}
+        heroTitle={isId ? "Perjalanan Dinas &" : "Business Travel &"}
+        heroAccent={isId ? "Manajemen Biaya Operasional Lapangan" : "Field Expense Management"}
         heroDescription={
           isId
-            ? "Singkirkan spreadsheet perjalanan yang membingungkan. Rencanakan jadwal, optimalkan rute di peta interaktif, dan lacak pengeluaran secara real-time."
-            : "Ditch confusing travel spreadsheets. Plan itineraries, optimize routes on interactive maps, and track expenses in real-time."
+            ? "Susun rencana kunjungan multi-hari, petakan rute efisien, dan klaim biaya perjalanan dinas secara transparan."
+            : "Structure multi-day itineraries, optimize travel routes, and submit verified travel expense claims transparently."
         }
         heroImageAlt={isId ? "Tampilan travel planner SalesView" : "SalesView travel planner interface"}
         heroImageKey="travelHero"
-        introTitle={isId ? "Kendalikan mobilitas tim Anda dengan presisi" : "Control your team's mobility with precision"}
+        introTitle={isId ? "Kelola mobilitas tim dinas luar dengan efisien" : "Coordinate field missions and client visits effectively"}
         introDescription={
           isId
-            ? "Berikan tim lapangan Anda alat yang mereka butuhkan untuk sukses di jalan, sambil menjaga transparansi biaya penuh untuk manajemen."
-            : "Give your field team the tools they need to succeed on the road, while maintaining full cost transparency for management."
+            ? "Satukan jadwal kunjungan klien, navigasi rute terpendek, dan pelaporan bukti pengeluaran dalam satu aplikasi."
+            : "Consolidate customer meeting agendas, route optimizations, and expense receipts in one unified application."
         }
         featureBlocks={[
           {
-            title: isId ? "Itinerary multi-hari per perjalanan" : "Multi-day itinerary per trip",
+            title: isId ? "Itinerary perjalanan multi-hari terstruktur" : "Structured multi-day trip itineraries",
             description: isId
-              ? "Buat rencana perjalanan dengan beberapa hari — setiap hari punya daftar stop (pickup, dropoff, checkpoint, rest) dan catatan harian. Atur ulang stop dengan drag."
-              : "Create travel plans with multiple days — each day has a list of stops (pickup, dropoff, checkpoint, rest) and daily notes. Reorder stops by drag.",
+              ? "Atur jadwal keberangkatan, titik singgah pertemuan klien, waktu istirahat, dan catatan penting per hari secara berurutan."
+              : "Organize travel departures, client checkpoints, rest stops, and daily notes chronologically.",
             descriptionSecondary: isId
-              ? "Status plan mengalir dari draft → active → completed / cancelled."
-              : "Plan status flows from draft → active → completed / cancelled.",
+              ? "Status perjalanan mengalir dari rancangan, sedang aktif berjalan, hingga selesai terlapor."
+              : "Trip plans track seamlessly from draft stage, active transit, to completed field execution.",
             screenshotKey: "travelItinerary",
             placeholder: "timelineFlow",
           },
           {
-            title: isId ? "Peta interaktif dengan optimasi rute" : "Interactive map with route optimization",
+            title: isId ? "Peta interaktif dengan optimasi rute cerdas" : "Interactive map and automated route optimization",
             description: isId
-              ? "Lihat semua stop dalam peta interaktif — tambahkan tempat dari Google Places atau manual. Optimasi rute otomatis untuk urutan perjalanan paling efisien."
-              : "View all stops on an interactive map — add places from Google Places or manually. Auto-optimize routes for the most efficient travel order.",
+              ? "Visualisasikan semua titik kunjungan pada peta navigasi dan dapatkan urutan kunjungan yang paling hemat bahan bakar dan waktu."
+              : "Visualize destination stops on interactive maps and generate optimized travel sequences to save time and fuel.",
             screenshotKey: "travelMap",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Catat expense dan link ke visit report" : "Track expenses and link to visit reports",
+            title: isId ? "Pencatatan pengeluaran dan laporan kunjungan" : "Expense logging and visit report integration",
             description: isId
-              ? "Catat biaya perjalanan — transport, accommodation, meal, fuel, toll, parking. Lihat total per plan. Linkkan travel plan ke visit report untuk jejak lapangan yang lengkap."
-              : "Record travel expenses — transport, accommodation, meal, fuel, toll, parking. See totals per plan. Link travel plans to visit reports for a complete field trail.",
+              ? "Catat pengeluaran tiket, hotel, konsumsi, bensin, dan tol lengkap dengan unggahan foto kuitansi untuk reimbursement instan."
+              : "Log airfare, hotels, meals, fuel, and toll receipts with photo attachments for expedited finance reimbursements.",
             screenshotKey: "travelExpense",
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Ubah perjalanan bisnis menjadi investasi yang terukur" : "Turn business travel into a measurable investment"}
+        finalTitle={isId ? "Jadikan perjalanan dinas tim lebih terencana dan hemat biaya" : "Make corporate business travel organized and accountable"}
         finalPoints={[
           {
-            title: isId ? "Efisiensi rute otomatis" : "Automated route efficiency",
+            title: isId ? "Efisiensi rute perjalanan" : "Route cost optimization",
             description: isId
-              ? "Sistem memandu perjalanan paling logis setiap saat."
-              : "The system guides the most logical travel path every time.",
+              ? "Sistem memilih rute logis untuk menghemat jam perjalanan tim."
+              : "Smart sequencing saves driving hours and travel expenditures.",
           },
           {
-            title: isId ? "Kejernihan biaya" : "Expense clarity",
+            title: isId ? "Transparansi klaim biaya" : "Clean expense transparency",
             description: isId
-              ? "Tidak ada lagi klaim pengeluaran yang dipertanyakan."
-              : "No more questionable or untraceable expense claims.",
+              ? "Semua nota kuitansi terdokumentasi dan siap diaudit bagian keuangan."
+              : "All digital receipts are archived and ready for finance audits.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

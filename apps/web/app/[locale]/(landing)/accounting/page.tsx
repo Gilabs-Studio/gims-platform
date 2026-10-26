@@ -59,63 +59,64 @@ export default async function AccountingLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Accounting"
-        heroTitle={isId ? "Ubah Pembukuan Rumit" : "Turn Complex Bookkeeping"}
-        heroAccent={isId ? "Menjadi Kejelasan Finansial" : "Into Financial Clarity"}
+        heroTitle={isId ? "Sistem Akuntansi &" : "Cloud Accounting &"}
+        heroAccent={isId ? "Jurnal Otomatis Tutup Buku" : "Automated Journal Closing"}
         heroDescription={
           isId
-            ? "Otomatiskan entri jurnal, buku besar, dan pelaporan sehingga Anda bisa fokus mengembangkan bisnis, bukan membereskan spreadsheet."
-            : "Automate your journal entries, ledgers, and reporting so you can focus on growing your business instead of fighting spreadsheets."
+            ? "Otomatiskan pencatatan jurnal umum, buku besar, dan neraca saldo langsung dari transaksi operasional POS dan ERP."
+            : "Automate general journals, ledgers, and trial balances straight from live POS and ERP operational transactions."
         }
         heroImageAlt={isId ? "Tampilan accounting SalesView" : "SalesView accounting interface"}
         heroImageKey="accountingHero"
-        introTitle={isId ? "Dapatkan kontrol penuh atas keuangan Anda" : "Take full control of your finances"}
+        introTitle={isId ? "Tutup buku bulanan lebih cepat tanpa selisih akun" : "Close monthly books faster without account discrepancies"}
         introDescription={
           isId
-            ? "Sistem akuntansi kami dirancang agar Anda bisa mengambil keputusan bisnis harian yang lebih percaya diri dengan data real-time."
-            : "Our accounting system is designed so you can make more confident daily business decisions with real-time data."
+            ? "Setiap penjualan, pembelian barang, dan biaya operasional langsung menjurnal otomatis sesuai bagan akun (COA) perusahaan."
+            : "Every sales receipt, supplier purchase, and operational expense posts automated journal entries to your chart of accounts."
         }
         featureBlocks={[
           {
-            title: isId ? "Jurnal otomatis dari transaksi" : "Automatic journals from transactions",
+            title: isId ? "Jurnal otomatis dari seluruh transaksi" : "Automated journals from all transactions",
             description: isId
-              ? "Transaksi dari sales, purchase, dan inventory langsung membentuk jurnal sesuai alur bisnis."
-              : "Transactions from sales, purchasing, and inventory generate journals directly from your operational flow.",
+              ? "Hilangkan penjurnalan manual. Transaksi kasir, invoice penjualan, dan tagihan supplier otomatis membentuk debit dan kredit seimbang."
+              : "Eliminate manual bookkeeping. POS sales, customer invoices, and vendor bills generate balanced debit-credit journal lines.",
             screenshotKey: "accountingAutoJournal",
             placeholder: "terminalFlow",
           },
           {
-            title: isId ? "Buku besar lebih mudah ditelusuri" : "A more traceable general ledger",
+            title: isId ? "Buku besar interaktif dan audit trail" : "Interactive general ledger and audit trail",
             description: isId
-              ? "Pantau mutasi akun dengan struktur yang jelas untuk mendukung audit dan analisis internal."
-              : "Track account movements with a clearer structure to support audit and internal analysis.",
+              ? "Telusuri saldo per akun hingga ke dokumen transaksi awal dengan klik drill-down pada setiap baris mutasi buku besar."
+              : "Drill down into any account balance to inspect the original source invoice or payment receipt with a single click.",
             screenshotKey: "accountingGeneralLedger",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Closing period lebih cepat" : "Faster period closing",
+            title: isId ? "Closing periode finansial terstruktur" : "Structured period financial closing",
             description: isId
-              ? "Siapkan data closing lebih cepat karena fondasi transaksi sudah rapi sejak awal."
-              : "Prepare closing data faster because transaction foundations stay clean from the start.",
+              ? "Kunci periode akuntansi bulanan dan tahunan untuk mencegah perubahan data historis setelah laporan keuangan disahkan."
+              : "Lock monthly and yearly accounting periods to safeguard historical records once financial statements are finalized.",
             screenshotKey: "accountingPeriodClosing",
             placeholder: "invoiceFlow",
           },
         ]}
-        finalTitle={isId ? "Akuntansi siap pakai untuk pertumbuhan Anda" : "Accounting ready for your growth"}
+        finalTitle={isId ? "Rapikan pembukuan dan perpajakan bisnis Anda sekarang" : "Streamline your business bookkeeping and tax readiness"}
         finalPoints={[
           {
-            title: isId ? "Kendali penuh atas data Anda" : "Full control over your data",
+            title: isId ? "Kepatuhan audit standar" : "Compliance audit standard",
             description: isId
-              ? "Jaga konsistensi setiap transaksi bisnis Anda dari awal hingga akhir."
-              : "Maintain the consistency of every business transaction from start to finish.",
+              ? "Bagan akun COA terstruktur sesuai standar PSAK dan perpajakan Indonesia."
+              : "Standardized chart of accounts structured for local compliance and reporting.",
           },
           {
-            title: isId ? "Akses data instan" : "Instant data access",
+            title: isId ? "Laporan keuangan real-time" : "Real-time financial visibility",
             description: isId
-              ? "Dapatkan visibilitas langsung ke laporan inti yang paling Anda butuhkan."
-              : "Get immediate visibility into the core reports you need most.",
+              ? "Laba rugi dan posisi neraca terupdate otomatis setiap kali ada transaksi."
+              : "Profit and loss and balance sheets update dynamically with every posted entry.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

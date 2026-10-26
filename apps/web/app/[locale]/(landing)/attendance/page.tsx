@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Employee Attendance System: GPS Clock-in, WFH, Monthly Stats | SalesView",
     description:
       locale === "id"
-        ? "Clock-in/out dengan GPS dan foto (NORMAL/WFH/FIELD WORK), kalender kehadiran, statistik bulanan (present, late, absent, overtime), dan manajemen absensi manual oleh admin — semua terhubung ke data karyawan dan evaluation."
-        : "Clock-in/out with GPS and photo (NORMAL/WFH/FIELD WORK), attendance calendar, monthly stats (present, late, absent, overtime), and manual attendance management by admin — all connected to employee data and evaluation.",
+        ? "Clock-in dan out dengan GPS dan foto (NORMAL/WFH/FIELD WORK), kalender kehadiran, statistik bulanan (present, late, absent, overtime), dan manajemen absensi manual oleh admin, semua terhubung ke data karyawan dan evaluation."
+        : "Clock-in/out with GPS and photo (NORMAL/WFH/FIELD WORK), attendance calendar, monthly stats (present, late, absent, overtime), and manual attendance management by admin, all connected to employee data and evaluation.",
     keywords:
       locale === "id"
         ? [
@@ -60,66 +60,67 @@ export default async function AttendanceLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Attendance"
-        heroTitle={isId ? "Ubah Absensi Kuno" : "Turn Outdated Attendance"}
-        heroAccent={isId ? "Menjadi Kedisiplinan Presisi" : "Into Precise Discipline"}
+        heroTitle={isId ? "Presensi & Absensi Karyawan," : "Employee Attendance & Time Tracking,"}
+        heroAccent={isId ? "Berbasis GPS, Foto & Radius Kerja" : "GPS, Selfie & Geofenced Work Radius"}
         heroDescription={
           isId
-            ? "Selamat tinggal kecurangan absen. Lacak kehadiran dengan GPS, verifikasi foto, dan otomatisasi statistik bulanan yang terhubung langsung ke evaluasi."
-            : "Say goodbye to attendance fraud. Track clock-ins with GPS, photo verification, and automated monthly stats linked directly to performance evaluations."
+            ? "Catat kehadiran kantor, WFH, dan kunjungan lapangan secara akurat dengan validasi biometrik dan koordinat geolokasi real-time."
+            : "Track office, WFH, and field check-ins accurately with selfie photo validation and real-time geolocation radius."
         }
         heroImageAlt={isId ? "Tampilan attendance SalesView" : "SalesView attendance interface"}
         heroImageKey="attendanceHero"
-        introTitle={isId ? "Pantau kehadiran tim Anda dari mana saja" : "Monitor your team's attendance from anywhere"}
+        introTitle={isId ? "Pantau kedisiplinan dan jam kerja staf transparan" : "Transparent timekeeping and workforce discipline"}
         introDescription={
           isId
-            ? "Baik di kantor, WFH, atau di lapangan, pastikan tim Anda tetap akuntabel dengan pelacakan lokasi dan waktu yang tak terbantahkan."
-            : "Whether in the office, WFH, or in the field, keep your team accountable with undeniable time and location tracking."
+            ? "Hilangkan manipulasi absensi dengan validasi lokasi titik GPS, pengenalan wajah kamera, dan rekap otomatis jam lembur."
+            : "Prevent attendance fraud using GPS coordinates, camera verification, and automated overtime tallying."
         }
         featureBlocks={[
           {
-            title: isId ? "Clock-in / clock-out dengan GPS dan foto" : "Clock-in / clock-out with GPS and photo",
+            title: isId ? "Clock-in dan clock-out dengan validasi GPS" : "GPS clock-in and selfie verification",
             description: isId
-              ? "Karyawan clock-in dan clock-out dengan tipe NORMAL, WFH, atau FIELD WORK — lengkap dengan koordinat GPS, alamat, dan foto selfie via kamera."
-              : "Employees clock-in and clock-out with NORMAL, WFH, or FIELD WORK types — complete with GPS coordinates, address, and selfie photo via camera.",
+              ? "Karyawan melakukan presensi kerja untuk jadwal normal, WFH, atau tugas dinas lapangan dengan verifikasi foto dan titik peta akurat."
+              : "Employees record attendance for regular shifts, remote WFH, or field visits with instant photo selfies and map pins.",
             descriptionSecondary: isId
-              ? "Jika terlambat, alasan keterlambatan bisa langsung diisi tanpa meninggalkan layar."
-              : "If late, the late reason can be filled in directly without leaving the screen.",
+              ? "Catatan alasan keterlambatan wajib disertakan saat jam masuk melampaui toleransi."
+              : "Mandatory justification prompt prompts employees whenever check-in surpasses tardiness grace periods.",
             screenshotKey: "attendanceClockIn",
             placeholder: "terminalFlow",
           },
           {
-            title: isId ? "Kalender kehadiran dan statistik bulanan" : "Attendance calendar and monthly stats",
+            title: isId ? "Kalender kehadiran dan statistik bulanan" : "Attendance calendar and monthly analytics",
             description: isId
-              ? "Lihat kehadiran dalam tampilan kalender — PRESENT, LATE, ABSENT, WFH, LEAVE. Statistik bulanan mencakup present days, late days, overtime hours, dan attendance percentage."
-              : "View attendance in a calendar view — PRESENT, LATE, ABSENT, WFH, LEAVE. Monthly stats include present days, late days, overtime hours, and attendance percentage.",
+              ? "Visualisasi kehadiran harian menampilkan status hadir tepat waktu, terlambat, izin, dan lembur dalam satu lembar kalender kerja."
+              : "Visual daily attendance maps on-time arrivals, late marks, leaves, and overtime hours in a clean calendar layout.",
             screenshotKey: "attendanceCalendar",
             placeholder: "scorecardFlow",
           },
           {
-            title: isId ? "Manajemen absensi oleh admin" : "Admin attendance management",
+            title: isId ? "Persetujuan koreksi absensi oleh admin" : "Admin attendance approval and corrections",
             description: isId
-              ? "Admin dapat mencatat absensi manual dengan alasan, melihat daftar hadir seluruh karyawan, dan menyetujui entri manual — semua dengan audit trail."
-              : "Admins can record manual attendance with reasons, view the full employee attendance list, and approve manual entries — all with an audit trail.",
+              ? "Pengajuan lupa absen atau koreksi jam lembur masuk ke antrean persetujuan atasan sebelum dihitung ke komponen gaji."
+              : "Missing clock-in requests and overtime claims route to manager approval queues before payroll calculation.",
             screenshotKey: "attendanceAdmin",
             placeholder: "multiOutlet",
           },
         ]}
-        finalTitle={isId ? "Tingkatkan kedisiplinan dan produktivitas tim Anda" : "Elevate your team's discipline and productivity"}
+        finalTitle={isId ? "Otomatiskan pencatatan presensi kerja perusahaan Anda" : "Automate employee attendance and timesheets today"}
         finalPoints={[
           {
-            title: isId ? "Akuntabilitas tinggi" : "High accountability",
+            title: isId ? "Bebas kecurangan lokasi" : "Zero location spoofing",
             description: isId
-              ? "Hilangkan celah kecurangan dengan verifikasi ganda."
-              : "Close loopholes with dual verification.",
+              ? "Deteksi geofence memastikan karyawan benar-benar berada di lokasi kerja yang ditugaskan."
+              : "Geofencing ensures staff members check in strictly within authorized operating perimeters.",
           },
           {
-            title: isId ? "Analisis instan" : "Instant analysis",
+            title: isId ? "Otomatis ke modul payroll" : "Automated payroll link",
             description: isId
-              ? "Pahami tren kehadiran untuk evaluasi akurat."
-              : "Understand attendance trends for accurate reviews.",
+              ? "Data potongan keterlambatan dan uang lembur tersinkron langsung ke perhitungan gaji."
+              : "Tardiness deductions and overtime hours flow automatically into monthly payroll runs.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Performance Evaluation System: Groups, Criteria & Employee Appraisal | SalesView",
     description:
       locale === "id"
-        ? "Bangun group evaluasi dengan kriteria berbobot, lakukan penilaian SELF dan MANAGER per periode, lihat skor tertimbang per karyawan, dan lacak perubahan lewat audit trail — sistem appraisal yang terstruktur dan terukur."
-        : "Build evaluation groups with weighted criteria, perform SELF and MANAGER appraisals per period, see weighted scores per employee, and track changes via audit trail — a structured and measurable appraisal system.",
+        ? "Bangun group evaluasi dengan kriteria berbobot, lakukan penilaian SELF dan MANAGER per periode, lihat skor tertimbang per karyawan, dan lacak perubahan lewat audit trail sebagai sistem appraisal terstruktur."
+        : "Build evaluation groups with weighted criteria, perform SELF and MANAGER appraisals per period, see weighted scores per employee, and track changes via audit trail for structured appraisals.",
     keywords:
       locale === "id"
         ? [
@@ -60,72 +60,70 @@ export default async function EvaluationLandingPage({ params }: { params: Promis
       <FeatureLandingPage
         locale={locale}
         label="SalesView Evaluation"
-        heroTitle={isId ? "Ubah Penilaian Subjektif" : "Turn Subjective Appraisals"}
-        heroAccent={isId ? "Menjadi Pertumbuhan Terukur" : "Into Measurable Growth"}
+        heroTitle={isId ? "Evaluasi Kinerja Karyawan &" : "Employee Performance Appraisals &"}
+        heroAccent={isId ? "Penilaian KPI Berbobot Objektif" : "Objective Weighted KPI Evaluation"}
         heroDescription={
           isId
-            ? "Hilangkan bias dalam evaluasi kinerja. Bangun kriteria berbobot, libatkan penilaian mandiri & atasan, dan dorong produktivitas dengan matriks yang jelas."
-            : "Eliminate bias in performance reviews. Build weighted criteria, involve self & manager appraisals, and drive productivity with clear metrics."
+            ? "Susun matriks kompetensi berbobot, lakukan review mandiri dan atasan, serta hitung skor KPI secara transparan."
+            : "Build weighted competency matrices, conduct self and manager reviews, and calculate KPI scores transparently."
         }
         heroImageAlt={isId ? "Tampilan evaluasi SalesView" : "SalesView evaluation interface"}
         heroImageKey="evaluationHero"
-        introTitle={isId ? "Ubah ulasan kinerja menjadi pendorong semangat" : "Turn performance reviews into morale boosters"}
+        introTitle={isId ? "Kembangkan potensi karyawan dengan penilaian adil" : "Nurture employee growth with objective assessments"}
         introDescription={
           isId
-            ? "Kerangka kerja evaluasi kami yang objektif mengubah diskusi tahunan yang ditakuti menjadi sesi perencanaan karier yang konstruktif dan berpusat pada data."
-            : "Our objective evaluation framework turns dreaded annual discussions into constructive, data-centric career planning sessions."
+            ? "Ciptakan budaya kerja berbasis kinerja terukur dengan penetapan sasaran target kerja dan tinjauan berkala."
+            : "Foster a high-performance work culture with transparent target goals and systematic periodic reviews."
         }
         featureBlocks={[
           {
-            title: isId ? "Group & kriteria evaluasi berbobot" : "Weighted evaluation groups & criteria",
+            title: isId ? "Grup dan kriteria penilaian berbobot" : "Weighted appraisal groups and criteria",
             description: isId
-              ? "Buat group evaluasi (misal: Technical Skills, Soft Skills) lalu tambahkan kriteria dengan bobot (weight) dan skor maksimal (max_score). Total weight per group divalidasi agar tidak kelebihan."
-              : "Create evaluation groups (e.g. Technical Skills, Soft Skills) then add criteria with weight and max score. Total weight per group is validated to prevent overflow.",
+              ? "Kelompokkan kriteria evaluasi teknis dan kepemimpinan dengan bobot persentase terstandar yang divalidasi sistem."
+              : "Group technical and leadership competencies with standardized percentage weights validated by the system.",
             descriptionSecondary: isId
-              ? "Group bisa diaktifkan/nonaktifkan (is_active) tanpa menghapus data."
-              : "Groups can be toggled active/inactive without deleting data.",
+              ? "Grup penilaian dapat diaktifkan atau dinonaktifkan sesuai kebutuhan periode evaluasi."
+              : "Appraisal groups can be activated or paused flexibly per review cycle.",
             screenshotKey: "evaluationCriteria",
             placeholder: "scorecardFlow",
           },
           {
-            title: isId ? "Penilaian SELF & MANAGER per periode" : "SELF & MANAGER appraisal per period",
+            title: isId ? "Penilaian mandiri dan evaluasi atasan" : "Self-evaluation and supervisor reviews",
             description: isId
-              ? "Jalankan evaluasi per karyawan dalam periode tertentu (period_start–period_end). Evaluator memberikan skor per kriteria — sistem otomatis menghitung weighted_score dan overall_score."
-              : "Run evaluations per employee in a specific period (period_start–period_end). Evaluator scores each criterion — system auto-calculates weighted_score and overall_score.",
+              ? "Karyawan mengisi refleksi pencapaian kerja sebelum manajer memberikan skor berbobot dan catatan masukan konstruktif."
+              : "Employees submit self-appraisal reflections before direct managers provide weighted scores and constructive feedback.",
             descriptionSecondary: isId
-              ? "Dua tipe evaluasi: SELF (karyawan menilai diri sendiri) dan MANAGER (atasan menilai)."
-              : "Two evaluation types: SELF (employee self-rating) and MANAGER (supervisor rating).",
+              ? "Sistem otomatis menghitung nilai akhir berdasarkan bobot masing-masing indikator."
+              : "Final performance indexes compute automatically according to preset formula weights.",
             screenshotKey: "evaluationEmployee",
             placeholder: "invoiceFlow",
           },
           {
-            title: isId ? "Group evaluasi siap pakai" : "Ready-to-use evaluation groups",
+            title: isId ? "Template grup evaluasi siap pakai" : "Standardized appraisal templates",
             description: isId
-              ? "Buat dan kelola group evaluasi — atur nama, deskripsi, dan status aktif/nonaktif. Setiap group menampung kriteria berbobot yang siap digunakan untuk penilaian karyawan."
-              : "Create and manage evaluation groups — set name, description, and active/inactive status. Each group holds weighted criteria ready for employee appraisals.",
-            descriptionSecondary: isId
-              ? "Group bisa dinonaktifkan tanpa menghapus data historis penilaian."
-              : "Groups can be deactivated without deleting historical appraisal data.",
+              ? "Terapkan template evaluasi divisi dengan cepat untuk menjaga keseragaman standar penilaian di seluruh cabang perusahaan."
+              : "Deploy departmental evaluation templates quickly to uphold uniform performance standards across all branches.",
             screenshotKey: "evaluationGroup",
             placeholder: "multiOutlet",
           },
         ]}
-        finalTitle={isId ? "Buka potensi maksimal setiap karyawan Anda" : "Unlock the maximum potential of every employee"}
+        finalTitle={isId ? "Dorong produktivitas tim dengan evaluasi terstruktur" : "Drive team productivity with structured appraisals"}
         finalPoints={[
           {
-            title: isId ? "Metrik yang adil" : "Fair metrics",
+            title: isId ? "Standar penilaian objektif" : "Objective assessment standards",
             description: isId
-              ? "Pastikan setiap karyawan dinilai secara objektif."
-              : "Ensure every employee is judged objectively.",
+              ? "Menghilangkan bias personal dalam penentuan promosi dan bonus kerja."
+              : "Eliminates personal bias in promotion and bonus compensation decisions.",
           },
           {
-            title: isId ? "Otomatisasi skor" : "Automated scoring",
+            title: isId ? "Perhitungan skor instan" : "Instant score computation",
             description: isId
-              ? "Hemat waktu dengan perhitungan yang tidak pernah salah."
-              : "Save time with calculations that never miss.",
+              ? "Hasil rekapitulasi penilaian muncul seketika setelah formulir disetujui."
+              : "Appraisal scorecards finalize immediately once review forms are approved.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

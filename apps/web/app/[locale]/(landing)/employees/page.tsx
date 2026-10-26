@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Employee Data Management: Contracts, Education & Certifications | SalesView",
     description:
       locale === "id"
-        ? "Kelola profil karyawan terpusat dengan kontrak PKWTT/PKWT, riwayat pendidikan, sertifikasi, aset, tanda tangan digital, dan assignment area/outlet/warehouse — semua dalam satu master data yang terhubung ke attendance dan evaluation."
-        : "Manage centralized employee profiles with PKWTT/PKWT contracts, education history, certifications, assets, digital signatures, and area/outlet/warehouse assignment — all in one master record connected to attendance and evaluation.",
+        ? "Kelola profil karyawan terpusat dengan kontrak PKWTT/PKWT, riwayat pendidikan, sertifikasi, aset, tanda tangan digital, dan penugasan cabang dalam satu master data yang terhubung ke absensi."
+        : "Manage centralized employee profiles with PKWTT/PKWT contracts, education history, certifications, assets, digital signatures, and branch assignments in one master record.",
     keywords:
       locale === "id"
         ? [
@@ -60,66 +60,67 @@ export default async function EmployeesLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Employees"
-        heroTitle={isId ? "Ubah Tumpukan Dokumen" : "Turn Piles of Documents"}
-        heroAccent={isId ? "Menjadi Profil Digital Cerdas" : "Into Smart Digital Profiles"}
+        heroTitle={isId ? "Manajemen Data Karyawan &" : "Employee Management &"}
+        heroAccent={isId ? "Administrasi Personalia Terpusat" : "Centralized Personnel Administration"}
         heroDescription={
           isId
-            ? "Pusatkan seluruh data karyawan Anda. Kelola kontrak, riwayat pendidikan, aset, dan sertifikasi dalam satu sumber kebenaran yang aman dan mudah diakses."
-            : "Centralize all your employee data. Manage contracts, education history, assets, and certifications in one secure, easily accessible single source of truth."
+            ? "Kelola berkas kontrak kerja PKWT/PKWTT, riwayat pendidikan, sertifikasi keahlian, dan inventaris aset karyawan dalam satu platform."
+            : "Manage employment contracts, education records, certifications, and company asset assignments in one unified platform."
         }
         heroImageAlt={isId ? "Tampilan data karyawan SalesView" : "SalesView employee data interface"}
         heroImageKey="employeeHero"
-        introTitle={isId ? "Bangun fondasi HR yang kuat dan bebas repot" : "Build a strong, hassle-free HR foundation"}
+        introTitle={isId ? "Pusatkan administrasi SDM perusahaan Anda" : "Centralize your organization's HR administration"}
         introDescription={
           isId
-            ? "Data karyawan yang terstruktur sempurna menghilangkan kebingungan administratif, sehingga Anda bisa fokus mengembangkan talenta terbaik Anda."
-            : "Perfectly structured employee data eliminates administrative confusion, so you can focus on developing your best talent."
+            ? "Simpan berkas personalia secara digital dan aman agar proses pembaruan kontrak serta audit internal berjalan lancar."
+            : "Store personnel records securely and digitally for seamless contract renewals and internal compliance audits."
         }
         featureBlocks={[
           {
-            title: isId ? "Profil karyawan terstruktur per tab" : "Structured employee profiles with tabs",
+            title: isId ? "Profil personalia komprehensif dan terstruktur" : "Comprehensive structured employee profiles",
             description: isId
-              ? "Lihat dan kelola profil karyawan dalam tampilan tab: Overview, Employment, Contract History, Signature, Education, Certifications, Assets, Areas, dan Scope Outlet & Warehouse."
-              : "View and manage employee profiles across tabs: Overview, Employment, Contract History, Signature, Education, Certifications, Assets, Areas, and Outlet & Warehouse Scope.",
+              ? "Kelola biodata, detail pekerjaan, riwayat jabatan, tanda tangan digital, aset perusahaan, dan penugasan cabang dalam navigasi terpadu."
+              : "Manage personal info, job details, promotion history, digital signatures, company assets, and branch assignments in one view.",
             screenshotKey: "employeeList",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Kontrak PKWTT, PKWT, dan Intern" : "PKWTT, PKWT, and Intern contracts",
+            title: isId ? "Manajemen kontrak PKWTT, PKWT, dan magang" : "Employment contract lifecycle management",
             description: isId
-              ? "Buat kontrak dengan tipe PKWTT, PKWT, atau Intern — lengkap dengan start date, end date, status, dan aksi renew, terminate, atau correct jika ada perubahan."
-              : "Create contracts with PKWTT, PKWT, or Intern types — complete with start date, end date, status, and renew, terminate, or correct actions if changes occur.",
+              ? "Atur tanggal mulai, batas akhir masa kerja, dan status perpanjangan kontrak karyawan dengan notifikasi pengingat otomatis."
+              : "Set start dates, contract expiry milestones, and renewal statuses with automated advance notification alerts.",
             screenshotKey: "employeeContract",
             placeholder: "timelineFlow",
           },
           {
-            title: isId ? "Riwayat pendidikan, sertifikasi, dan aset" : "Education, certification, and asset history",
+            title: isId ? "Riwayat pendidikan, sertifikasi, dan aset" : "Education, certification, and asset records",
             description: isId
-              ? "Tambahkan riwayat pendidikan, sertifikasi, dan aset yang diberikan ke karyawan — semua tersimpan dalam timeline yang bisa ditelusuri kapan saja."
-              : "Add education history, certifications, and assets assigned to employees — all stored in a traceable timeline.",
+              ? "Dokumentasikan kompetensi staf dan serah terima laptop atau kendaraan operasional lengkap dengan tanggal penyerahan."
+              : "Track staff credentials and formal handovers of company laptops or vehicles complete with handover timestamps.",
             descriptionSecondary: isId
-              ? "Data ini langsung tersedia untuk proses evaluation dan kebutuhan audit SDM."
-              : "This data is directly available for evaluation processes and HR audit needs.",
+              ? "Data tersinkron otomatis dengan modul evaluasi kinerja dan presensi kerja."
+              : "Data links directly with employee performance evaluations and attendance modules.",
             screenshotKey: "employeeHistory",
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Kelola tim Anda dengan kepastian data yang absolut" : "Manage your team with absolute data certainty"}
+        finalTitle={isId ? "Kelola sumber daya manusia perusahaan lebih profesional" : "Manage your workforce with complete data confidence"}
         finalPoints={[
           {
-            title: isId ? "Satu sumber kebenaran" : "Single source of truth",
+            title: isId ? "Master data terintegrasi" : "Integrated master record",
             description: isId
-              ? "Semua data dari kontrak hingga aset di tempat yang sama."
-              : "All data from contracts to assets in one place.",
+              ? "Satu profil karyawan terhubung langsung ke absensi, slip gaji, dan KPI."
+              : "One employee profile links directly to attendance, payroll, and KPI metrics.",
           },
           {
-            title: isId ? "Otomatisasi tanpa batas" : "Limitless automation",
+            title: isId ? "Keamanan dokumen digital" : "Digital document security",
             description: isId
-              ? "Kelola pembaruan dengan cepat dan tanpa stres."
-              : "Handle renewals quickly and without the stress.",
+              ? "Hak akses berjenjang menjaga kerahasiaan gaji dan berkas identitas karyawan."
+              : "Role-based permissions protect payroll confidentiality and sensitive personnel files.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

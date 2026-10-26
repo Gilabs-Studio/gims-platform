@@ -60,52 +60,67 @@ export default async function PurchaseLandingPage({ params }: { params: Promise<
       <FeatureLandingPage
         locale={locale}
         label="SalesView Purchase"
-        heroTitle={isId ? "Ubah Pengadaan Rumit" : "Turn Complex Procurement"}
-        heroAccent={isId ? "Menjadi Kendali Otomatis" : "Into Automated Control"}
+        heroTitle={isId ? "Pengadaan Barang &" : "Procurement &"}
+        heroAccent={isId ? "Kontrol Pembelian Supplier" : "Supplier Purchasing Control"}
         heroDescription={
           isId
-            ? "Tinggalkan proses pengadaan manual. Hubungkan permintaan, pesanan, dan tagihan supplier dalam satu sistem mulus yang mengamankan margin Anda."
-            : "Leave manual procurement behind. Connect requests, orders, and supplier invoices in one seamless system that protects your margins."
+            ? "Kelola purchase order, penerimaan barang, dan hutang usaha dengan verifikasi kuantitas serta harga yang ketat."
+            : "Manage purchase orders, goods receipt, and payables with strict price and quantity matching."
         }
         heroImageAlt={isId ? "Tampilan procurement SalesView" : "SalesView procurement interface"}
         heroImageKey="purchaseHero"
-        introTitle={isId ? "Sederhanakan pembelian bisnis Anda hari ini" : "Simplify your business purchasing today"}
+        introTitle={isId ? "Kendalikan pengadaan dan arus kas pembelian" : "Streamline business purchasing and cash flow"}
         introDescription={
           isId
-            ? "Nikmati alur kerja yang dirancang untuk mencegah pengeluaran berlebih, memastikan persetujuan cepat, dan mempererat hubungan dengan pemasok."
-            : "Enjoy workflows designed to prevent overspending, ensure fast approvals, and strengthen relationships with your suppliers."
+            ? "Cegah pengeluaran tidak sah lewat alur persetujuan bertingkat dan pencocokan 3-way matching otomatis."
+            : "Prevent unauthorized spend with multi-level approvals and automated 3-way invoice matching."
         }
         featureBlocks={[
           {
-            title: isId ? "Dari permintaan ke purchase order" : "From requisition to purchase order",
+            title: isId ? "Dari purchase request ke PO resmi" : "From purchase request to official PO",
             description: isId
-              ? "Ajukan permintaan pembelian, dapatkan approval, lalu konversi langsung ke purchase order — tanpa proses berlapis."
-              : "Submit purchase requisitions, get approval, and convert directly into purchase orders — without layered delays.",
+              ? "Ajukan kebutuhan barang dari unit operasional, dapatkan persetujuan manajer, dan terbitkan PO ke supplier secara instan."
+              : "Submit item requisitions from operational units, secure manager approvals, and issue vendor POs instantly.",
             descriptionSecondary: isId
-              ? "Hubungkan dengan supplier, payment terms, dan business unit dalam satu alur."
-              : "Link with supplier, payment terms, and business unit in one flow.",
+              ? "Lacak riwayat harga beli terbaik dari berbagai vendor terdaftar."
+              : "Track historical vendor price points to negotiate better purchasing terms.",
             screenshotKey: "purchaseRequisitionToPO",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Penerimaan barang tersambung ke faktur" : "Goods receipt linked to supplier billing",
+            title: isId ? "Penerimaan barang tersambung ke tagihan" : "Goods receipt synced with billing",
             description: isId
-              ? "Catat barang masuk per purchase order, validasi kuantitas, lalu teruskan ke faktur supplier — jejak data tetap utuh."
-              : "Record inbound items per purchase order, validate quantities, and pass to supplier invoice — the data trail stays complete.",
+              ? "Catat barang yang tiba di gudang, sesuaikan dengan PO, dan sinkronkan ke pencatatan invoice vendor tanpa selisih."
+              : "Log warehouse inbound arrivals against POs and bridge them directly to vendor bills without quantity discrepancies.",
             screenshotKey: "purchaseGRToInvoice",
             placeholder: "warehouseFlow",
           },
           {
-            title: isId ? "Pantau hutang supplier dengan aging jelas" : "Track supplier payables with clear aging",
+            title: isId ? "Pantau jadwal jatuh tempo hutang usaha" : "Monitor accounts payable aging",
             description: isId
-              ? "Lihat total hutang per supplier dengan kategori aging: lancar, jatuh tempo 1-30 hari, 31-60 hari, hingga bad debt."
-              : "View total payables per supplier with aging categories: current, 1-30 days overdue, 31-60 days, up to bad debt.",
+              ? "Kelompokkan hutang supplier berdasarkan jatuh tempo agar perencanaan pembayaran kas keluar selalu terprediksi."
+              : "Group supplier balances by aging buckets to plan outflow cash disbursements predictably.",
             screenshotKey: "purchasePayableRecap",
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Mulai kendalikan pengeluaran bisnis Anda sekarang" : "Start controlling your business spend now"}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalTitle={isId ? "Mulai kendalikan pengeluaran pengadaan bisnis Anda" : "Take full control of your procurement spending"}
+        finalPoints={[
+          {
+            title: isId ? "Pencegahan kebocoran anggaran" : "Budget leak prevention",
+            description: isId
+              ? "Setiap pesanan barang harus melalui persetujuan anggaran sebelum PO dikirim ke pihak luar."
+              : "Every requisition undergoes strict approval before POs can be sent to external vendors.",
+          },
+          {
+            title: isId ? "Rekonsiliasi faktur otomatis" : "Automated invoice matching",
+            description: isId
+              ? "Pencocokan antara PO, surat jalan gudang, dan invoice tagihan supplier berjalan akurat."
+              : "Accurate 3-way matching between purchase orders, delivery receipts, and supplier invoices.",
+          },
+        ]}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

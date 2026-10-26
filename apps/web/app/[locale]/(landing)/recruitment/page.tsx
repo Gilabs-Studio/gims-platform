@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Recruitment Pipeline System: Candidate Kanban, Approval & Convert | SalesView",
     description:
       locale === "id"
-        ? "Kelola recruitment request dengan approval, lihat kandidat dalam kanban board per tahapan, pindahkan antar stage, dan convert applicant yang diterima menjadi employee — semua terhubung ke master data karyawan."
-        : "Manage recruitment requests with approval, view candidates in a kanban board per stage, move between stages, and convert accepted applicants into employees — all connected to employee master data.",
+        ? "Kelola recruitment request dengan approval, lihat kandidat dalam kanban board per tahapan, pindahkan antar stage, dan convert applicant yang diterima menjadi employee secara otomatis."
+        : "Manage recruitment requests with approval, view candidates in a kanban board per stage, move between stages, and convert accepted applicants into employees seamlessly.",
     keywords:
       locale === "id"
         ? [
@@ -60,69 +60,70 @@ export default async function RecruitmentLandingPage({ params }: { params: Promi
       <FeatureLandingPage
         locale={locale}
         label="SalesView Recruitment"
-        heroTitle={isId ? "Ubah Rekrutmen Lambat" : "Turn Slow Recruiting"}
-        heroAccent={isId ? "Menjadi Mesin Akuisisi Bakat" : "Into Talent Acquisition Machines"}
+        heroTitle={isId ? "Akuisisi Talenta &" : "Talent Acquisition &"}
+        heroAccent={isId ? "Pipeline Rekrutmen Karyawan" : "Recruitment Pipeline"}
         heroDescription={
           isId
-            ? "Jangan biarkan kandidat terbaik lari ke kompetitor. Kelola permintaan, visualisasikan pelamar di papan Kanban, dan otomatisasi onboarding dengan sekali klik."
-            : "Don't let top candidates run to competitors. Manage requests, visualize applicants on a Kanban board, and automate onboarding with a single click."
+            ? "Kelola permintaan rekrutmen departemen, lacak tahap seleksi pelamar di papan kanban, dan konversi kandidat lolos menjadi karyawan."
+            : "Manage hiring requisitions, track applicant stages on kanban boards, and convert hired candidates into employees."
         }
         heroImageAlt={isId ? "Tampilan recruitment SalesView" : "SalesView recruitment interface"}
         heroImageKey="recruitmentHero"
-        introTitle={isId ? "Dapatkan talenta terbaik lebih cepat dari sebelumnya" : "Secure top talent faster than ever before"}
+        introTitle={isId ? "Percepat alur seleksi dan perekrutan talenta terbaik" : "Accelerate hiring pipelines and secure top talent"}
         introDescription={
           isId
-            ? "Sistem rekrutmen kami yang ramping memangkas birokrasi, sehingga Anda bisa fokus menemukan, mengevaluasi, dan merekrut orang yang tepat."
-            : "Our streamlined recruitment system cuts the red tape, so you can focus on finding, evaluating, and hiring the right people."
+            ? "Sederhanakan proses peninjauan berkas, jadwal wawancara, dan pengesahan tawaran kerja dalam satu workspace tim HR."
+            : "Streamline resume reviews, interview schedules, and job offer releases within a collaborative HR workspace."
         }
         featureBlocks={[
           {
-            title: isId ? "Kanban board kandidat per tahapan" : "Candidate kanban board per stage",
+            title: isId ? "Kanban pipeline kandidat interaktif" : "Interactive candidate kanban board",
             description: isId
-              ? "Lihat semua applicant dalam tampilan kanban — setiap kolom mewakili satu tahapan seleksi. Pindahkan kandidat antar stage dengan drag atau klik move."
-              : "View all applicants in a kanban board — each column represents a selection stage. Move candidates between stages via drag or click move.",
+              ? "Pantau posisi pelamar mulai dari screening resume, interview teknis, psikotes, hingga negosiasi offering dengan sistem drag and drop."
+              : "Track applicants from resume screening, technical interviews, to offer negotiations with effortless drag-and-drop progression.",
             descriptionSecondary: isId
-              ? "Detail kandidat tampil di sheet samping tanpa meninggalkan kanban."
-              : "Applicant detail shows in a side sheet without leaving the kanban.",
+              ? "Lihat resume PDF dan catatan evaluator langsung pada panel rincian kandidat."
+              : "Review candidate CVs and interviewer feedback directly inside the side preview sheet.",
             screenshotKey: "recruitmentKanban",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Recruitment request dengan approval" : "Recruitment request with approval",
+            title: isId ? "Permintaan rekrutmen dengan persetujuan" : "Requisition requests with approval flow",
             description: isId
-              ? "Buat permintaan rekrutmen — pilih divisi, posisi, jumlah, employment type (FULL_TIME/PART_TIME/CONTRACT/INTERN), salary range, priority, dan job description."
-              : "Create recruitment requests — select division, position, count, employment type (FULL_TIME/PART_TIME/CONTRACT/INTERN), salary range, priority, and job description.",
+              ? "Kepala divisi dapat mengajukan penambahan formasi kerja lengkap dengan kriteria keahlian, estimasi gaji, dan tanggal target bergabung."
+              : "Department heads request new headcount with skill requirements, salary brackets, and targeted onboard dates.",
             descriptionSecondary: isId
-              ? "Status mengalir dari DRAFT → PENDING → APPROVED → OPEN → CLOSED dengan audit lengkap."
-              : "Status flows from DRAFT → PENDING → APPROVED → OPEN → CLOSED with full audit.",
+              ? "Status permintaan mengalir dari draft, persetujuan direksi, pembukaan lowongan, hingga kuota terpenuhi."
+              : "Requisitions progress smoothly from draft, board approval, job posting, to target fulfillment.",
             screenshotKey: "recruitmentRequest",
             placeholder: "invoiceFlow",
           },
           {
-            title: isId ? "Convert applicant ke data karyawan" : "Convert applicant to employee",
+            title: isId ? "Konversi instan kandidat ke master karyawan" : "Instant candidate-to-employee onboarding",
             description: isId
-              ? "Begitu kandidat diterima, convert langsung ke employee — data applicant dijembatani ke form karyawan tanpa input ulang."
-              : "Once a candidate is accepted, convert directly to employee — applicant data bridges to the employee form without re-entry.",
+              ? "Kandidat yang menerima penawaran kerja otomatis dikonversi menjadi data master karyawan tanpa perlu pengetikan ulang biodata."
+              : "Hired candidates bridge automatically into employee master databases without manual data re-entry.",
             screenshotKey: "recruitmentConvert",
             placeholder: "timelineFlow",
           },
         ]}
-        finalTitle={isId ? "Bangun tim impian Anda tanpa hambatan administratif" : "Build your dream team without the administrative roadblocks"}
+        finalTitle={isId ? "Bangun tim kerja solid tanpa birokrasi berbelit" : "Build your dream team without administrative roadblocks"}
         finalPoints={[
           {
-            title: isId ? "Hiring visual" : "Visual hiring",
+            title: isId ? "Kolaborasi hiring efisien" : "Efficient hiring collaboration",
             description: isId
-              ? "Lihat seluruh pipeline rekrutmen dalam satu lirikan."
-              : "See your entire recruitment pipeline at a glance.",
+              ? "User departemen dan HRD dapat memberi skor interview bersama di platform."
+              : "Hiring managers and HR recruiters collaborate and score interviews together.",
           },
           {
-            title: isId ? "Transisi instan" : "Instant transition",
+            title: isId ? "Transisi kerja instan" : "Instant work transition",
             description: isId
-              ? "Ubah kandidat menjadi karyawan tanpa ketik ulang data."
-              : "Turn candidates into employees without retyping data.",
+              ? "Berkas lamaran dan identitas langsung menjadi dokumen personalia sah."
+              : "Application files and credentials immediately transfer into official employee records.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

@@ -15,8 +15,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : "Stock Movement System (IN, OUT, Transfer, Adjust) | Warehouse Mutation Audit | SalesView",
     description:
       locale === "id"
-        ? "Catat empat jenis mutasi stok — IN, OUT, ADJUST, dan TRANSFER antar gudang — dengan filter lengkap, detail qty in/out/balance, dan tautan referensi ke delivery order, goods receipt, dan stock opname."
-        : "Record four stock movement types — IN, OUT, ADJUST, and inter-warehouse TRANSFER — with full filters, qty in/out/balance detail, and reference links to delivery orders, goods receipt, and stock opname.",
+        ? "Catat empat jenis mutasi stok IN, OUT, ADJUST, dan TRANSFER antar gudang dengan filter lengkap, detail qty in/out/balance, dan tautan referensi ke delivery order, goods receipt, dan stock opname."
+        : "Record four stock movement types IN, OUT, ADJUST, and inter-warehouse TRANSFER with full filters, qty in/out/balance detail, and reference links to delivery orders, goods receipt, and stock opname.",
     keywords:
       locale === "id"
         ? [
@@ -60,66 +60,67 @@ export default async function MovementsLandingPage({ params }: { params: Promise
       <FeatureLandingPage
         locale={locale}
         label="SalesView Movements"
-        heroTitle={isId ? "Ubah Mutasi Misterius" : "Turn Mysterious Mutations"}
-        heroAccent={isId ? "Menjadi Jejak Transparan" : "Into Transparent Trails"}
+        heroTitle={isId ? "Pergerakan Stok &" : "Stock Movements &"}
+        heroAccent={isId ? "Mutasi Barang Antar Gudang" : "Inter-Warehouse Transfers"}
         heroDescription={
           isId
-            ? "Ketahui persis ke mana barang Anda pergi. Lacak setiap perpindahan, penyesuaian, dan transfer antar gudang dengan visibilitas tak tertandingi."
-            : "Know exactly where your inventory goes. Track every movement, adjustment, and inter-warehouse transfer with unmatched visibility."
+            ? "Lacak mutasi masuk, keluar, transfer antar gudang, dan penyesuaian stok dengan jejak dokumen sumber yang transparan."
+            : "Track inbound, outbound, inter-warehouse transfers, and adjustments with complete source document trails."
         }
         heroImageAlt={isId ? "Tampilan pergerakan stok SalesView" : "SalesView stock movements interface"}
         heroImageKey="movementHero"
-        introTitle={isId ? "Dapatkan visibilitas penuh atas perjalanan stok Anda" : "Get full visibility over your stock's journey"}
+        introTitle={isId ? "Visibilitas perputaran logistik barang masuk dan keluar" : "Complete visibility over inbound and outbound logistics"}
         introDescription={
           isId
-            ? "Setiap pergerakan barang Anda kini memiliki cerita yang jelas. Cegah kehilangan dan lacak kembali setiap mutasi ke dokumen aslinya dengan satu klik."
-            : "Every item movement now tells a clear story. Prevent losses and trace any mutation back to its original document in just one click."
+            ? "Ketahui perjalanan setiap item dari penerimaan awal hingga pengiriman ke pelanggan dengan buku besar mutasi real-time."
+            : "Follow the precise path of each product from receiving dock to final customer delivery with real-time mutation logs."
         }
         featureBlocks={[
           {
-            title: isId ? "Empat jenis mutasi stok" : "Four movement types",
+            title: isId ? "Empat jenis mutasi stok terintegrasi" : "Four integrated stock movement types",
             description: isId
-              ? "IN untuk barang masuk, OUT untuk keluar, ADJUST untuk koreksi stok, dan TRANSFER untuk pindah antar gudang — semua dalam satu tabel yang bisa difilter."
-              : "IN for inbound, OUT for outbound, ADJUST for corrections, TRANSFER for inter-warehouse moves — all in one filterable table.",
+              ? "Catat mutasi IN barang masuk, OUT pengiriman penjualan, ADJUST penyesuaian opname, dan TRANSFER antar gudang dalam satu catatan terpadu."
+              : "Log IN receipts, OUT sales dispatches, ADJUST opname variances, and inter-warehouse TRANSFERS in one centralized register.",
             screenshotKey: "movementList",
             placeholder: "multiOutlet",
           },
           {
-            title: isId ? "Filter lengkap per gudang dan rentang" : "Full filtering by warehouse and date range",
+            title: isId ? "Penyaringan multi-lokasi dan periode" : "Multi-location and date range filtering",
             description: isId
-              ? "Filter berdasarkan gudang, produk, tipe mutasi, dan rentang tanggal — semua langsung tanpa reload. Ekspor CSV sekali klik."
-              : "Filter by warehouse, product, movement type, and date range — all live without reload. Export CSV in one click.",
+              ? "Saring riwayat mutasi berdasarkan lokasi gudang, SKU produk, dan rentang tanggal untuk audit rekonsiliasi yang cepat."
+              : "Filter historical movements by warehouse site, product SKU, and specific date windows for rapid audit reconciliations.",
             screenshotKey: "movementFilter",
             placeholder: "terminalFlow",
           },
           {
-            title: isId ? "Detail mutasi dengan referensi dokumen" : "Movement detail with document references",
+            title: isId ? "Rincian mutasi tersambung ke dokumen sumber" : "Movement lines linked to source documents",
             description: isId
-              ? "Klik baris mana pun untuk melihat qty in, qty out, balance, unit cost, dan total value — plus tautan ke dokumen asal: delivery order, goods receipt, atau stock opname."
-              : "Click any row to see qty in, qty out, balance, unit cost, and total value — plus links to source documents: delivery order, goods receipt, or stock opname.",
+              ? "Klik baris transaksi untuk melihat kuantitas, nilai per unit, saldo berjalan, serta tautan ke delivery order atau goods receipt terkait."
+              : "Click any mutation entry to view quantities, unit costs, running balances, and direct links to origin delivery orders or goods receipts.",
             descriptionSecondary: isId
-              ? "Setiap mutasi tercatat di ledger dan bisa ditelusuri ke journal entry."
-              : "Every movement is recorded in the ledger and traceable to its journal entry.",
+              ? "Setiap pergerakan barang otomatis sinkron dengan jurnal persediaan akuntansi."
+              : "Every physical stock movement posts synchronistic entries to accounting inventory ledgers.",
             screenshotKey: "movementDetail",
             placeholder: "scorecardFlow",
           },
         ]}
-        finalTitle={isId ? "Amankan pergerakan barang Anda sekarang juga" : "Secure your stock movements right now"}
+        finalTitle={isId ? "Kendalikan pergerakan barang gudang Anda sekarang" : "Secure total oversight over inventory movements today"}
         finalPoints={[
           {
-            title: isId ? "Kendali penuh" : "Full control",
+            title: isId ? "Kendali mutasi transparan" : "Transparent movement control",
             description: isId
-              ? "Pantau barang keluar masuk tanpa tebak-tebakan."
-              : "Monitor items moving in and out without the guesswork.",
+              ? "Pantau keluar masuk barang secara akurat tanpa estimasi manual."
+              : "Monitor inbound and outbound flow accurately without manual guesswork.",
           },
           {
-            title: isId ? "Transparansi" : "Transparency",
+            title: isId ? "Ketertelusuran akuntansi" : "Financial traceability",
             description: isId
-              ? "Buktikan setiap perubahan stok dengan mudah."
-              : "Easily justify every single stock adjustment.",
+              ? "Nilai mutasi stok langsung terhubung ke buku besar dan laporan harga pokok penjualan."
+              : "Inventory movement values reflect instantly in ledgers and cost-of-goods-sold reporting.",
           },
         ]}
-        finalCtaLabel={isId ? "Mulai Uji Coba Gratis Anda" : "Start My Free Trial"}
+        finalCtaLabel={isId ? "Mulai Uji Coba Gratis" : "Start Free Trial"}
+        finalCtaHref="/register"
       />
     </>
   );

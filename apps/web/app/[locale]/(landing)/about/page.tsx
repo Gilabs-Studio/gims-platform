@@ -75,8 +75,8 @@ export default async function AboutPage({
             <h2 className="text-lg font-semibold text-foreground">{isId ? "Fokus" : "Focus"}</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               {isId
-                ? "Menciptakan satu ekosistem tanpa gesekan di mana setiap tim — penjualan, keuangan, SDM, dan operasional — bekerja dari sumber kebenaran yang sama."
-                : "Creating a frictionless ecosystem where every team — sales, finance, HR, and operations — works from a single source of truth."}
+                ? "Menciptakan satu ekosistem tanpa gesekan di mana setiap tim (penjualan, keuangan, SDM, dan operasional) bekerja dari sumber kebenaran yang sama."
+                : "Creating a frictionless ecosystem where every team (sales, finance, HR, and operations) works from a single source of truth."}
             </p>
           </article>
           <article className="rounded-2xl border border-border bg-card p-6">
