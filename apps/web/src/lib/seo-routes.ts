@@ -1,6 +1,8 @@
 export const INDEXABLE_MARKETING_PATHS = [
   "/",
   "/pricing",
+  "/login",
+  "/register",
   "/accounting",
   "/invoicing",
   "/fixed-assets",

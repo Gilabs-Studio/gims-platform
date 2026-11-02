@@ -186,7 +186,7 @@ function ScrollHorizontalSuperiority({
     >
       <div className="sticky top-0 h-screen w-full flex flex-col justify-center overflow-hidden py-6 sm:py-10">
         {/* Section Header */}
-        <div className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 mb-8 sm:mb-12 shrink-0">
+        <div className="w-full max-w-7xl mx-auto mb-8 sm:mb-12 shrink-0">
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <h2 className="text-3xl sm:text-5xl font-medium leading-[1.08] tracking-tight text-foreground text-balance">

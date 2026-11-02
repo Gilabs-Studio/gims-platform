@@ -54,23 +54,36 @@ export async function generateMetadata({
     robots: {
       index: true,
       follow: true,
-      googleBot: { index: true, follow: true },
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
   };
 }
 
-export default function LoginLayout({
+export default async function LoginLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
+  const isId = locale === "id";
+
   const schemaOrg = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "@id": `${SEO_BASE_URL}/login`,
-    "name": "SalesView Login",
-    "url": `${SEO_BASE_URL}/id/login`,
-    "description": "Halaman login SalesView — masuk ke platform ERP, CRM, HRIS, POS, dan Finance all-in-one untuk bisnis Indonesia.",
+    "@id": `${SEO_BASE_URL}/${locale}/login`,
+    "name": isId ? "Login SalesView" : "SalesView Login",
+    "url": `${SEO_BASE_URL}/${locale}/login`,
+    "description": isId
+      ? "Halaman login SalesView — masuk ke platform ERP, CRM, HRIS, POS, dan Finance all-in-one untuk bisnis Indonesia."
+      : "SalesView login page — sign in to manage your sales, inventory, finance, and HR operations from one unified dashboard.",
     "isPartOf": {
       "@type": "WebSite",
       "@id": `${SEO_BASE_URL}/#website`,

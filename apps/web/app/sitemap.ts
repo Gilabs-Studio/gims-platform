@@ -10,13 +10,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       const localizedPath = path === '/' ? `/${locale}` : `/${locale}${path}`;
       const isCore = path === '/';
       const isPricing = path === '/pricing';
-      const isFeaturePage = path !== "/" && path !== "/about" && path !== "/templates";
+      const isAuth = path === '/login' || path === '/register';
+      const isLegal = path === '/terms' || path === '/privacy' || path === '/cookies';
+      const isFeaturePage = !isCore && !isLegal && !isAuth && path !== "/about" && path !== "/templates";
 
       return {
         url: `${baseUrl}${localizedPath}`,
         lastModified: new Date(),
-        changeFrequency: (isCore ? "monthly" : isFeaturePage ? "weekly" : "monthly") as "monthly" | "weekly",
-        priority: isCore ? 1 : isPricing ? 0.95 : isFeaturePage ? 0.9 : 0.75,
+        changeFrequency: (isCore ? "monthly" : isFeaturePage || isAuth ? "weekly" : "monthly") as "monthly" | "weekly",
+        priority: isCore ? 1 : isPricing ? 0.95 : isAuth ? 0.85 : isFeaturePage ? 0.9 : 0.7,
       };
     })
   );
