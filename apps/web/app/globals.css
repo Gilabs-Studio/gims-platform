@@ -42,10 +42,10 @@
   --color-cyan-foreground: hsl(var(--cyan-foreground));
   --color-rose: hsl(var(--rose));
   --color-rose-foreground: hsl(var(--rose-foreground));
-  --color-sidebar: hsl(var(--sidebar));
+  /* --color-sidebar: hsl(var(--sidebar));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-dark: hsl(var(--sidebar-dark));
+  --color-sidebar-dark: hsl(var(--sidebar-dark)); */
   --animate-slide-up: slide-up 0.5s ease-out forwards;
 
   @keyframes accordion-down {
@@ -98,7 +98,7 @@
     --secondary-foreground: 220 10% 20%;
     
     --muted: 220 14% 92%;
-    --muted-foreground: 220 10% 35%; /* Darker for crisp visibility & readability */
+    --muted-foreground: 220 10% 45%; /* Darker for crisp visibility & readability */
     
     --accent: 220 14% 92%;        /* Purple accent (light theme) */
     --accent-foreground: 220 10% 20%;

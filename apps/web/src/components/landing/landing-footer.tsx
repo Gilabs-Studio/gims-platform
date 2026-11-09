@@ -17,7 +17,7 @@ export function LandingFooter() {
   )}`;
 
   return (
-    <footer className="w-full bg-sidebar-dark text-sidebar-foreground pt-16 sm:pt-20 lg:pt-24 pb-12 px-6 sm:px-10 lg:px-16 relative overflow-hidden transition-colors duration-200 border-t border-sidebar-border">
+    <footer className="w-full bg-sidebar-dark text-sidebar-dark-foreground pt-16 sm:pt-20 lg:pt-24 pb-12 px-6 sm:px-10 lg:px-16 relative overflow-hidden transition-colors duration-200 border-t border-sidebar-border">
 
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Top 12-Column Grid */}
@@ -35,12 +35,12 @@ export function LandingFooter() {
               />
             </Link>
 
-            <p className="text-sm text-sidebar-foreground/70 leading-relaxed mb-6 max-w-sm">
+            <p className="text-sm text-sidebar-dark-foreground/70 leading-relaxed mb-6 max-w-sm">
               {t("desc")}
             </p>
 
-            <div className="text-xs text-sidebar-foreground/70 space-y-1.5 border-l-2 border-primary pl-3 py-1">
-              <p className="font-medium text-sidebar-foreground">SalesView by GILABS</p>
+            <div className="text-xs text-sidebar-dark-foreground/70 space-y-1.5 border-l-2 border-primary pl-3 py-1">
+              <p className="font-medium text-sidebar-dark-foreground">SalesView by GILABS</p>
               <p>{t("address")}</p>
               <a
                 href={whatsappUrl}
@@ -55,10 +55,10 @@ export function LandingFooter() {
 
           {/* Quick Links: Modul ERP (lg:col-span-3) */}
           <div className="lg:col-span-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-sidebar-dark-foreground/50 mb-5">
               {isId ? "Modul ERP" : "ERP Modules"}
             </h3>
-            <ul className="space-y-3 text-sm text-sidebar-foreground/80">
+            <ul className="space-y-3 text-sm text-sidebar-dark-foreground/80">
               <li>
                 <Link href="/pos" className="hover:text-primary transition-colors cursor-pointer">
                   Point of Sale (POS)
@@ -89,10 +89,10 @@ export function LandingFooter() {
 
           {/* Navigasi & Solusi (lg:col-span-2) */}
           <div className="lg:col-span-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-sidebar-dark-foreground/50 mb-5">
               {isId ? "Solusi" : "Solutions"}
             </h3>
-            <ul className="space-y-3 text-sm text-sidebar-foreground/80">
+            <ul className="space-y-3 text-sm text-sidebar-dark-foreground/80">
               <li>
                 <a
                   href={whatsappUrl}
@@ -123,10 +123,10 @@ export function LandingFooter() {
 
           {/* Legalitas & Dukungan (lg:col-span-2) */}
           <div className="lg:col-span-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-sidebar-dark-foreground/50 mb-5">
               {isId ? "Bantuan" : "Support"}
             </h3>
-            <ul className="space-y-3 text-sm text-sidebar-foreground/80">
+            <ul className="space-y-3 text-sm text-sidebar-dark-foreground/80">
               <li>
                 <Link href="/terms" className="hover:text-primary transition-colors cursor-pointer">
                   {isId ? "Syarat & Ketentuan" : "Terms"}
@@ -150,14 +150,14 @@ export function LandingFooter() {
         </div>
 
         {/* Bottom Copyright & Made by gilabs.id */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-sidebar-foreground/60 border-t border-sidebar-border">
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-sidebar-dark-foreground/60 border-t border-sidebar-border">
           <p>{t("copyright")}</p>
           <div className="flex items-center gap-6">
             <a
               href="https://gilabs.id"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sidebar-foreground hover:text-primary font-medium transition-colors cursor-pointer"
+              className="text-sidebar-dark-foreground hover:text-primary font-medium transition-colors cursor-pointer"
             >
               {t("madeBy")}
             </a>
