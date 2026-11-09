@@ -38,6 +38,7 @@ func CORSMiddleware() gin.HandlerFunc {
 		"https://api.gilabs.id",
 		"https://gims.gilabs.id",
 		"https://salesview.id",
+		"https://api-gione.gilabs.id",
 		"https://www.salesview.id",
 		"https://gims-api-688849728115.asia-southeast2.run.app",
 		"https://meccayasuperapp.gilabs.id",
