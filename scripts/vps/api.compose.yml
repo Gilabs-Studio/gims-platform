@@ -1,0 +1,124 @@
+name: gims-api
+
+# Dipasang di VPS pada /opt/gims-api/docker-compose.yml oleh scripts/vps/deploy-api.sh
+#
+# File yang dibutuhkan di /opt/gims-api:
+#   .env -> variabel konfigurasi runtime aplikasi & database
+#           (DB_USER, DB_PASSWORD, JWT_SECRET, dll.)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gims_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env}
+      POSTGRES_DB: ${DB_NAME:-gims_erp}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      internal:
+        aliases:
+          - postgres
+          - db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-gims_erp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: gims_redis
+    restart: unless-stopped
+    command: >
+      sh -c 'redis-server
+      --save 60 1
+      --loglevel warning
+      $${REDIS_PASSWORD:+--requirepass "$$REDIS_PASSWORD"}'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    networks:
+      internal:
+        aliases:
+          - redis
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli $${REDIS_PASSWORD:+-a "$$REDIS_PASSWORD"} ping | grep PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    image: gims-api:${API_TAG:-latest}
+    container_name: gims_api
+    restart: unless-stopped
+    env_file:
+      - path: ./.env
+        required: false
+    environment:
+      PORT: 8080
+      ENV: production
+      APP_ENV: production
+      GIN_MODE: release
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      STORAGE_UPLOAD_DIR: /app/uploads
+    ports:
+      # Hanya bind ke loopback 127.0.0.1; Nginx di host VPS yang mengarahkan api-gione.gilabs.id ke port ini
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

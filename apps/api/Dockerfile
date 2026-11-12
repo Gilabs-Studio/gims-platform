@@ -49,6 +49,7 @@ RUN apk add --no-cache \
     ca-certificates \
     libwebp \
     tzdata \
+    curl \
     && addgroup -S appgroup \
     && adduser -S appuser -G appgroup
 
